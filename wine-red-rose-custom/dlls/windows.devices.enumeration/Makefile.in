@@ -1,0 +1,12 @@
+MODULE = windows.devices.enumeration.dll
+IMPORTS = advapi32 combase setupapi uuid
+
+SOURCES = \
+	access.c \
+	async.c \
+	async.idl \
+	classes.idl \
+	collection.c \
+	event_handlers.c \
+	information.c \
+	main.c \

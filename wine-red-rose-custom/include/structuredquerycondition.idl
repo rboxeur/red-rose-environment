@@ -1,0 +1,96 @@
+/*
+ * structured query condition
+ *
+ * Copyright 2009 Maarten Lankhorst
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ *
+ */
+
+
+import "oaidl.idl";
+import "ocidl.idl";
+import "objidl.idl";
+import "propidl.idl";
+
+typedef [v1_enum] enum tagCONDITION_TYPE
+{
+    CT_AND_CONDITION,
+    CT_OR_CONDITION,
+    CT_NOT_CONDITION,
+    CT_LEAF_CONDITION
+} CONDITION_TYPE;
+
+typedef [v1_enum] enum tagCONDITION_OPERATION
+{
+    COP_IMPLICIT,
+    COP_EQUAL,
+    COP_NOTEQUAL,
+    COP_LESSTHAN,
+    COP_GREATERTHAN,
+    COP_LESSTHANOREQUAL,
+    COP_GREATERTHANOREQUAL,
+    COP_VALUE_STARTSWITH,
+    COP_VALUE_ENDSWITH,
+    COP_VALUE_CONTAINS,
+    COP_VALUE_NOTCONTAINS,
+    COP_DOSWILDCARDS,
+    COP_WORD_EQUAL,
+    COP_WORD_STARTSWITH,
+    COP_APPLICATION_SPECIFIC
+} CONDITION_OPERATION;
+
+[
+    object,
+    pointer_default(unique),
+    uuid(4fdef69c-dbc9-454e-9910-b34f3c64b510),
+]
+interface IRichChunk : IUnknown
+{
+    [local]
+    HRESULT GetData([out, unique] ULONG *first_pos, [out, unique] ULONG *len,
+                    [out, unique] LPWSTR *str, [out, unique] PROPVARIANT *val);
+    [call_as(GetData)]
+    HRESULT RemoteGetData([out, unique] ULONG *first_pos, [out, unique] ULONG *len,
+                          [out, unique] LPWSTR *str, [out, unique] PROPVARIANT *val);
+};
+
+[
+    object,
+    uuid(0FC988D4-C935-4b97-A973-46282EA175C8),
+    pointer_default(unique),
+]
+interface ICondition : IPersistStream
+{
+    HRESULT GetConditionType([out, retval] CONDITION_TYPE *type);
+    /* ID can be ID IID_IEnumUnknown, IID_IEnumVARIANT IID_IObjectArray, or IID_ICondition. */
+    HRESULT GetSubConditions([in] REFIID riid, [out, retval, iid_is(riid)] void** ppv);
+    [local]
+    HRESULT GetComparisonInfo([out, unique] LPWSTR *prop_name, [out, unique] CONDITION_OPERATION *op,
+                              [out, unique] PROPVARIANT *prop_var);
+    [call_as(GetComparisonInfo)]
+    HRESULT RemoteGetComparisonInfo([out, unique] LPWSTR *prop_name, [out, unique] CONDITION_OPERATION *op,
+                                    [out, unique] PROPVARIANT *prop_var);
+    HRESULT GetValueType([out, retval] LPWSTR *name);
+    HRESULT GetValueNormalization([out, retval] LPWSTR *normalized);
+    [local]
+    HRESULT GetInputTerms([out, unique] IRichChunk **prop_Term, [out, unique] IRichChunk **op_term,
+                          [out, unique] IRichChunk **val_term);
+
+    [call_as(GetInputTerms)]
+    HRESULT RemoteGetInputTerms([out, unique] IRichChunk **prop_Term, [out, unique] IRichChunk **op_term,
+                                [out, unique] IRichChunk **val_term);
+    HRESULT Clone([out, retval] ICondition **out);
+};

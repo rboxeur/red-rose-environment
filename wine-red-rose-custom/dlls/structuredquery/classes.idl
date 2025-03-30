@@ -1,0 +1,37 @@
+/*
+ * Copyright 2024 Vibhav Pant
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
+#pragma makedep register
+
+[
+    uuid(b72f8fd8-0fab-4dd9-bdbf-245a6ce1485b),
+    threading(both)
+]
+coclass QueryParser
+{
+    interface IQueryParser;
+}
+
+[
+    uuid(5088b39a-29b4-4d9d-8245-4ee289222f66),
+    threading(both)
+]
+coclass QueryParserManager
+{
+    interface IQueryParserManager;
+};

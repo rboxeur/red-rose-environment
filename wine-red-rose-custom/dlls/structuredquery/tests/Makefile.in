@@ -1,0 +1,5 @@
+TESTDLL = structuredquery.dll
+IMPORTS = ole32 oleaut32
+
+SOURCES = \
+	query.c
