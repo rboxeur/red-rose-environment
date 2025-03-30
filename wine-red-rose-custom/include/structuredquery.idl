@@ -1,0 +1,315 @@
+/*
+ * Structured Query support
+ *
+ * Copyright 2024 Vibhav Pant
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ *
+ */
+
+import "structuredquerycondition.idl";
+import "objectarray.idl";
+
+cpp_quote("#if 0")
+typedef PROPERTYKEY *REFPROPERTYKEY;
+cpp_quote("#endif")
+cpp_quote("#include <propkeydef.h>")
+
+typedef [v1_enum] enum tagSTRUCTURED_QUERY_SINGLE_OPTION
+{
+    SQSO_SCHEMA,
+    SQSO_LOCALE_WORD_BREAKING,
+    SQSO_WORD_BREAKER,
+    SQSO_NATURAL_SYNTAX,
+    SQSO_AUTOMATIC_WILDCARD,
+    SQSO_TRACE_LEVEL,
+    SQSO_LANGUAGE_KEYWORDS,
+    SQSO_SYNTAX,
+    SQSO_TIME_ZONE,
+    SQSO_IMPLICIT_CONNECTOR,
+    SQSO_CONNECTOR_CASE,
+} STRUCTURED_QUERY_SINGLE_OPTION;
+
+typedef [v1_enum] enum tagSTRUCTURED_QUERY_MULTIOPTION
+{
+    SQMO_VIRTUAL_PROPERTY,
+    SQMO_DEFAULT_PROPERTY,
+    SQMO_GENERATOR_FOR_TYPE,
+    SQMO_MAP_PROPERTY,
+} STRUCTURED_QUERY_MULTIOPTION;
+
+typedef [v1_enum] enum STRUCTURED_QUERY_RESOLVE_OPTION
+{
+    SQRO_DEFAULT                           = 0,
+    SQRO_DONT_RESOLVE_DATETIME             = 0x0001,
+    SQRO_ALWAYS_ONE_INTERVAL               = 0x0002,
+    SQRO_DONT_SIMPLIFY_CONDITION_TREES     = 0x0004,
+    SQRO_DONT_MAP_RELATIONS                = 0x0008,
+    SQRO_DONT_RESOLVE_RANGES               = 0x0010,
+    SQRO_DONT_REMOVE_UNRESTRICTED_KEYWORDS = 0x0020,
+    SQRO_DONT_SPLIT_WORDS                  = 0x0040,
+    SQRO_IGNORE_PHRASE_ORDER               = 0x0080,
+    SQRO_ADD_VALUE_TYPE_FOR_PLAIN_VALUES   = 0x0100,
+    SQRO_ADD_ROBUST_ITEM_NAME              = 0x0200,
+} STRUCTURED_QUERY_RESOLVE_OPTION;
+cpp_quote("DEFINE_ENUM_FLAG_OPERATORS(STRUCTURED_QUERY_RESOLVE_OPTION);")
+
+interface IQueryParser;
+interface IQuerySolution;
+interface IConditionFactory;
+interface IConditionFactory2;
+interface ITokenCollection;
+interface IRelationship;
+interface IEntity;
+interface INamedEntity;
+interface ISchemaLocalizerSupport;
+interface ISchemaProvider;
+
+[
+     object,
+     pointer_default(unique),
+     uuid(2ebdee67-3505-43f8-9946-ea44abc8e5b0)
+]
+interface IQueryParser : IUnknown
+{
+    HRESULT Parse([in] LPCWSTR input, [in] IEnumUnknown *custom_props, [out, retval] IQuerySolution **solution);
+    HRESULT SetOption([in] STRUCTURED_QUERY_SINGLE_OPTION option, [in] const PROPVARIANT *val);
+    HRESULT GetOption([in] STRUCTURED_QUERY_SINGLE_OPTION option, [out, retval] PROPVARIANT *val);
+    HRESULT SetMultiOption([in] STRUCTURED_QUERY_MULTIOPTION option, [in] LPCWSTR key, [in] const PROPVARIANT *val);
+    HRESULT GetSchemaProvider([out, retval] ISchemaProvider **provider);
+    HRESULT RestateToString([in] ICondition *cond, [in] BOOL english, [out] LPWSTR *query);
+    HRESULT ParsePropertyValue([in] LPCWSTR property, [in] LPCWSTR input, [out, retval] IQuerySolution **solution);
+    HRESULT RestatePropertyValueToString([in] ICondition* cond, [in] BOOL english, [out] LPWSTR *name,
+                                         [out] LPWSTR *query);
+
+}
+
+typedef [v1_enum] enum tagQUERY_PARSER_MANAGER_OPTION
+{
+    QPMO_SCHEMA_BINARY_NAME,
+    QPMO_PRELOCALIZED_SCHEMA_BINARY_PATH,
+    QPMO_UNLOCALIZED_SCHEMA_BINARY_PATH,
+    QPMO_LOCALIZED_SCHEMA_BINARY_PATH,
+    QPMO_APPEND_LCID_TO_LOCALIZED_PATH,
+    QPMO_LOCALIZER_SUPPORT,
+} QUERY_PARSER_MANAGER_OPTION;
+
+[
+    object,
+    pointer_default(unique),
+    uuid(a879e3c4-af77-44fb-8f37-ebd1487cf920),
+]
+interface IQueryParserManager : IUnknown
+{
+    /* ID should be IID_IQueryParser */
+    HRESULT CreateLoadedParser([in] LPCWSTR catalog, [in] LANGID langid, [in] REFIID riid,
+                               [out, retval, iid_is(riid)] void **out);
+    HRESULT InitializeOptions([in] BOOL nqs, [in] BOOL auto_wild_card, [in] IQueryParser *parser);
+    HRESULT SetOption([in] QUERY_PARSER_MANAGER_OPTION opt, [in] const PROPVARIANT *val);
+}
+
+[
+    object,
+    uuid(D6EBC66B-8921-4193-AFDD-A1789FB7FF57),
+    pointer_default(unique)
+]
+interface IQuerySolution : IConditionFactory
+{
+    [local]
+    HRESULT GetQuery([out] ICondition **cond, [out] IEntity **main);
+    /* ID can be IID_IEnumUnknown and IID_IEnumVARIANT */
+    HRESULT GetErrors([in] REFIID riid, [out, retval, iid_is(riid)] void **out);
+    [local]
+    HRESULT GetLexicalData([out] LPWSTR *input, [out] ITokenCollection **tokens, [out] LCID *lcid,
+                           [out] IUnknown **breaker);
+}
+
+[
+    object,
+    pointer_default(unique),
+    uuid(A5EFE073-B16F-474f-9F3E-9f8b497a3e08)
+]
+interface IConditionFactory : IUnknown
+{
+    HRESULT MakeNot([in] ICondition *cond, [in] BOOL simplify, [out, retval] ICondition **result);
+    HRESULT MakeAndOr([in] CONDITION_TYPE type, [in] IEnumUnknown *conditions, [in] BOOL simplify,
+                      [out, retval] ICondition **result);
+    HRESULT MakeLeaf([in, unique] LPCWSTR prop, [in] CONDITION_OPERATION cop, [in, unique] LPCWSTR val_type,
+                     [in] const PROPVARIANT *prop_var, [in] IRichChunk *prop_term, [in] IRichChunk *op_term,
+                     [in] IRichChunk *value_term, [in] BOOL expand, [out, retval] ICondition **result);
+    [local]
+    HRESULT Resolve([in] ICondition *cond, [in] STRUCTURED_QUERY_RESOLVE_OPTION opt, [in, ref] const SYSTEMTIME *time,
+                    [out, retval] ICondition **result);
+}
+
+typedef [v1_enum] enum CONDITION_CREATION_OPTIONS
+{
+    CONDITION_CREATION_DEFAULT            = 0,
+    CONDITION_CREATION_NONE               = 0,
+    CONDITION_CREATION_SIMPLIFY           = 0x01,
+    CONDITION_CREATION_VECTOR_AND         = 0x02,
+    CONDITION_CREATION_VECTOR_OR          = 0x04,
+    CONDITION_CREATION_VECTOR_LEAF        = 0x08,
+    CONDITION_CREATION_USE_CONTENT_LOCALE = 0x10,
+} CONDITION_CREATION_OPTIONS;
+cpp_quote("DEFINE_ENUM_FLAG_OPERATORS( CONDITION_CREATION_OPTIONS );")
+
+
+[
+    object,
+    pointer_default(unique),
+    uuid(71d222e1-432f-429e-8c13-b6dafde5077a),
+    local
+]
+interface IConditionFactory2 : IConditionFactory
+{
+    HRESULT CreateTrueFalse([in] BOOL val, [in] CONDITION_CREATION_OPTIONS opts, [in] REFIID riid,
+                            [out, iid_is(riid)] void **out);
+    HRESULT CreateNegation([in] ICondition *cond, [in] CONDITION_CREATION_OPTIONS opts, [in] REFIID riid,
+                           [out, iid_is(riid)] void **out);
+    HRESULT CreateCompoundFromObjectArray([in] CONDITION_TYPE type, [in] IObjectArray *conditions,
+                                          [in] CONDITION_CREATION_OPTIONS opts, [in] REFIID riid,
+                                          [out, iid_is(riid)] void **out);
+    HRESULT CreateCompoundFromArray([in] CONDITION_TYPE type, [in, size_is(cond_count)] ICondition **conditions,
+                                    [in] ULONG cond_count, [in] CONDITION_CREATION_OPTIONS opts, [in] REFIID riid,
+                                    [out, iid_is(riid)] void **out);
+    HRESULT CreateStringLeaf([in] REFPROPERTYKEY propkey, [in] CONDITION_OPERATION op, [in] LPCWSTR val,
+                             [in] LPCWSTR locale, [in] CONDITION_CREATION_OPTIONS opts, [in] REFIID riid,
+                             [out, iid_is(riid)] void **out);
+    HRESULT CreateIntegerLeaf([in] REFPROPERTYKEY propkey, [in] CONDITION_OPERATION op, [in] INT32 val,
+                              [in] CONDITION_CREATION_OPTIONS opts, [in] REFIID riid, [out, iid_is(riid)] void **out);
+    HRESULT CreateBooleanLeaf([in] REFPROPERTYKEY propkey, [in] CONDITION_OPERATION op, [in] BOOL val,
+                              [in] CONDITION_CREATION_OPTIONS opts, [in] REFIID riid, [out, iid_is(riid)] void **out);
+    HRESULT CreateLeaf([in] REFPROPERTYKEY propkey, [in] CONDITION_OPERATION op, [in] REFPROPVARIANT prop_var,
+                       [in] LPCWSTR type, [in] LPCWSTR locale, [in] IRichChunk *prop_name_term, [in] IRichChunk *op_term,
+                       [in] IRichChunk *val_term, [in] CONDITION_CREATION_OPTIONS cco, [in] REFIID riid,
+                       [out, iid_is(riid)] void **out);
+    HRESULT ResolveCondition([in] ICondition *cond, [in] STRUCTURED_QUERY_RESOLVE_OPTION opt, [in] const SYSTEMTIME *time,
+                             [in] REFIID riid, [out, iid_is(riid)] void **out);
+}
+
+[
+    object,
+    pointer_default(unique),
+    uuid(22d8b4f2-f577-4adb-a335-c2ae88416fab),
+]
+interface ITokenCollection : IUnknown
+{
+    HRESULT NumberOfTokens([out] ULONG *num);
+    [local]
+    HRESULT GetToken([in] ULONG i, [out] ULONG *begin, [out] ULONG *len, [out] LPWSTR *token_str);
+};
+
+[
+    object,
+    pointer_default(unique),
+    uuid(2769280b-5108-498c-9c7f-a51239b63147),
+]
+interface IRelationship : IUnknown
+{
+    [local]
+    HRESULT Name([out, retval] LPWSTR *name);
+    HRESULT IsReal([out, retval] BOOL *real);
+    HRESULT Destination([out, retval] IEntity **dest);
+    /* ID can be be IID_IEnumUnknown or IID_IEnumVARIANT */
+    HRESULT MetaData([in] REFIID riid, [out, retval, iid_is(riid)] void **out);
+    [local]
+    HRESULT DefaultPhrase([out, retval] LPWSTR *phrase);
+};
+
+[
+    object,
+    pointer_default(unique),
+    uuid(24264891-e80b-4fd3-b7ce-4ff2fae8931f),
+]
+interface IEntity : IUnknown
+{
+    [local]
+    HRESULT Name([out, retval] LPWSTR *name);
+    HRESULT Base([out, retval] IEntity **base);
+    /* ID can be IID_IEnumUnknown or IID_IEnumVARIANT. */
+    HRESULT Relationships([in] REFIID riid, [out, retval, iid_is(riid)] void **out);
+    HRESULT GetRelationship([in] LPCWSTR name, [out, retval] IRelationship **relation);
+    HRESULT MetaData([in] REFIID riid, [out, retval, iid_is(riid)] void **out);
+    /* ID can be IID_IEnumUnknown or IID_IEnumVARIANT. */
+    HRESULT NamedEntities([in] REFIID riid, [out, retval, iid_is(riid)] void **out);
+    HRESULT GetNamedEntity([in] LPCWSTR name, [out, retval] INamedEntity **entity);
+    [local]
+    HRESULT DefaultPhrase([out, retval] LPWSTR *phrase);
+};
+
+[
+    object,
+    pointer_default(unique),
+    uuid(abdbd0b1-7d54-49fb-ab5c-bff4130004cd),
+]
+interface INamedEntity : IUnknown
+{
+    HRESULT GetValue([out, retval] LPWSTR *value);
+    [local]
+    HRESULT DefaultPhrase([out, retval] LPWSTR *phrase);
+}
+
+[
+    object,
+    pointer_default(unique),
+    uuid(ca3fdca2-bfbe-4eed-90d7-0caef0a1bda1),
+]
+interface ISchemaLocalizerSupport : IUnknown
+{
+    HRESULT Localize([in] LPCWSTR str, [out, retval] LPWSTR *str_out);
+}
+
+[
+    object,
+    pointer_default(unique),
+    uuid(8cf89bcb-394c-49b2-ae28-a59dd4ed7f68),
+]
+interface ISchemaProvider : IUnknown
+{
+    /* ID can be be IID_IEnumUnknown or IID_IEnumVARIANT */
+    HRESULT Entities([in] REFIID riid, [out, retval, iid_is(riid)] void** out);
+    HRESULT RootEntity([out, retval] IEntity **root);
+    HRESULT GetEntity([in] LPCWSTR name, [out, retval] IEntity **entity);
+    /* ID can be be IID_IEnumUnknown or IID_IEnumVARIANT */
+    HRESULT MetaData([in] REFIID riid, [out, retval, iid_is(riid)] void** out);
+    HRESULT Localize([in] LCID lcid, [in] ISchemaLocalizerSupport *support);
+    HRESULT SaveBinary([in] LPCWSTR path);
+    HRESULT LookupAuthoredNamedEntity([in] IEntity *entity, [in] LPCWSTR input, [in] ITokenCollection *tokens,
+                                      [in] ULONG begin, [out] ULONG *len, [out] LPWSTR *val);
+};
+
+[
+    uuid(1352fa67-2022-41df-9d6f-943a5ee97c9f),
+    version(1.0)
+]
+library StructuredQuery1
+{
+    [
+        uuid(b72f8fd8-0fab-4dd9-bdbf-245a6ce1485b)
+    ]
+    coclass QueryParser
+    {
+        interface IQueryParser;
+    };
+
+    [
+        uuid(5088b39a-29b4-4d9d-8245-4ee289222f66)
+    ]
+    coclass QueryParserManager
+    {
+        interface IQueryParserManager;
+    };
+}

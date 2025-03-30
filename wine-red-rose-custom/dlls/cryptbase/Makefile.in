@@ -1,0 +1,3 @@
+MODULE = cryptbase.dll
+
+IMPORTS = advapi32
