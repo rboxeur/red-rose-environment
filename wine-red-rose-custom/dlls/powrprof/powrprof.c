@@ -27,6 +27,7 @@
 #include "winnt.h"
 #include "winreg.h"
 #include "winternl.h"
+#include "powersetting.h"
 #include "powrprof.h"
 #include "wine/debug.h"
 
@@ -445,6 +446,12 @@ DWORD WINAPI PowerSettingUnregisterNotification(HPOWERNOTIFY handle)
 {
     FIXME("(%p) stub!\n", handle);
     return ERROR_SUCCESS;
+}
+
+HRESULT WINAPI PowerRegisterForEffectivePowerModeNotifications(ULONG version, EFFECTIVE_POWER_MODE_CALLBACK *callback, void *context, void **handle)
+{
+    FIXME("(%lu,%p,%p,%p) stub!\n", version, callback, context, handle);
+    return E_NOTIMPL;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)

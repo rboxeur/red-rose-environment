@@ -627,6 +627,7 @@ SOURCES = \
 	pktdef.h \
 	poppack.h \
 	powrprof.h \
+	powersetting.h \
 	prntvpt.h \
 	processthreadsapi.h \
 	profinfo.h \

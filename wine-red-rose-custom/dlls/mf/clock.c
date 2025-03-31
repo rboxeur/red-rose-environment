@@ -1098,6 +1098,13 @@ static ULONG WINAPI present_clock_timer_callback_Release(IMFAsyncCallback *iface
     return IMFPresentationClock_Release(&clock->IMFPresentationClock_iface);
 }
 
+static HRESULT WINAPI present_clock_timer_callback_GetParameters(IMFAsyncCallback *iface, DWORD *flags, DWORD *queue)
+{
+    *flags = 0;
+    *queue = MFASYNC_CALLBACK_QUEUE_TIMER;
+    return S_OK;
+}
+
 static HRESULT WINAPI present_clock_timer_callback_Invoke(IMFAsyncCallback *iface, IMFAsyncResult *result)
 {
     struct presentation_clock *clock = impl_from_timer_callback_IMFAsyncCallback(iface);
@@ -1133,7 +1140,7 @@ static const IMFAsyncCallbackVtbl presentclocktimercallbackvtbl =
     present_clock_callback_QueryInterface,
     present_clock_timer_callback_AddRef,
     present_clock_timer_callback_Release,
-    present_clock_callback_GetParameters,
+    present_clock_timer_callback_GetParameters,
     present_clock_timer_callback_Invoke,
 };
 
