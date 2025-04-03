@@ -3002,7 +3002,8 @@ static DWORD receive_response( struct request *request )
         ret = handle_passport_redirect( request );
         goto done;
     }
-    if (status == HTTP_STATUS_MOVED || status == HTTP_STATUS_REDIRECT || status == HTTP_STATUS_REDIRECT_KEEP_VERB)
+    if (status == HTTP_STATUS_MOVED || status == HTTP_STATUS_REDIRECT ||
+        status == HTTP_STATUS_REDIRECT_KEEP_VERB || status == HTTP_STATUS_PERMANENT_REDIRECT)
     {
         if (request->hdr.disable_flags & WINHTTP_DISABLE_REDIRECTS ||
             request->hdr.redirect_policy == WINHTTP_OPTION_REDIRECT_POLICY_NEVER) goto done;
