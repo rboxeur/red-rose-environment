@@ -300,7 +300,7 @@ cd /opt/build_libs
 wget http://download.savannah.nongnu.org/releases/libunwind/libunwind-1.6.2.tar.gz &&  tar xf libunwind-1.6.2.tar.gz && cd libunwind-1.6.2
 ./configure --prefix=/usr/ --libdir=/usr/lib/\${local_lib}-linux-gnu  --build=\${local_arch}-pc-linux-gnu --host=\${local_arch}-pc-linux-gnu && make -j$(nproc) && make install
 
-libglvnd_version="1.7.0"
+cd /opt/build_libs
 wget -O libglvnd.tar.gz https://gitlab.freedesktop.org/glvnd/libglvnd/-/archive/v${libglvnd_version}/libglvnd-v${libglvnd_version}.tar.gz
 tar xf libglvnd.tar.gz
 cd libglvnd-v1.7.0/
