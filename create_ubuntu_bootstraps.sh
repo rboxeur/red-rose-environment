@@ -67,10 +67,10 @@ prepare_chroot () {
 }
 
 create_build_scripts () {
-	sdl2_version="2.30.10"
+	sdl2_version="2.32.4"
 	faudio_version="23.03"
-	vulkan_headers_version="1.3.296"
-	vulkan_loader_version="1.3.296"
+	vulkan_headers_version="1.4.312"
+	vulkan_loader_version="1.4.312"
 	spirv_headers_version="sdk-1.3.296.0"
  	libpcap_version="1.10.5"
   	libxkbcommon_version="1.6.0"
@@ -85,6 +85,7 @@ create_build_scripts () {
 	libgpg_error_version="1.51"
 	libgcrypt_version="1.10.3"
 	winetricks_version="20250102";
+	libglvnd_version="1.7.0";
 
 	cat <<EOF > "${MAINDIR}"/prepare_chroot.sh
 #!/bin/bash
@@ -139,8 +140,8 @@ wget -O nasm.tar.gz https://www.nasm.us/pub/nasm/releasebuilds/${nasm_version}/n
 wget -O yasm.tar.gz https://github.com/yasm/yasm/releases/download/v${yasm_version}/yasm-${yasm_version}.tar.gz
 wget -O libgpg-error.tar.bz2 https://www.gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-${libgpg_error_version}.tar.bz2
 wget -O libgcrypt.tar.bz2 https://www.gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-${libgcrypt_version}.tar.bz2
-wget -O /usr/include/linux/ntsync.h https://raw.githubusercontent.com/zen-kernel/zen-kernel/f787614c40519eb2c8ebdc116b2cd09d46e5ec85/include/uapi/linux/ntsync.h
-wget -O /usr/include/linux/userfaultfd.h https://raw.githubusercontent.com/zen-kernel/zen-kernel/f787614c40519eb2c8ebdc116b2cd09d46e5ec85/include/uapi/linux/userfaultfd.h
+wget -O /usr/include/linux/ntsync.h https://raw.githubusercontent.com/zen-kernel/zen-kernel/refs/heads/6.13/main/include/uapi/linux/ntsync.h
+wget -O /usr/include/linux/userfaultfd.h https://raw.githubusercontent.com/zen-kernel/zen-kernel/refs/heads/6.13/main/include/uapi/linux/userfaultfd.h
 if [ -d /usr/lib/i386-linux-gnu ]; then wget -O wine.deb https://dl.winehq.org/wine-builds/ubuntu/dists/bionic/main/binary-i386/wine-stable_4.0.3~bionic_i386.deb; fi
 if [ -d /usr/lib/x86_64-linux-gnu ]; then wget -O wine.deb https://dl.winehq.org/wine-builds/ubuntu/dists/bionic/main/binary-amd64/wine-stable_4.0.3~bionic_amd64.deb; fi
 git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git -b 1.22
@@ -298,6 +299,15 @@ wget https://github.com/OpenPrinting/cups/releases/download/v2.4.11/cups-2.4.11-
 cd /opt/build_libs
 wget http://download.savannah.nongnu.org/releases/libunwind/libunwind-1.6.2.tar.gz &&  tar xf libunwind-1.6.2.tar.gz && cd libunwind-1.6.2
 ./configure --prefix=/usr/ --libdir=/usr/lib/\${local_lib}-linux-gnu  --build=\${local_arch}-pc-linux-gnu --host=\${local_arch}-pc-linux-gnu && make -j$(nproc) && make install
+
+libglvnd_version="1.7.0"
+wget -O libglvnd.tar.gz https://gitlab.freedesktop.org/glvnd/libglvnd/-/archive/v${libglvnd_version}/libglvnd-v${libglvnd_version}.tar.gz
+tar xf libglvnd.tar.gz
+cd libglvnd-v1.7.0/
+meson setup build
+meson compile -C build
+meson install -C build
+
 
 cd /opt && rm -r /opt/build_libs
 EOF
