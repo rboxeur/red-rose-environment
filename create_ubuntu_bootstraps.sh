@@ -308,6 +308,25 @@ meson setup build
 meson compile -C build
 meson install -C build
 
+if [ -d /usr/lib/x86_64-linux-gnu ]
+then 
+	git clone -b vosk --single-branch --depth=1 https://github.com/alphacep/kaldi /opt/kaldi
+	cd /opt/kaldi/tools/
+	make -j$(nproc) openfst cub
+	./extras/install_openblas_clapack.sh
+	cd ../src
+	./configure --mathlib=OPENBLAS_CLAPACK --shared
+	make -j 10 online2 lm rnnlm
+	cd ../..
+	git clone https://github.com/alphacep/vosk-api --depth=1
+	cd /opt/vosk-api/src/
+	make clean distclean;KALDI_ROOT=/opt/kaldi/ make -j$(nproc) HAVE_OPENBLAS_CLAPACK=1 LDFLAGS=" -pthread  -lm -ldl "
+	cp -vf libvosk.so /usr/lib/x86_64-linux-gnu/
+	cd /opt/vosk-api/src/
+	
+	cp -avf *h /usr/include/
+	cp -vf libvosk.so /usr/lib/x86_64-linux-gnu/
+fi
 
 cd /opt && rm -r /opt/build_libs
 EOF
