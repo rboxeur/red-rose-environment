@@ -51,6 +51,7 @@ Options:\n\
 /wait          Wait for the program to finish, then exit with its exit code.\n\
 /unix          Use a Unix filename and start the file like Windows Explorer.\n\
 /exec          Exec the specified file (for internal Wine usage).\n\
+/elevate       Start the program with administrator privileges.\n\
 /ProgIDOpen    Open a document using the specified progID.\n\
 /?             Display this help and exit.\n"
 

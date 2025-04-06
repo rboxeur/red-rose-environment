@@ -195,6 +195,21 @@ static WCHAR *build_command_line( WCHAR **wargv )
     return ret;
 }
 
+static HANDLE get_admin_token(void)
+{
+    TOKEN_ELEVATION_TYPE type;
+    TOKEN_LINKED_TOKEN linked;
+    DWORD size;
+
+    if (!GetTokenInformation(GetCurrentThreadEffectiveToken(), TokenElevationType, &type, sizeof(type), &size)
+            || type == TokenElevationTypeFull)
+        return NULL;
+
+    if (!GetTokenInformation(GetCurrentThreadEffectiveToken(), TokenLinkedToken, &linked, sizeof(linked), &size))
+        return NULL;
+    return linked.LinkedToken;
+}
+
 static WCHAR *get_parent_dir(WCHAR* path)
 {
 	WCHAR *last_slash;
@@ -489,6 +504,8 @@ static void parse_command_line( int argc, WCHAR *argv[] )
             unix_mode = TRUE;
             break;
         }
+        else if (is_option(argv[i], L"/elevate"))
+            opts.sei.lpVerb = L"runas";
         else if (is_option(argv[i], L"/exec")) {
             opts.creation_flags = 0;
             opts.sei.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NO_CONSOLE | SEE_MASK_FLAG_NO_UI;
@@ -559,6 +576,7 @@ int __cdecl wmain (int argc, WCHAR *argv[])
 
         if (GetBinaryTypeW(opts.sei.lpFile, &binary_type)) {
                     WCHAR *commandline;
+                    HANDLE token = NULL;
                     STARTUPINFOEXW si = {{ sizeof(si.StartupInfo) }};
                     PROCESS_INFORMATION process_information;
                     int len = lstrlenW(opts.sei.lpFile) + 4 + lstrlenW(opts.sei.lpParameters);
@@ -584,12 +602,18 @@ int __cdecl wmain (int argc, WCHAR *argv[])
                     si.StartupInfo.dwFlags |= STARTF_USESHOWWINDOW;
                     si.StartupInfo.lpTitle = opts.title;
 
-                    if (!CreateProcessW( opts.sei.lpFile, commandline, NULL, NULL, opts.cp_inherit,
-                                         opts.creation_flags, NULL, opts.sei.lpDirectory,
-                                         &si.StartupInfo, &process_information ))
+                    if (!wcsicmp(opts.sei.lpVerb, L"runas"))
+                        token = get_admin_token();
+
+                    if (!CreateProcessAsUserW(token, opts.sei.lpFile, commandline, NULL, NULL, opts.cp_inherit,
+                                              opts.creation_flags, NULL, opts.sei.lpDirectory,
+                                              &si.StartupInfo, &process_information ))
                     {
-			fatal_string_error(STRING_EXECFAIL, GetLastError(), opts.sei.lpFile);
+                        fatal_string_error(STRING_EXECFAIL, GetLastError(), opts.sei.lpFile);
                     }
+
+                    CloseHandle(token);
+
                     opts.sei.hProcess = process_information.hProcess;
                     goto done;
         }

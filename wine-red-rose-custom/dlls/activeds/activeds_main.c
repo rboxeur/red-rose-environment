@@ -128,8 +128,31 @@ fail:
  */
 HRESULT WINAPI ADsBuildVarArrayInt(LPDWORD lpdwObjectTypes, DWORD dwObjectTypes, VARIANT* pvar)
 {
-    FIXME("(%p, %ld, %p)!stub\n",lpdwObjectTypes, dwObjectTypes, pvar);
-    return E_NOTIMPL;
+    HRESULT hr;
+    SAFEARRAY *sa;
+    LONG idx;
+
+    TRACE("(%p, %lu, %p)\n", lpdwObjectTypes, dwObjectTypes, pvar);
+
+    if (!pvar) return E_ADS_BAD_PARAMETER;
+
+    sa = SafeArrayCreateVector(VT_UI4, 0, dwObjectTypes);
+    if (!sa) return E_OUTOFMEMORY;
+
+    VariantInit(pvar);
+    for (idx = 0; idx < dwObjectTypes; idx++)
+    {
+        hr = SafeArrayPutElement(sa, &idx, &lpdwObjectTypes[idx]);
+        if (hr != S_OK) 
+        {
+            SafeArrayDestroy(sa);
+            return hr;
+        }
+    }
+
+    V_VT(pvar) = VT_ARRAY | VT_UI4;
+    V_ARRAY(pvar) = sa;
+    return S_OK;
 }
 
 /*****************************************************
