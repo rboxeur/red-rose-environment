@@ -12,5 +12,6 @@ To keep it up-to-date then a few patches are applied from repositories listed be
 - https://gitlab.winehq.org/wine/wine/-/merge_requests
 - https://github.com/ValveSoftware/wine/tree/bleeding-edge
 - https://github.com/GloriousEggroll/proton-ge-custom
+- https://github.com/Kron4ek/Wine-Builds
 
 Wine is built using a customized/enhanced environment based on the one provided by default by [Kron4ek](https://github.com/Kron4ek/Wine-Builds)
