@@ -7,7 +7,7 @@ It is based on
 - a Wine version taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version 9-22.
 - a patch was applied to remove any Steam dependancy on this Wine version.
 
-To keep it up-to-date then a few patches are applied from repositories listed below
+To keep it up-to-date then a few patches are applied from repositories listed below. (chosen patches are re-written -- if needed)
 
 - https://gitlab.winehq.org/wine/wine/-/merge_requests
 - https://github.com/ValveSoftware/wine/tree/bleeding-edge
