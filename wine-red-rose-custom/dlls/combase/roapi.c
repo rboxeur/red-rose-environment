@@ -317,6 +317,15 @@ BOOL WINAPI RoOriginateError(HRESULT error, HSTRING message)
 }
 
 /***********************************************************************
+ *      RoOriginateErrorW (combase.@)
+ */
+BOOL WINAPI RoOriginateErrorW(HRESULT error, UINT max_len, const WCHAR *message)
+{
+    FIXME("%#lx, %u, %s: stub\n", error, max_len, debugstr_w(message));
+    return FALSE;
+}
+
+/***********************************************************************
  *      RoSetErrorReportingFlags (combase.@)
  */
 HRESULT WINAPI RoSetErrorReportingFlags(UINT32 flags)

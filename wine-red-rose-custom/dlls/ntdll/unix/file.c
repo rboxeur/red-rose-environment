@@ -7172,6 +7172,14 @@ NTSTATUS get_device_info( int fd, FILE_FS_DEVICE_INFORMATION *info )
             break;
         }
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__APPLE__)
+#if defined(__APPLE__)
+        /* /dev/null on has been 3, 2 since the start of OSX */
+        if (major(st.st_rdev) == 3 && minor(st.st_rdev) == 2)
+        {
+            info->DeviceType = FILE_DEVICE_NULL;
+        }
+        else
+#endif
         {
             int d_type;
             if (ioctl(fd, FIODTYPE, &d_type) == 0)

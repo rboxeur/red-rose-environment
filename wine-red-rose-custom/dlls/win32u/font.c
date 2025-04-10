@@ -44,6 +44,7 @@
 #include "wine/unixlib.h"
 #include "wine/rbtree.h"
 #include "wine/debug.h"
+#include <stdint.h>
 
 WINE_DEFAULT_DEBUG_CHANNEL(font);
 
@@ -2310,7 +2311,7 @@ static struct gdi_font_face *find_matching_face( const LOGFONTW *lf, CHARSETINFO
 /* realized font objects */
 
 #define FIRST_FONT_HANDLE 1
-#define MAX_FONT_HANDLES  256
+#define MAX_FONT_HANDLES  5000
 
 struct font_handle_entry
 {
@@ -2318,15 +2319,16 @@ struct font_handle_entry
     WORD generation; /* generation count for reusing handle values */
 };
 
-static struct font_handle_entry font_handles[MAX_FONT_HANDLES];
-static struct font_handle_entry *next_free;
-static struct font_handle_entry *next_unused = font_handles;
+static struct font_handle_entry *font_handles;
+static unsigned int next_free = UINT_MAX;
+static unsigned int next_unused = 0;
+static unsigned int allocated_font_handles = 256;
 
 static struct font_handle_entry *handle_entry( unsigned int handle )
 {
     unsigned int idx = LOWORD(handle) - FIRST_FONT_HANDLE;
 
-    if (idx < MAX_FONT_HANDLES)
+    if (idx < allocated_font_handles)
     {
         if (!HIWORD( handle ) || HIWORD( handle ) == font_handles[idx].generation)
             return &font_handles[idx];
@@ -2346,17 +2348,32 @@ static struct gdi_font *get_font_from_handle( unsigned int handle )
 
 static DWORD alloc_font_handle( struct gdi_font *font )
 {
-    struct font_handle_entry *entry;
+    struct font_handle_entry *entry = NULL;
 
-    entry = next_free;
+    if (next_free != UINT_MAX)
+        entry = &font_handles[next_free];
     if (entry)
-        next_free = (struct font_handle_entry *)entry->font;
-    else if (next_unused < font_handles + MAX_FONT_HANDLES)
-        entry = next_unused++;
+        next_free = (uintptr_t)entry->font;
+    else if (next_unused < allocated_font_handles)
+        entry = &font_handles[next_unused++];
     else
     {
-        ERR( "out of realized font handles\n" );
-        return 0;
+        struct font_handle_entry *new_handles;
+
+        if (allocated_font_handles == MAX_FONT_HANDLES)
+        {
+            ERR( "out of realized font handles\n" );
+            return 0;
+        }
+        allocated_font_handles = min( allocated_font_handles * 2, MAX_FONT_HANDLES );
+        new_handles = realloc( font_handles, allocated_font_handles * sizeof(*font_handles) );
+        if (!new_handles)
+        {
+            ERR( "unable to grow font handle table\n" );
+            return 0;
+        }
+        font_handles = new_handles;
+        entry = &font_handles[next_unused++];
     }
     entry->font = font;
     if (++entry->generation == 0xffff) entry->generation = 1;
@@ -2369,8 +2386,8 @@ static void free_font_handle( DWORD handle )
 
     if ((entry = handle_entry( handle )))
     {
-        entry->font = (struct gdi_font *)next_free;
-        next_free = entry;
+        entry->font = (struct gdi_font *)(uintptr_t)next_free;
+        next_free = entry - font_handles;
     }
 }
 
@@ -6855,6 +6872,8 @@ UINT font_init(void)
     static const WCHAR wine_fonts_keyW[] =
         {'S','o','f','t','w','a','r','e','\\','W','i','n','e','\\','F','o','n','t','s'};
     static const WCHAR cacheW[] = {'C','a','c','h','e'};
+
+    font_handles = malloc( allocated_font_handles * sizeof(*font_handles) );
 
     if (!(hkcu_key = open_hkcu())) return 0;
     wine_fonts_key = reg_create_key( hkcu_key, wine_fonts_keyW, sizeof(wine_fonts_keyW), 0, NULL );
