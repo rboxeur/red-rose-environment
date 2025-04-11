@@ -1361,7 +1361,6 @@ BOOL WINAPI DECLSPEC_HOTPATCH GlobalMemoryStatusEx( MEMORYSTATUSEX *status )
 	*status = cached_status;
 	return TRUE;
     }
-    last_check = NtGetTickCount();
 
     if (!set_ntstatus( NtQuerySystemInformation( SystemBasicInformation,
                                                  &basic_info, sizeof(basic_info), NULL )) ||
@@ -1394,6 +1393,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH GlobalMemoryStatusEx( MEMORYSTATUSEX *status )
                      status->ullAvailPageFile, status->ullTotalVirtual, status->ullAvailVirtual );
 
     cached_status = *status;
+    last_check = NtGetTickCount();
     return TRUE;
 }
 
