@@ -758,10 +758,19 @@ static NTSTATUS CDROM_GetDriveGeometry(int dev, int fd, DISK_GEOMETRY* dg)
  *		CDROM_GetMediaType
  *
  */
-static NTSTATUS CDROM_GetMediaType(int dev, GET_MEDIA_TYPES* medtype)
+static NTSTATUS CDROM_GetMediaType(int dev, int fd, GET_MEDIA_TYPES* medtype)
 {
-    FIXME(": faking success\n");
+    CDROM_TOC toc;
+    int sectors;
+
     medtype->DeviceType = FILE_DEVICE_CD_ROM;
+    if (CDROM_ReadTOC(dev, fd, &toc))
+    {
+        sectors = FRAME_OF_TOC(toc, toc.LastTrack + 1) - FRAME_OF_TOC(toc, 1);
+        if (sectors > 360000) medtype->DeviceType = FILE_DEVICE_DVD;
+    }
+    FIXME("guessing %s based on data size\n", medtype->DeviceType == FILE_DEVICE_CD_ROM ? "CD" : "DVD");
+
     medtype->MediaInfoCount = 0;
     return STATUS_SUCCESS;
 }
@@ -2915,7 +2924,7 @@ NTSTATUS cdrom_DeviceIoControl( HANDLE device, HANDLE event, PIO_APC_ROUTINE apc
         sz = sizeof(GET_MEDIA_TYPES);
         if (in_buffer != NULL || in_size != 0) status = STATUS_INVALID_PARAMETER;
         else if (out_size < sz) status = STATUS_BUFFER_TOO_SMALL;
-        else status = CDROM_GetMediaType(dev, out_buffer);
+        else status = CDROM_GetMediaType(dev, fd, out_buffer);
         break;
 
     case IOCTL_STORAGE_GET_DEVICE_NUMBER:
