@@ -9,6 +9,7 @@ It is based on
 
 To keep it up-to-date then a few patches are applied from repositories listed below. (chosen patches are re-written -- if needed)
 
+- https://gitlab.winehq.org/wine/wine
 - https://gitlab.winehq.org/wine/wine/-/merge_requests
 - https://github.com/ValveSoftware/wine/tree/bleeding-edge
 - https://github.com/GloriousEggroll/proton-ge-custom
