@@ -928,6 +928,7 @@ static gboolean sink_event_cb(GstPad *pad, GstObject *parent, GstEvent *event)
             pthread_mutex_unlock(&parser->mutex);
             break;
 
+        case GST_EVENT_STREAM_GROUP_DONE:
         case GST_EVENT_EOS:
             pthread_mutex_lock(&parser->mutex);
             stream->eos = true;
