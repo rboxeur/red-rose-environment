@@ -5591,6 +5591,13 @@ static BOOL LISTVIEW_DeleteAllItems(LISTVIEW_INFO *infoPtr, BOOL destroy)
     }
     LISTVIEW_InvalidateList(infoPtr);
     infoPtr->bNoItemMetrics = TRUE;
+
+    if (!destroy)
+    {
+        NotifyWinEvent( EVENT_OBJECT_REORDER, infoPtr->hwndSelf, OBJID_CLIENT, 0 );
+        NotifyWinEvent( EVENT_OBJECT_DESTROY, infoPtr->hwndSelf, OBJID_CLIENT, 0 );
+        NotifyWinEvent( EVENT_OBJECT_CREATE, infoPtr->hwndSelf, OBJID_CLIENT, 0 );
+    }
     
     return TRUE;
 }
@@ -5882,6 +5889,9 @@ static BOOL LISTVIEW_DeleteItem(LISTVIEW_INFO *infoPtr, INT nItem)
     /* now is the invalidation fun */
     if (!is_icon)
         LISTVIEW_ScrollOnInsert(infoPtr, nItem, -1);
+
+    NotifyWinEvent( EVENT_OBJECT_DESTROY, infoPtr->hwndSelf, OBJID_CLIENT, nItem + 1 );
+
     return TRUE;
 }
 
@@ -7781,7 +7791,11 @@ static INT LISTVIEW_InsertItemT(LISTVIEW_INFO *infoPtr, const LVITEMW *lpLVItem,
 
     TRACE("(item=%s, isW=%d)\n", debuglvitem_t(lpLVItem, isW), isW);
 
-    if (infoPtr->dwStyle & LVS_OWNERDATA) return infoPtr->nItemCount++;
+    if (infoPtr->dwStyle & LVS_OWNERDATA)
+    {
+        NotifyWinEvent( EVENT_OBJECT_CREATE, hwndSelf, OBJID_CLIENT, infoPtr->nItemCount + 1 );
+        return infoPtr->nItemCount++;
+    }
 
     /* make sure it's an item, and not a subitem; cannot insert a subitem */
     if (!lpLVItem || lpLVItem->iSubItem) return -1;
@@ -7913,6 +7927,9 @@ static INT LISTVIEW_InsertItemT(LISTVIEW_INFO *infoPtr, const LVITEMW *lpLVItem,
 
     /* now is the invalidation fun */
     LISTVIEW_ScrollOnInsert(infoPtr, nItem, 1);
+
+    NotifyWinEvent( EVENT_OBJECT_CREATE, hwndSelf, OBJID_CLIENT, nItem + 1 );
+
     return nItem;
 
 undo:
@@ -9316,6 +9333,8 @@ static INT LISTVIEW_SetView(LISTVIEW_INFO *infoPtr, DWORD nView)
   LISTVIEW_UpdateSize(infoPtr);
   LISTVIEW_UpdateScroll(infoPtr);
   LISTVIEW_InvalidateList(infoPtr);
+
+  NotifyWinEvent( EVENT_OBJECT_REORDER, infoPtr->hwndSelf, OBJID_CLIENT, 0 );
 
   TRACE("nView %ld\n", nView);
 

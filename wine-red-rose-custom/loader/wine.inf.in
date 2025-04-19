@@ -3216,3 +3216,4 @@ HKCU,Software\Wine\DllOverrides,"icuuc68",0x2,"native,builtin
 HKCU,Software\Wine\AppDefaults\BloodySpell.exe,"Version",,"win7"
 HKCU,Software\Wine\AppDefaults\NightofRevenge.exe\DllOverrides,"winhttp",,"native,builtin"
 HKCU,Software\Wine\AppDefaults\Age of Barbarians Chronicles.exe\DllOverrides,"dsound",,"builtin,native"
+HKCU,Software\Wine\AppDefaults\WHISPERER.exe\DllOverrides,"winhttp",,"native,builtin"

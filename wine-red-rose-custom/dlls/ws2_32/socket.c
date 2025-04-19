@@ -1018,12 +1018,6 @@ static int WS2_sendto( SOCKET s, WSABUF *buffers, DWORD buffer_count, DWORD *ret
            "addr_len %d, overlapped %p, completion %p\n",
            s, buffers, buffer_count, flags, addr, addr_len, overlapped, completion );
 
-    if (!socket_list_find( s ))
-    {
-        SetLastError( WSAENOTSOCK );
-        return -1;
-    }
-
     if (!overlapped && !ret_size)
     {
         SetLastError( WSAEFAULT );

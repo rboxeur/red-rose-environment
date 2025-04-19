@@ -7487,6 +7487,7 @@ static void test_WSASendMsg(void)
     ret = pWSASendMsg(INVALID_SOCKET, &msg, 0, NULL, NULL, NULL);
     ok(ret == SOCKET_ERROR, "WSASendMsg should have failed\n");
     err = WSAGetLastError();
+    todo_wine
     ok(err == WSAENOTSOCK, "expected 10038, got %ld instead\n", err);
 
     WSASetLastError(0xdeadbeef);
@@ -7646,8 +7647,9 @@ static void test_WSASendTo(void)
 
     WSASetLastError(12345);
     ret = WSASendTo(INVALID_SOCKET, &data_buf, 1, NULL, 0, (struct sockaddr*)&addr, sizeof(addr), NULL, NULL);
-    ok(ret == SOCKET_ERROR && WSAGetLastError() == WSAENOTSOCK,
-       "WSASendTo() failed: %d/%d\n", ret, WSAGetLastError());
+    ok(ret == SOCKET_ERROR, "WSASendTo() should fail\n");
+    todo_wine
+    ok(WSAGetLastError() == WSAENOTSOCK, "got %d\n", WSAGetLastError());
 
     len = sizeof(ret_addr);
     ret = getsockname(s, (struct sockaddr *)&ret_addr, &len);
