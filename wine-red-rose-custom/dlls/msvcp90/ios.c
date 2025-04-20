@@ -42,7 +42,7 @@ bool ios_base_Sync = FALSE;
 
 typedef struct {
     streamoff off;
-    __int64 DECLSPEC_ALIGN(8) pos;
+    INT64 pos;
     _Mbstatet state;
 } fpos_mbstatet;
 
