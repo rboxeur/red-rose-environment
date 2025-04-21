@@ -28,8 +28,8 @@
 @ stub __std_smf_expintf
 @ stub __std_smf_hermite
 @ stub __std_smf_hermitef
-@ stub __std_smf_hypot3
-@ stub __std_smf_hypot3f
+@ stdcall -arch=i386 ___std_smf_hypot3@24(double double double) __std_smf_hypot3
+@ stdcall -arch=!i386 __std_smf_hypot3(double double double)
 @ stub __std_smf_laguerre
 @ stub __std_smf_laguerref
 @ stub __std_smf_legendre

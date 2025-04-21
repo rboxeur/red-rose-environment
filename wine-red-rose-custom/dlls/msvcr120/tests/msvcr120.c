@@ -190,7 +190,7 @@ typedef struct _UnrealizedChore
 } _UnrealizedChore;
 
 typedef struct {
-    MSVCRT_bool *cancelling;
+    long *cancelling;
 } _Cancellation_beacon;
 
 static char* (CDECL *p_setlocale)(int category, const char* locale);
@@ -273,6 +273,7 @@ static MSVCRT_bool (__thiscall *p__StructuredTaskCollection__IsCanceling)(_Struc
 
 static _Cancellation_beacon* (__thiscall *p__Cancellation_beacon_ctor)(_Cancellation_beacon*);
 static void (__thiscall *p__Cancellation_beacon_dtor)(_Cancellation_beacon*);
+static MSVCRT_bool (__thiscall *p__Cancellation_beacon__Confirm_cancel)(_Cancellation_beacon*);
 
 #ifdef __i386__
 static ULONGLONG (__cdecl *p_i386_FCbuild)(float, float);
@@ -403,6 +404,8 @@ static BOOL init(void)
                 "??0_Cancellation_beacon@details@Concurrency@@QEAA@XZ");
         SET(p__Cancellation_beacon_dtor,
                 "??1_Cancellation_beacon@details@Concurrency@@QEAA@XZ");
+        SET(p__Cancellation_beacon__Confirm_cancel,
+                "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QEAA_NXZ");
     } else {
 #ifdef __arm__
         SET(p__StructuredTaskCollection_ctor,
@@ -451,6 +454,8 @@ static BOOL init(void)
                 "??0_Cancellation_beacon@details@Concurrency@@QAA@XZ");
         SET(p__Cancellation_beacon_dtor,
                 "??1_Cancellation_beacon@details@Concurrency@@QAA@XZ");
+        SET(p__Cancellation_beacon__Confirm_cancel,
+                "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAA_NXZ");
 #else
         SET(p__StructuredTaskCollection_ctor,
                 "??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z");
@@ -498,6 +503,8 @@ static BOOL init(void)
                 "??0_Cancellation_beacon@details@Concurrency@@QAE@XZ");
         SET(p__Cancellation_beacon_dtor,
                 "??1_Cancellation_beacon@details@Concurrency@@QAE@XZ");
+        SET(p__Cancellation_beacon__Confirm_cancel,
+                "?_Confirm_cancel@_Cancellation_beacon@details@Concurrency@@QAE_NXZ");
 #endif
         SET(p_Context_CurrentContext,
                 "?CurrentContext@Context@Concurrency@@SAPAV12@XZ");
@@ -1493,11 +1500,16 @@ static void __cdecl chore_proc(_UnrealizedChore *_this)
                 "IsCurrentTaskCollectionCanceling returned TRUE\n");
 
         call_func1(p__Cancellation_beacon_ctor, &beacon);
-        ok(!*beacon.cancelling, "beacon signalled %x\n", *beacon.cancelling);
+        ok(!*beacon.cancelling, "beacon signalled %lx\n", *beacon.cancelling);
 
         call_func1(p__Cancellation_beacon_ctor, &beacon2);
         ok(beacon.cancelling != beacon2.cancelling, "beacons point to the same data\n");
-        ok(!*beacon.cancelling, "beacon signalled %x\n", *beacon.cancelling);
+        ok(!*beacon.cancelling, "beacon signalled %lx\n", *beacon.cancelling);
+
+        canceling = call_func1(p__Cancellation_beacon__Confirm_cancel, &beacon);
+        ok(!canceling, "_Confirm_cancel returned TRUE\n");
+        ok(*beacon.cancelling == -1, "beacon signalled %lx\n", *beacon.cancelling);
+        *beacon.cancelling = 0;
     }
 
     if (!chore->wait_event)
@@ -1526,13 +1538,19 @@ static void __cdecl chore_proc(_UnrealizedChore *_this)
         ok(p_Context_IsCurrentTaskCollectionCanceling(),
                 "IsCurrentTaskCollectionCanceling returned FALSE\n");
 
-        ok(*beacon.cancelling == 1, "beacon not signalled (%x)\n", *beacon.cancelling);
+        ok(*beacon.cancelling == 1, "beacon not signalled (%lx)\n", *beacon.cancelling);
+        canceling = call_func1(p__Cancellation_beacon__Confirm_cancel, &beacon);
+        ok(canceling, "_Confirm_cancel returned FALSE\n");
+        ok(*beacon.cancelling == 1, "beacon not signalled (%lx)\n", *beacon.cancelling);
         call_func1(p__Cancellation_beacon_dtor, &beacon);
-        ok(*beacon2.cancelling == 1, "beacon not signalled (%x)\n", *beacon2.cancelling);
+        ok(*beacon2.cancelling == 1, "beacon not signalled (%lx)\n", *beacon2.cancelling);
         call_func1(p__Cancellation_beacon_dtor, &beacon2);
 
         call_func1(p__Cancellation_beacon_ctor, &beacon);
-        ok(*beacon.cancelling == 1, "beacon not signalled (%x)\n", *beacon.cancelling);
+        ok(*beacon.cancelling == 1, "beacon not signalled (%lx)\n", *beacon.cancelling);
+        canceling = call_func1(p__Cancellation_beacon__Confirm_cancel, &beacon);
+        ok(canceling, "_Confirm_cancel returned FALSE\n");
+        ok(*beacon.cancelling == 1, "beacon not signalled (%lx)\n", *beacon.cancelling);
         call_func1(p__Cancellation_beacon_dtor, &beacon);
     }
 }
