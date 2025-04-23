@@ -750,6 +750,7 @@ static void test_CoGetClassObject(void)
     REFCLSID rclsid = &CLSID_InternetZoneManager;
     HKEY hkey;
     LONG res;
+    ULONG refs;
 
     hr = CoGetClassObject(rclsid, CLSCTX_INPROC_SERVER, NULL, &IID_IUnknown, (void **)&pUnk);
     ok(hr == CO_E_NOTINITIALIZED, "CoGetClassObject should have returned CO_E_NOTINITIALIZED instead of 0x%08lx\n", hr);
@@ -794,7 +795,8 @@ static void test_CoGetClassObject(void)
 
     hr = CoGetClassObject(&CLSID_InProcFreeMarshaler, CLSCTX_INPROC_SERVER, NULL, &IID_IUnknown, (void **)&pUnk);
     ok(hr == S_OK, "got 0x%08lx\n", hr);
-    IUnknown_Release(pUnk);
+    refs = IUnknown_Release(pUnk);
+    ok(refs == 0, "Expected 0, got %lu\n", refs);
 
     /* context redefines FreeMarshaler CLSID */
     if ((handle = activate_context(actctx_manifest, &cookie)))
