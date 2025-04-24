@@ -751,5 +751,3 @@ static inline void unlock_module(void)
 
 HRESULT WINAPI WineDispatchProxyCbPrivate_CreateArrayBuffer(IWineDispatchProxyCbPrivate*,DWORD,IDispatch**,void**);
 HRESULT WINAPI WineDispatchProxyCbPrivate_GetRandomValues(IDispatch*);
-
-void hack_pump_messages(void);
