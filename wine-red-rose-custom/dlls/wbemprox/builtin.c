@@ -87,15 +87,15 @@ static const struct column col_bios[] =
 };
 static const struct column col_cache_memory[] =
 {
-    { L"BlockSize", CIM_UINT64 },
-    { L"CacheSpeed", CIM_UINT32 },
-    { L"CacheType", CIM_UINT16 },
-    { L"DeviceId", CIM_STRING|COL_FLAG_DYNAMIC },
-    { L"InstalledSize", CIM_UINT32 },
-    { L"Level", CIM_UINT16 },
-    { L"MaxCacheSize", CIM_UINT32 },
+    { L"BlockSize",      CIM_UINT64 },
+    { L"CacheSpeed",     CIM_UINT32 },
+    { L"CacheType",      CIM_UINT16 },
+    { L"DeviceId",       CIM_STRING|COL_FLAG_DYNAMIC },
+    { L"InstalledSize",  CIM_UINT32 },
+    { L"Level",          CIM_UINT16 },
+    { L"MaxCacheSize",   CIM_UINT32 },
     { L"NumberOfBlocks", CIM_UINT64 },
-    { L"Status", CIM_STRING },
+    { L"Status",         CIM_STRING },
 };
 static const struct column col_cdromdrive[] =
 {
@@ -552,14 +552,14 @@ struct record_bios
 };
 struct record_cache_memory
 {
-    UINT64 block_size;
-    UINT32 cache_speed;
-    UINT16 cache_type;
+    UINT64       block_size;
+    UINT32       cache_speed;
+    UINT16       cache_type;
     const WCHAR *device_id;
-    UINT32 installed_size;
-    UINT16 level;
-    UINT32 max_cache_size;
-    UINT64 number_of_blocks;
+    UINT32       installed_size;
+    UINT16       level;
+    UINT32       max_cache_size;
+    UINT64       number_of_blocks;
     const WCHAR *status;
 };
 struct record_cdromdrive
@@ -3472,28 +3472,28 @@ static UINT get_processor_maxclockspeed( UINT index )
 
 static enum fill_status fill_cache_memory( struct table *table, const struct expr *cond )
 {
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *info = NULL, *info_end;
     enum fill_status status = FILL_STATUS_UNFILTERED;
+    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *info;
     UINT i, idx, offset = 0, row_count = 0;
     struct record_cache_memory *rec;
     ULONG64 cache_size[16] = { 0 };
+    char *buffer = NULL;
     DWORD size = 1024;
     WCHAR str[64];
 
-    size = 1024;
     while (1)
     {
-        info = realloc( info, size );
-        if (GetLogicalProcessorInformationEx( RelationCache, info, &size )) break;
+        buffer = realloc( buffer, size );
+        if (GetLogicalProcessorInformationEx( RelationCache, (void *)buffer, &size )) break;
         if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
         {
-            free( info );
+            free( buffer );
             return FILL_STATUS_FAILED;
         }
     }
 
-    info_end = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)((char *)info + size);
-    while (info != info_end)
+    info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)buffer;
+    while ((char *)info != buffer + size)
     {
         if (info->Cache.Level < ARRAY_SIZE(cache_size) && info->Cache.CacheSize)
         {
@@ -3505,7 +3505,7 @@ static enum fill_status fill_cache_memory( struct table *table, const struct exp
 
     if (!resize_table( table, row_count, sizeof(*rec) ))
     {
-        free( info );
+        free( buffer );
         return FILL_STATUS_FAILED;
     }
 
@@ -3537,7 +3537,7 @@ static enum fill_status fill_cache_memory( struct table *table, const struct exp
     }
     TRACE("created %u rows\n", row_count);
     table->num_rows = row_count;
-    free( info );
+    free( buffer );
     return status;
 }
 
