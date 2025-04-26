@@ -2392,6 +2392,7 @@ WCHAR *WCMD_ReadAndParseLine(const WCHAR *optionalcmd, CMD_LIST **output, HANDLE
             } else break;
           }
 
+          extraData = WCMD_skip_leading_spaces(extraData);
         } while (*extraData == 0x00);
         curPos = extraSpace;
 
