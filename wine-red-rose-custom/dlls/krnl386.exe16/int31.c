@@ -363,14 +363,14 @@ void WINAPI DOSVM_Int31Handler( CONTEXT *context )
         break;
 
     case 0x0202:  /* Get Processor Exception Handler Vector */
-        FIXME( "Get Processor Exception Handler Vector (0x%02x)\n",
+        FIXME( "Get Processor Exception Handler Vector (0x%02x) - not supported\n",
                BL_reg(context) );
         SET_CX( context, 0 );
         SET_DX( context, 0 );
         break;
 
     case 0x0203:  /* Set Processor Exception Handler Vector */
-         FIXME( "Set Processor Exception Handler Vector (0x%02x)\n",
+         FIXME( "Set Processor Exception Handler Vector (0x%02x) - not supported\n",
                 BL_reg(context) );
          break;
 
@@ -593,18 +593,47 @@ void WINAPI DOSVM_Int31Handler( CONTEXT *context )
     case 0x0800:  /* Physical address mapping */
         FIXME( "physical address mapping (0x%08lx) - unimplemented\n",
                MAKELONG(CX_reg(context),BX_reg(context)) );
+        SET_CFLAG( context );
         break;
 
     case 0x0900:  /* Get and Disable Virtual Interrupt State */
-        TRACE( "Get and Disable Virtual Interrupt State - not supported\n" );
+        FIXME( "Get and Disable Virtual Interrupt State - unimplemented\n" );
+        SET_AL( context, 1 );  /* report that interrupts are always enabled */
         break;
 
     case 0x0901:  /* Get and Enable Virtual Interrupt State */
-        TRACE( "Get and Enable Virtual Interrupt State - not supported\n" );
+        FIXME( "Get and Enable Virtual Interrupt State - unimplemented\n" );
+        SET_AL( context, 1 );  /* report that interrupts are always enabled */
         break;
 
     case 0x0902:  /* Get Virtual Interrupt State */
-        TRACE( "Get Virtual Interrupt State - not supported\n" );
+        FIXME( "Get Virtual Interrupt State - unimplemented\n" );
+        SET_AL( context, 1 );  /* report that interrupts are always enabled */
+        break;
+
+    case 0x0a00:  /* Get Vendor-Specific API Entry Point */
+        FIXME( "Get Vendor-Specific API Entry Point - unimplemented\n" );
+        SET_CFLAG( context );
+        break;
+
+    case 0x0b00:  /* Set Debug Watchpoint */
+        FIXME( "Set Debug Watchpoint - unimplemented\n" );
+        SET_CFLAG( context );
+        break;
+
+    case 0x0b01:  /* Clear Debug Watchpoint */
+        FIXME( "Clear Debug Watchpoint - unimplemented\n" );
+        SET_CFLAG( context );
+        break;
+
+    case 0x0b02:  /* Get State of Debug Watchpoint */
+        FIXME( "Get State of Debug Watchpoint - unimplemented\n" );
+        SET_CFLAG( context );
+        break;
+
+    case 0x0b03:  /* Reset Debug Watchpoint */
+        FIXME( "Reset Debug Watchpoint - unimplemented\n" );
+        SET_CFLAG( context );
         break;
 
     case 0x0e00:  /* Get Coprocessor Status (1.0) */

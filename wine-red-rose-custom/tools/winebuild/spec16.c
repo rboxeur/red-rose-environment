@@ -597,8 +597,8 @@ static void output_module16( DLLSPEC *spec )
     output( "\t.short 0\n" );                                  /* ne_cres */
     output( "\t.byte 0x02\n" );                                /* ne_exetyp = NE_OSFLAGS_WINDOWS */
     output( "\t.byte 0x08\n" );                                /* ne_flagsothers = NE_AFLAGS_FASTLOAD */
-    output( "\t.short 0\n" );                                  /* ne_pretthunks */
-    output( "\t.short 0\n" );                                  /* ne_psegrefbytes */
+    output( "\t.short 0\n" );                                  /* ne_gangstart */
+    output( "\t.short 0\n" );                                  /* ne_ganglength */
     output( "\t.short 0\n" );                                  /* ne_swaparea */
     output( "\t.short 0\n" );                                  /* ne_expver */
 
@@ -914,8 +914,8 @@ void output_fake_module16( DLLSPEC *spec )
     put_word( 0 );                         /* ne_cres */
     put_byte( 2 /*NE_OSFLAGS_WINDOWS*/ );  /* ne_exetyp */
     put_byte( 8 /*NE_AFLAGS_FASTLOAD*/ );  /* ne_flagsothers */
-    put_word( 0 );                         /* ne_pretthunks */
-    put_word( 0 );                         /* ne_psegrefbytes */
+    put_word( 0 );                         /* ne_gangstart */
+    put_word( 0 );                         /* ne_ganglength */
     put_word( 0 );                         /* ne_swaparea */
     put_word( 0 );                         /* ne_expver */
 

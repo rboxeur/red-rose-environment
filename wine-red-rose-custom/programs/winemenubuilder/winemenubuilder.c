@@ -1618,10 +1618,7 @@ static BOOL build_native_mime_types(struct list *mime_types)
     WCHAR *dirs, *dir, *dos_name, *ctx, *p;
     BOOL ret;
 
-    if (_wgetenv( L"WINEXDG_DATA_DIRS" ))
-        dirs = xwcsdup( _wgetenv( L"WINEXDG_DATA_DIRS" ));
-    else
-        dirs = xwcsdup( L"/usr/local/share/:/usr/share/" );
+    dirs = xwcsdup( _wgetenv( L"WINEXDG_DATA_DIRS" ));
 
     ret = add_mimes(xdg_data_dir, mime_types);
     if (ret)

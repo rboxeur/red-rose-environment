@@ -953,8 +953,8 @@ int main(int argc, char **argv)
     put_word( 0 );                                /* ne_cres */
     put_byte( 2 );               /* ne_exetyp = NE_OSFLAGS_WINDOWS */
     put_byte( 0 );                                /* ne_flagsothers */
-    put_word( 0 );                                /* ne_pretthunks */
-    put_word( 0 );                                /* ne_psegrefbytes */
+    put_word( 0 );                                /* ne_gangstart */
+    put_word( 0 );                                /* ne_ganglength */
     put_word( 0 );                                /* ne_swaparea */
     put_word( 0x400 );                            /* ne_expver */
 

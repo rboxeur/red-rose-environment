@@ -168,6 +168,8 @@ const char *config_dir = NULL;
 const char **dll_paths = NULL;
 const char **system_dll_paths = NULL;
 const char *user_name = NULL;
+const char *xdg_data_dirs = NULL;
+
 SECTION_IMAGE_INFORMATION main_image_info = { NULL };
 
 /* adjust an array of pointers to make them into RVAs */
@@ -468,6 +470,12 @@ static void set_config_dir(void)
     }
 }
 
+static void set_xdg_dirs(void)
+{
+    xdg_data_dirs = getenv( "XDG_DATA_DIRS" );
+    if (!xdg_data_dirs) xdg_data_dirs = strdup( "/usr/local/share/:/usr/share/" );
+}
+
 static void init_paths( char *argv[] )
 {
     Dl_info info;
@@ -512,6 +520,7 @@ static void init_paths( char *argv[] )
     set_system_dll_path();
     set_home_dir();
     set_config_dir();
+    set_xdg_dirs();
 }
 
 

@@ -364,7 +364,8 @@ static BOOL is_dynamic_env_var( const char *var )
             STARTS_WITH( var, "WINEUSERNAME=" ) ||
             STARTS_WITH( var, "WINEPRELOADRESERVE=" ) ||
             STARTS_WITH( var, "WINELOADERNOEXEC=" ) ||
-            STARTS_WITH( var, "WINESERVERSOCKET=" ));
+            STARTS_WITH( var, "WINESERVERSOCKET=" ) ||
+            STARTS_WITH( var, "WINEXDG_DATA_DIRS=" ));
 }
 
 /******************************************************************
@@ -1127,6 +1128,7 @@ static void add_dynamic_environment( WCHAR **env, SIZE_T *pos, SIZE_T *size )
     }
     else append_envW( env, pos, size, "WINEUNIXCP", NULL );
     append_envA( env, pos, size, "WINEUSERLOCALE", user_locale );
+    append_envA( env, pos, size, "WINEXDG_DATA_DIRS", xdg_data_dirs );
     append_envA( env, pos, size, "SystemDrive", "C:" );
     append_envA( env, pos, size, "SystemRoot", "C:\\windows" );
     append_envA( env, pos, size, "WINEXDG_DATA_DIRS", getenv("XDG_DATA_DIRS") );
