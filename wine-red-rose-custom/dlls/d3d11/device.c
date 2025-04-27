@@ -4211,6 +4211,19 @@ static HRESULT STDMETHODCALLTYPE d3d11_device_CheckFeatureSupport(ID3D11Device2 
             return d3d11_device_CheckFormatSupport(iface, data->InFormat, &data->OutFormatSupport);
         }
 
+        case D3D11_FEATURE_D3D9_SIMPLE_INSTANCING_SUPPORT:
+        {
+            D3D11_FEATURE_DATA_D3D9_SIMPLE_INSTANCING_SUPPORT *data = feature_support_data;
+            if (feature_support_data_size != sizeof(*data))
+            {
+                WARN("Invalid size %u for D3D11_FEATURE_D3D9_SIMPLE_INSTANCING_SUPPORT.\n", feature_support_data_size);
+                return E_INVALIDARG;
+            }
+
+            data->SimpleInstancingSupported = FALSE;
+            return S_OK;
+        }
+
         default:
             FIXME("Unhandled feature %#x.\n", feature);
             return E_NOTIMPL;
