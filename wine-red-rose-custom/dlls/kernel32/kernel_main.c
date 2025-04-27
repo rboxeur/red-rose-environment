@@ -22,6 +22,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <signal.h>
+#include <limits.h>
 
 #include "windef.h"
 #include "winbase.h"
@@ -170,33 +171,133 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, LPVOID reserved )
 }
 
 /***********************************************************************
- *           MulDiv   (KERNEL32.@)
+ *           MulDiv   (KERNEL32.@, KERNELBASE.@)
  * RETURNS
  *	Result of multiplication and division
  *	-1: Overflow occurred or Divisor was 0
  */
-INT WINAPI MulDiv( INT nMultiplicand, INT nMultiplier, INT nDivisor)
+INT WINAPI MulDiv( INT nNumber, INT nNumerator, INT nDenominator )
 {
-    LONGLONG ret;
+#ifdef _WIN64
+    unsigned __int64 abs_denominator, intermediate64, unsigned_quotient;
+    int abs_numerator, abs_number;
 
-    if (!nDivisor) return -1;
+    abs_denominator = (unsigned int)-nDenominator;
 
-    /* We want to deal with a positive divisor to simplify the logic. */
-    if (nDivisor < 0)
+    if (nDenominator > 0)
     {
-      nMultiplicand = - nMultiplicand;
-      nDivisor = -nDivisor;
+        abs_denominator = (unsigned int)nDenominator;
     }
 
-    /* If the result is positive, we "add" to round. else, we subtract to round. */
-    if ( ( (nMultiplicand <  0) && (nMultiplier <  0) ) ||
-         ( (nMultiplicand >= 0) && (nMultiplier >= 0) ) )
-      ret = (((LONGLONG)nMultiplicand * nMultiplier) + (nDivisor/2)) / nDivisor;
-    else
-      ret = (((LONGLONG)nMultiplicand * nMultiplier) - (nDivisor/2)) / nDivisor;
+    abs_numerator = -nNumerator;
 
-    if ((ret > 2147483647) || (ret < -2147483647)) return -1;
-    return ret;
+    if (nNumerator >= 0)
+    {
+        abs_numerator = nNumerator;
+    }
+
+    abs_number = -nNumber;
+
+    if (nNumber >= 0)
+    {
+        abs_number = nNumber;
+    }
+
+    intermediate64 = ((unsigned __int64)(unsigned int)abs_denominator >> 1) + abs_number * (__int64)abs_numerator;
+
+    if ((unsigned int)abs_denominator <= ((DWORD)((intermediate64 >> 32) & 0xFFFFFFFFU)))
+    {
+        return -1;
+    }
+
+    unsigned_quotient = intermediate64 / abs_denominator;
+
+    if ((unsigned_quotient & INT_MIN) != 0LL)
+    {
+        return -1;
+    }
+
+    // sign check
+    if ((nDenominator ^ nNumerator ^ nNumber) >= 0)
+    {
+        return unsigned_quotient;
+    }
+
+    return -(int)unsigned_quotient;
+#else
+#define UINT32_ABS(x) \
+    ((x) == INT_MIN ? INT_MIN : \
+     (x) < 0 ? (unsigned int)(-(x)) : \
+     (unsigned int)(x))
+
+    unsigned int abs_number, abs_numerator, abs_denominator, rounding_term, unsigned_quotient;
+    unsigned __int64 product, rounded_product;
+
+    abs_number = UINT32_ABS(nNumber);
+    abs_numerator = UINT32_ABS(nNumerator);
+    abs_denominator = UINT32_ABS(nDenominator);
+    product = (unsigned __int64)abs_numerator * abs_number;
+
+    // Assume nDenominator == INT_MIN
+    // In 32-bit MSVC, this results in it INT_MIN itself due to how two's complement arithmetic works,
+    // and the lack of a positive equivalent value within the valid range for int32. So.. undefined behavior.
+    // That makes `-nDenominator` effectively evaluate to `0x80000000` (`INT_MIN`).
+    // The original code performs `-nDenominator >> 1`. At that point, MSVC thinks it's a signed integer!
+    // Therefore, it compiles to `sar` instead of `shr`.
+    // Disassembly from kernel32.dll reads:
+    // neg     ecx             ; Two's Complement Negation
+    // push    ecx
+    // sar     ecx, 1          ; Shift Arithmetic Right
+    //
+    // Note - sar and not shr!
+    //
+    // 0x80000000 is `1000 0000 0000 0000 0000 0000 0000 0000`
+    // In that case, `sar ecx, 1` results in `1100 0000 0000 0000 0000 0000 0000 0000`, which is.. as you guessed - 0xC0000000.
+    if (nDenominator == INT_MIN)
+    {
+        rounding_term = 0xC0000000U;
+    }
+
+    else
+    {
+        rounding_term = abs_denominator >> 1;
+    }
+
+    rounded_product = product + rounding_term;
+
+    if (rounded_product < product ||
+        (rounded_product >> 32) >= abs_denominator)
+    {
+        return -1;
+    }
+
+    unsigned_quotient = (unsigned int)(rounded_product / abs_denominator);
+
+    if ((nDenominator ^ nNumerator ^ nNumber) >= 0)
+    {
+        if (unsigned_quotient > INT_MIN)
+        {
+            return -1;
+        }
+
+        return (int)unsigned_quotient;
+    }
+
+    else
+    {
+        if (unsigned_quotient > INT_MIN)
+        {
+            return -1;
+        }
+
+        else if (unsigned_quotient == INT_MIN)
+        {
+            return INT_MIN;
+        }
+    }
+
+    return -(int)unsigned_quotient;
+#endif
 }
 
 /******************************************************************************

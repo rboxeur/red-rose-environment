@@ -5438,6 +5438,28 @@ static void test_GetProcessInformation(void)
     }
 }
 
+static void test_MulDiv(void)
+{
+    // Test for undefined behavior in Microsoft's MulDiv persisting in WINE,
+    // as well as normal use/quirks between 32-bit/64-bit
+#ifdef _WIN64
+    ok(MulDiv(1, 0x80000000, 0x80000000) == -1, "UB not happening\n");
+    ok(MulDiv(5, -1, -1) == 5, "Unexpected MulDiv result\n");
+    ok(MulDiv(5, 0x80000000, -1) == -1, "Unexpected MulDiv result\n");
+    ok(MulDiv(5, 0x80000000, 0x80000000) == -1, "Unexpected MulDiv result\n");
+    ok(MulDiv(5, 5, 0x80000000) == 0, "Unexpected MulDiv result\n");
+#else
+    ok(MulDiv(1, 0x80000000, 0x80000000) == 2, "UB not happening\n");
+    ok(MulDiv(5, -1, -1) == 5, "Unexpected MulDiv result\n");
+    ok(MulDiv(5, 0x80000000, -1) == -1, "Unexpected MulDiv result\n");
+    ok(MulDiv(5, 0x80000000, 0x80000000) == 6, "Unexpected MulDiv result\n");
+    ok(MulDiv(5, 5, 0x80000000) == -1, "Unexpected MulDiv result\n");
+#endif
+
+    ok(MulDiv(6, 6, 6) == 6, "Unexpected MulDiv result\n");
+    ok(MulDiv(6, 6, 0) == -1, "Unexpected MulDiv result\n");
+}
+
 START_TEST(process)
 {
     HANDLE job, hproc, h, h2;
@@ -5568,6 +5590,7 @@ START_TEST(process)
     test_services_exe();
     test_startupinfo();
     test_GetProcessInformation();
+    test_MulDiv();
 
     /* things that can be tested:
      *  lookup:         check the way program to be executed is searched
