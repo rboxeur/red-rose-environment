@@ -533,7 +533,7 @@ msgstr "විස්තර පෙන්නන්න"
 
 #: dlls/comctl32/comctl32.rc:31 dlls/cryptui/cryptui.rc:235
 #: programs/regedit/regedit.rc:291 programs/taskmgr/taskmgr.rc:434
-#: programs/winedbg/winedbg.rc:61 programs/winedbg/winedbg.rc:76
+#: programs/winedbg/winedbg.rc:62 programs/winedbg/winedbg.rc:77
 #: programs/wordpad/wordpad.rc:180
 msgid "Close"
 msgstr "වහන්න"
@@ -724,6 +724,7 @@ msgid "Scr&ipt:"
 msgstr "විධානාවලිය (&I):"
 
 #: dlls/comdlg32/comdlg32.rc:283 dlls/comdlg32/comdlg32.rc:288
+#: dlls/compstui/compstui.rc:33
 msgid "Color"
 msgstr "පාට"
 
@@ -1355,6 +1356,43 @@ msgstr "විකල්ප"
 #| msgid "Defaults"
 msgid "Default"
 msgstr "පෙරනිමි"
+
+#: dlls/compstui/compstui.rc:35
+#, fuzzy
+#| msgid "&Copy Background"
+msgid "&Copy count"
+msgstr "පසුබිම පිටපත් කරන්න (&C)"
+
+#: dlls/compstui/compstui.rc:36
+#, fuzzy
+#| msgid "Print to File"
+msgid "Print on Both Sides"
+msgstr "මුද්‍රණය කරන්න ගොනුවකකට"
+
+#: dlls/compstui/compstui.rc:32
+#, fuzzy
+#| msgid "C&olor:"
+msgid "C&olor"
+msgstr "පාට (&O):"
+
+#: dlls/compstui/compstui.rc:34
+msgid "Bla&ck && White"
+msgstr ""
+
+#: dlls/compstui/compstui.rc:37
+#, fuzzy
+#| msgctxt "hotkey"
+#| msgid "None"
+msgid "&None"
+msgstr "කිසිවක් නැත"
+
+#: dlls/compstui/compstui.rc:38 dlls/compstui/compstui.rc:41
+msgid "Flip on Shor&t Edge"
+msgstr ""
+
+#: dlls/compstui/compstui.rc:39 dlls/compstui/compstui.rc:40
+msgid "Flip on Long E&dge"
+msgstr ""
 
 #: dlls/credui/credui.rc:45
 msgid "&User name:"
@@ -8196,7 +8234,7 @@ msgstr "මුළු ජාලය"
 msgid "Sound Selection"
 msgstr "සද්ද තේරීම"
 
-#: dlls/msacm32/msacm32.rc:39 programs/winedbg/winedbg.rc:77
+#: dlls/msacm32/msacm32.rc:39 programs/winedbg/winedbg.rc:78
 msgid "&Save As..."
 msgstr "මෙසේ සුරකින්න... (&S)"
 
@@ -18810,32 +18848,32 @@ msgstr ""
 "wineconsole: %s ක්‍රමලේඛය ධාවන කිරීම බැරි උනා.\n"
 "විධානය වලංගු නැහැ.\n"
 
-#: programs/winedbg/winedbg.rc:50 programs/winedbg/winedbg.rc:38
+#: programs/winedbg/winedbg.rc:51 programs/winedbg/winedbg.rc:38
 msgid "Program Error"
 msgstr "ක්‍රමලේඛයේ දෝෂයක්"
 
-#: programs/winedbg/winedbg.rc:55
+#: programs/winedbg/winedbg.rc:56
 msgid ""
 "The program %s has encountered a serious problem and needs to close. We are "
 "sorry for the inconvenience."
 msgstr ""
 
-#: programs/winedbg/winedbg.rc:59
+#: programs/winedbg/winedbg.rc:60
 msgid ""
 "This can be caused by a problem in the program or a deficiency in Wine. You "
 "may want to check the <a href=\"https://appdb.winehq.org\">Application "
 "Database</a> for tips about running this application."
 msgstr ""
 
-#: programs/winedbg/winedbg.rc:62
+#: programs/winedbg/winedbg.rc:63
 msgid "Show &Details"
 msgstr "විස්තර පෙන්නන්න (&D)"
 
-#: programs/winedbg/winedbg.rc:67
+#: programs/winedbg/winedbg.rc:68
 msgid "Program Error Details"
 msgstr "ක්‍රමලේඛය දෝෂයකේ විස්තර"
 
-#: programs/winedbg/winedbg.rc:74
+#: programs/winedbg/winedbg.rc:75
 msgid ""
 "If this problem is not present under Windows and has not been reported yet, "
 "you can save the detailed information to a file using the \"Save As\" "

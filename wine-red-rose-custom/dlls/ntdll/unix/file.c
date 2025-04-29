@@ -535,21 +535,19 @@ struct dir_name
     char name[1];
 };
 
-static struct list dir_queue = LIST_INIT( dir_queue );
-
-static NTSTATUS add_dir_to_queue( const char *name )
+static NTSTATUS add_dir_to_queue( struct list *queue, const char *name )
 {
     int len = strlen( name ) + 1;
     struct dir_name *dir = malloc( offsetof( struct dir_name, name[len] ));
     if (!dir) return STATUS_NO_MEMORY;
     strcpy( dir->name, name );
-    list_add_tail( &dir_queue, &dir->entry );
+    list_add_tail( queue, &dir->entry );
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS next_dir_in_queue( char *name )
+static NTSTATUS next_dir_in_queue( struct list *queue, char *name )
 {
-    struct list *head = list_head( &dir_queue );
+    struct list *head = list_head( queue );
     if (head)
     {
         struct dir_name *dir = LIST_ENTRY( head, struct dir_name, entry );
@@ -561,11 +559,11 @@ static NTSTATUS next_dir_in_queue( char *name )
     return STATUS_OBJECT_NAME_NOT_FOUND;
 }
 
-static void flush_dir_queue(void)
+static void flush_dir_queue( struct list *queue )
 {
     struct list *head;
 
-    while ((head = list_head( &dir_queue )))
+    while ((head = list_head( queue )))
     {
         struct dir_name *dir = LIST_ENTRY( head, struct dir_name, entry );
         list_remove( &dir->entry );
@@ -2091,6 +2089,31 @@ static NTSTATUS get_full_size_info(int fd, FILE_FS_FULL_SIZE_INFORMATION *info) 
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS get_full_size_info_ex(int fd, FILE_FS_FULL_SIZE_INFORMATION_EX *info)
+{
+    FILE_FS_FULL_SIZE_INFORMATION full_info;
+    NTSTATUS status;
+
+    if ((status = get_full_size_info(fd, &full_info)) != STATUS_SUCCESS)
+        return status;
+
+    info->ActualTotalAllocationUnits = full_info.TotalAllocationUnits.QuadPart;
+    info->ActualAvailableAllocationUnits = full_info.ActualAvailableAllocationUnits.QuadPart;
+    info->ActualPoolUnavailableAllocationUnits = 0;
+    info->CallerAvailableAllocationUnits = full_info.CallerAvailableAllocationUnits.QuadPart;
+    info->CallerPoolUnavailableAllocationUnits = 0;
+    info->UsedAllocationUnits = info->ActualTotalAllocationUnits - info->ActualAvailableAllocationUnits;
+    info->CallerTotalAllocationUnits = info->CallerAvailableAllocationUnits + info->UsedAllocationUnits;
+    info->TotalReservedAllocationUnits = 0;
+    info->VolumeStorageReserveAllocationUnits = 0;
+    info->AvailableCommittedAllocationUnits = 0;
+    info->PoolAvailableAllocationUnits = 0;
+    info->SectorsPerAllocationUnit = full_info.SectorsPerAllocationUnit;
+    info->BytesPerSector = full_info.BytesPerSector;
+
+    return STATUS_SUCCESS;
+}
+
 
 static NTSTATUS server_get_file_info( HANDLE handle, IO_STATUS_BLOCK *io, void *buffer,
                                       ULONG length, FILE_INFORMATION_CLASS info_class )
@@ -3388,18 +3411,24 @@ static NTSTATUS find_drive_rootA( LPCSTR *ppath, unsigned int len, int *drive_re
  *
  * Recursively search directories from the dir queue for a given inode.
  */
-static NTSTATUS find_file_id( char **unix_name, ULONG *len, ULONGLONG file_id, dev_t dev )
+static NTSTATUS find_file_id( int root_fd, char **unix_name, ULONG *len, ULONGLONG file_id, dev_t dev, struct list *dir_queue )
 {
     unsigned int pos;
+    int dir_fd;
     DIR *dir;
     struct dirent *de;
     NTSTATUS status;
     struct stat st;
     char *name = *unix_name;
 
-    while (!(status = next_dir_in_queue( name )))
+    while (!(status = next_dir_in_queue( dir_queue, name )))
     {
-        if (!(dir = opendir( name ))) continue;
+        if ((dir_fd = openat( root_fd, name, O_RDONLY )) == -1) continue;
+        if (!(dir = fdopendir( dir_fd )))
+        {
+            close( dir_fd );
+            continue;
+        }
         TRACE( "searching %s for %s\n", debugstr_a(name), wine_dbgstr_longlong(file_id) );
         pos = strlen( name );
         if (pos + MAX_DIR_ENTRY_LEN >= *len / sizeof(WCHAR))
@@ -3417,7 +3446,7 @@ static NTSTATUS find_file_id( char **unix_name, ULONG *len, ULONGLONG file_id, d
         {
             if (!strcmp( de->d_name, "." ) || !strcmp( de->d_name, ".." )) continue;
             strcpy( name + pos, de->d_name );
-            if (lstat( name, &st ) == -1) continue;
+            if (fstatat( root_fd, name, &st, AT_SYMLINK_NOFOLLOW ) == -1) continue;
             if (st.st_dev != dev) continue;
             if (st.st_ino == file_id)
             {
@@ -3425,7 +3454,7 @@ static NTSTATUS find_file_id( char **unix_name, ULONG *len, ULONGLONG file_id, d
                 return STATUS_SUCCESS;
             }
             if (!S_ISDIR( st.st_mode )) continue;
-            if ((status = add_dir_to_queue( name )) != STATUS_SUCCESS)
+            if ((status = add_dir_to_queue( dir_queue, name )) != STATUS_SUCCESS)
             {
                 closedir( dir );
                 return status;
@@ -3446,12 +3475,13 @@ static NTSTATUS file_id_to_unix_file_name( const OBJECT_ATTRIBUTES *attr, char *
                                            UNICODE_STRING *nt_name )
 {
     enum server_fd_type type;
-    int old_cwd, root_fd, needs_close;
+    int root_fd, needs_close;
     char *unix_name;
     ULONG len;
     NTSTATUS status;
     ULONGLONG file_id;
     struct stat st, root_st;
+    struct list dir_queue = LIST_INIT( dir_queue );
 
     nt_name->Buffer = NULL;
     if (attr->ObjectName->Length != sizeof(ULONGLONG)) return STATUS_OBJECT_PATH_SYNTAX_BAD;
@@ -3478,29 +3508,21 @@ static NTSTATUS file_id_to_unix_file_name( const OBJECT_ATTRIBUTES *attr, char *
         goto done;
     }
 
-    mutex_lock( &dir_mutex );
-    if ((old_cwd = open( ".", O_RDONLY )) != -1 && fchdir( root_fd ) != -1)
+    /* shortcut for ".." */
+    if (!fstatat( root_fd, "..", &st, 0 ) && st.st_dev == root_st.st_dev && st.st_ino == file_id)
     {
-        /* shortcut for ".." */
-        if (!stat( "..", &st ) && st.st_dev == root_st.st_dev && st.st_ino == file_id)
-        {
-            strcpy( unix_name, ".." );
-            status = STATUS_SUCCESS;
-        }
-        else
-        {
-            status = add_dir_to_queue( "." );
-            if (!status)
-                status = find_file_id( &unix_name, &len, file_id, root_st.st_dev );
-            if (!status)  /* get rid of "./" prefix */
-                memmove( unix_name, unix_name + 2, strlen(unix_name) - 1 );
-            flush_dir_queue();
-        }
-        if (fchdir( old_cwd ) == -1) chdir( "/" );
+        strcpy( unix_name, ".." );
+        status = STATUS_SUCCESS;
     }
-    else status = errno_to_status( errno );
-    mutex_unlock( &dir_mutex );
-    if (old_cwd != -1) close( old_cwd );
+    else
+    {
+        status = add_dir_to_queue( &dir_queue, "." );
+        if (!status)
+            status = find_file_id( root_fd, &unix_name, &len, file_id, root_st.st_dev, &dir_queue );
+        if (!status)  /* get rid of "./" prefix */
+            memmove( unix_name, unix_name + 2, strlen(unix_name) - 1 );
+        flush_dir_queue( &dir_queue );
+    }
 
 done:
     if (status == STATUS_SUCCESS)
@@ -7538,6 +7560,17 @@ NTSTATUS WINAPI NtQueryVolumeInformationFile( HANDLE handle, IO_STATUS_BLOCK *io
         {
             FILE_FS_FULL_SIZE_INFORMATION *info = buffer;
             if ((status = get_full_size_info(fd, info)) == STATUS_SUCCESS)
+                io->Information = sizeof(*info);
+        }
+        break;
+
+    case FileFsFullSizeInformationEx:
+        if (length < sizeof(FILE_FS_FULL_SIZE_INFORMATION_EX))
+            status = STATUS_BUFFER_TOO_SMALL;
+        else
+        {
+            FILE_FS_FULL_SIZE_INFORMATION_EX *info = buffer;
+            if ((status = get_full_size_info_ex(fd, info)) == STATUS_SUCCESS)
                 io->Information = sizeof(*info);
         }
         break;

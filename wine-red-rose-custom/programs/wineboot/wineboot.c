@@ -850,6 +850,7 @@ static void create_hardware_registry_keys(void)
         free( power_info );
         return;
     }
+    set_reg_value( system_key, L"SystemBiosDate", L"01/01/70" );
 
     switch (sci.ProcessorArchitecture)
     {

@@ -3558,7 +3558,9 @@ void macdrv_set_window_alpha(macdrv_window w, CGFloat alpha)
 {
     WineWindow* window = (WineWindow*)w;
 
-    [window setAlphaValue:alpha];
+    OnMainThread(^{
+        [window setAlphaValue:alpha];
+    });
 }
 }
 
@@ -3757,16 +3759,16 @@ void macdrv_set_view_superview(macdrv_view v, macdrv_view s, macdrv_window w, ma
 {
 @autoreleasepool
 {
-    WineContentView* view = (WineContentView*)v;
-    WineContentView* superview = (WineContentView*)s;
-    WineWindow* window = (WineWindow*)w;
-    WineContentView* prev = (WineContentView*)p;
-    WineContentView* next = (WineContentView*)n;
-
-    if (!superview)
-        superview = [window contentView];
-
     OnMainThreadAsync(^{
+        WineContentView* view = (WineContentView*)v;
+        WineContentView* superview = (WineContentView*)s;
+        WineWindow* window = (WineWindow*)w;
+        WineContentView* prev = (WineContentView*)p;
+        WineContentView* next = (WineContentView*)n;
+
+        if (!superview)
+            superview = [window contentView];
+
         if (superview == [view superview])
         {
             NSArray* subviews = [superview subviews];

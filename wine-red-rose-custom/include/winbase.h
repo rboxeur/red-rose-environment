@@ -907,13 +907,15 @@ typedef struct _FILE_REMOTE_PROTOCOL_INFO {
 
 #define PIPE_CLIENT_END       0
 #define PIPE_SERVER_END       1
-#define PIPE_READMODE_BYTE    0
-#define PIPE_READMODE_MESSAGE 2
-#define PIPE_TYPE_BYTE        0
-#define PIPE_TYPE_MESSAGE     4
 
-#define PIPE_WAIT   0
-#define PIPE_NOWAIT 1
+#define PIPE_WAIT                  0x00000000
+#define PIPE_NOWAIT                0x00000001
+#define PIPE_READMODE_BYTE         0x00000000
+#define PIPE_READMODE_MESSAGE      0x00000002
+#define PIPE_TYPE_BYTE             0x00000000
+#define PIPE_TYPE_MESSAGE          0x00000004
+#define PIPE_ACCEPT_REMOTE_CLIENTS 0x00000000
+#define PIPE_REJECT_REMOTE_CLIENTS 0x00000008
 
 #define PIPE_UNLIMITED_INSTANCES 255
 
@@ -1800,6 +1802,23 @@ typedef enum _PROCESS_INFORMATION_CLASS
     ProcessInformationClassMax
 } PROCESS_INFORMATION_CLASS;
 
+typedef struct DISK_SPACE_INFORMATION
+{
+    ULONGLONG ActualTotalAllocationUnits;
+    ULONGLONG ActualAvailableAllocationUnits;
+    ULONGLONG ActualPoolUnavailableAllocationUnits;
+    ULONGLONG CallerTotalAllocationUnits;
+    ULONGLONG CallerAvailableAllocationUnits;
+    ULONGLONG CallerPoolUnavailableAllocationUnits;
+    ULONGLONG UsedAllocationUnits;
+    ULONGLONG TotalReservedAllocationUnits;
+    ULONGLONG VolumeStorageReserveAllocationUnits;
+    ULONGLONG AvailableCommittedAllocationUnits;
+    ULONGLONG PoolAvailableAllocationUnits;
+    DWORD     SectorsPerAllocationUnit;
+    DWORD     BytesPerSector;
+} DISK_SPACE_INFORMATION;
+
 WINBASEAPI BOOL        WINAPI ActivateActCtx(HANDLE,ULONG_PTR *);
 WINADVAPI  BOOL        WINAPI AddAccessAllowedAce(PACL,DWORD,DWORD,PSID);
 WINADVAPI  BOOL        WINAPI AddAccessAllowedAceEx(PACL,DWORD,DWORD,DWORD,PSID);
@@ -2181,6 +2200,9 @@ WINBASEAPI BOOL        WINAPI GetDiskFreeSpaceW(LPCWSTR,LPDWORD,LPDWORD,LPDWORD,
 WINBASEAPI BOOL        WINAPI GetDiskFreeSpaceExA(LPCSTR,PULARGE_INTEGER,PULARGE_INTEGER,PULARGE_INTEGER);
 WINBASEAPI BOOL        WINAPI GetDiskFreeSpaceExW(LPCWSTR,PULARGE_INTEGER,PULARGE_INTEGER,PULARGE_INTEGER);
 #define                       GetDiskFreeSpaceEx WINELIB_NAME_AW(GetDiskFreeSpaceEx)
+WINBASEAPI HRESULT     WINAPI GetDiskSpaceInformationA(LPCSTR,DISK_SPACE_INFORMATION*);
+WINBASEAPI HRESULT     WINAPI GetDiskSpaceInformationW(LPCWSTR,DISK_SPACE_INFORMATION*);
+#define                       GetDiskSpaceInformation WINELIB_NAME_AW(GetDiskSpaceInformation)
 WINBASEAPI DWORD       WINAPI GetDllDirectoryA(DWORD,LPSTR);
 WINBASEAPI DWORD       WINAPI GetDllDirectoryW(DWORD,LPWSTR);
 #define                       GetDllDirectory WINELIB_NAME_AW(GetDllDirectory)

@@ -1519,6 +1519,7 @@ enable_windows_perception_stub
 enable_windows_security_credentials_ui_userconsentverifier
 enable_windows_storage_applicationdata
 enable_windows_system_profile_systemmanufacturers
+enable_windows_ui_xaml
 enable_windows_ui
 enable_windowscodecs
 enable_windowscodecsext
@@ -1693,6 +1694,7 @@ enable_iexplore
 enable_ipconfig
 enable_klist
 enable_lodctr
+enable_makecab
 enable_mofcomp
 enable_mshta
 enable_msidb
@@ -23191,6 +23193,8 @@ wine_fn_config_makefile dlls/windows.storage.applicationdata enable_windows_stor
 wine_fn_config_makefile dlls/windows.storage.applicationdata/tests enable_tests
 wine_fn_config_makefile dlls/windows.system.profile.systemmanufacturers enable_windows_system_profile_systemmanufacturers
 wine_fn_config_makefile dlls/windows.system.profile.systemmanufacturers/tests enable_tests
+wine_fn_config_makefile dlls/windows.ui.xaml enable_windows_ui_xaml
+wine_fn_config_makefile dlls/windows.ui.xaml/tests enable_tests
 wine_fn_config_makefile dlls/windows.ui enable_windows_ui
 wine_fn_config_makefile dlls/windows.ui/tests enable_tests
 wine_fn_config_makefile dlls/windowscodecs enable_windowscodecs
@@ -23406,6 +23410,7 @@ wine_fn_config_makefile programs/iexplore enable_iexplore
 wine_fn_config_makefile programs/ipconfig enable_ipconfig
 wine_fn_config_makefile programs/klist enable_klist
 wine_fn_config_makefile programs/lodctr enable_lodctr
+wine_fn_config_makefile programs/makecab enable_makecab
 wine_fn_config_makefile programs/mofcomp enable_mofcomp
 wine_fn_config_makefile programs/mshta enable_mshta
 wine_fn_config_makefile programs/msidb enable_msidb

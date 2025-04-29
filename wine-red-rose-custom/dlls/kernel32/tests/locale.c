@@ -5294,6 +5294,15 @@ static void test_GetStringTypeW(void)
     }
 }
 
+/* Up to Windows 10 1607 */
+static int is_codepoint_2066_broken(void)
+{
+    WCHAR buf[10];
+    int len = ARRAY_SIZE(buf);
+    pRtlNormalizeString( 13, L"\x2066", 1, buf, &len );
+    return buf[0] != 0;
+}
+
 static void test_IdnToNameprepUnicode(void)
 {
     struct {
@@ -5407,7 +5416,10 @@ static void test_IdnToNameprepUnicode(void)
             status = pRtlNormalizeString( 13, test_data[i].in, test_data[i].in_len, buf, &len );
             ok( status == test_data[i].status || broken(status == test_data[i].broken_status),
                 "%ld: failed %lx\n", i, status );
-            if (!status) ok( !wcsnicmp(test_data[i].out, buf, len), "%ld: buf = %s\n", i, wine_dbgstr_wn(buf, len));
+            if (!status)
+                ok( !wcsnicmp(test_data[i].out, buf, len) ||
+                    broken(buf[1] == L'\x2066' && is_codepoint_2066_broken()),
+                    "%ld: buf = %s\n", i, wine_dbgstr_wn(buf, len));
         }
     }
 }
@@ -7199,7 +7211,7 @@ static void test_NormalizeString(void)
             memset(dst, 0xcc, sizeof(dst));
             dstlen = pNormalizeString( norm_forms[i], ptest->str, lstrlenW(ptest->str), dst, dstlen );
             ok(dstlen == lstrlenW( ptest->expected[i] ), "%s:%d: Copied length differed: was %d, should be %d\n",
-               wine_dbgstr_w(ptest->str), i, dstlen, lstrlenW( dst ));
+               wine_dbgstr_w(ptest->str), i, dstlen, lstrlenW( ptest->expected[i] ));
             str_cmp = wcsncmp( ptest->expected[i], dst, dstlen );
             ok( str_cmp == 0, "%s:%d: string incorrect got %s expect %s\n", wine_dbgstr_w(ptest->str), i,
                 wine_dbgstr_w(dst), wine_dbgstr_w(ptest->expected[i]) );

@@ -1456,7 +1456,7 @@ static void dump_TLBFuncDescOne(const TLBFuncDesc * pfd)
   MESSAGE("\thelpstring: %s\n", debugstr_w(TLB_get_bstr(pfd->HelpString)));
   if(pfd->Entry == NULL)
       MESSAGE("\tentry: (null)\n");
-  else if(pfd->Entry == (void*)-1)
+  else if(pfd->Entry == TLB_REF_NOT_FOUND)
       MESSAGE("\tentry: invalid\n");
   else if(IS_INTRESOURCE(pfd->Entry))
       MESSAGE("\tentry: %p\n", pfd->Entry);
@@ -2068,17 +2068,17 @@ static HRESULT TLB_size_instance(ITypeInfoImpl *info, SYSKIND sys,
 
 static inline void MSFT_Seek(TLBContext *pcx, LONG where)
 {
-    if (where != DO_NOT_SEEK)
+    if (where == DO_NOT_SEEK)
+        return;
+
+    where += pcx->oStart;
+    if (where > pcx->length)
     {
-        where += pcx->oStart;
-        if (where > pcx->length)
-        {
-            /* FIXME */
-            ERR("seek beyond end (%ld/%d)\n", where, pcx->length );
-            TLB_abort();
-        }
-        pcx->pos = where;
+        /* FIXME */
+        ERR("seek beyond end (%ld/%d)\n", where, pcx->length );
+        TLB_abort();
     }
+    pcx->pos = where;
 }
 
 /* read function */
@@ -3263,16 +3263,17 @@ static ULONG WINAPI TLB_Mapping_Release(IUnknown *iface)
 {
     TLB_Mapping *This = mapping_impl_from_IUnknown(iface);
     ULONG refs = InterlockedDecrement(&This->refs);
-    if (!refs)
-    {
-        if (This->typelib_base)
-            UnmapViewOfFile(This->typelib_base);
-        if (This->mapping)
-            CloseHandle(This->mapping);
-        if (This->file != INVALID_HANDLE_VALUE)
-            CloseHandle(This->file);
-        free(This);
-    }
+    if (refs)
+        return refs;
+
+    if (This->typelib_base)
+        UnmapViewOfFile(This->typelib_base);
+    if (This->mapping)
+        CloseHandle(This->mapping);
+    if (This->file != INVALID_HANDLE_VALUE)
+        CloseHandle(This->file);
+    free(This);
+
     return refs;
 }
 
@@ -4846,6 +4847,10 @@ static ULONG WINAPI ITypeLib2_fnAddRef( ITypeLib2 *iface)
 static ULONG WINAPI ITypeLib2_fnRelease( ITypeLib2 *iface)
 {
     ITypeLibImpl *This = impl_from_ITypeLib2(iface);
+    TLBImpLib *pImpLib, *pImpLibNext;
+    TLBRefType *ref_type, *ref_type_next;
+    TLBString *tlbstr, *tlbstr_next;
+    TLBGuid *tlbguid, *tlbguid_next;
     ULONG ref;
 
     EnterCriticalSection(&cache_section);
@@ -4853,72 +4858,67 @@ static ULONG WINAPI ITypeLib2_fnRelease( ITypeLib2 *iface)
 
     TRACE("%p, refcount %lu.\n", iface, ref);
 
-    if (!ref)
-    {
-      TLBImpLib *pImpLib, *pImpLibNext;
-      TLBRefType *ref_type, *ref_type_next;
-      TLBString *tlbstr, *tlbstr_next;
-      TLBGuid *tlbguid, *tlbguid_next;
-      int i;
-
-      /* remove cache entry */
-      if(This->path)
-      {
-          TRACE("removing from cache list\n");
-          if(This->entry.next)
-              list_remove(&This->entry);
-          free(This->path);
-      }
-      TRACE(" destroying ITypeLib(%p)\n",This);
-
-      LIST_FOR_EACH_ENTRY_SAFE(tlbstr, tlbstr_next, &This->string_list, TLBString, entry) {
-          list_remove(&tlbstr->entry);
-          SysFreeString(tlbstr->str);
-          free(tlbstr);
-      }
-
-      LIST_FOR_EACH_ENTRY_SAFE(tlbstr, tlbstr_next, &This->name_list, TLBString, entry) {
-          list_remove(&tlbstr->entry);
-          SysFreeString(tlbstr->str);
-          free(tlbstr);
-      }
-
-      LIST_FOR_EACH_ENTRY_SAFE(tlbguid, tlbguid_next, &This->guid_list, TLBGuid, entry) {
-          list_remove(&tlbguid->entry);
-          free(tlbguid);
-      }
-
-      TLB_FreeCustData(&This->custdata_list);
-
-      for (i = 0; i < This->ctTypeDesc; i++)
-          if (This->pTypeDesc[i].vt == VT_CARRAY)
-              free(This->pTypeDesc[i].lpadesc);
-
-      free(This->pTypeDesc);
-
-      LIST_FOR_EACH_ENTRY_SAFE(pImpLib, pImpLibNext, &This->implib_list, TLBImpLib, entry)
-      {
-          if (pImpLib->pImpTypeLib)
-              ITypeLib2_Release(&pImpLib->pImpTypeLib->ITypeLib2_iface);
-          SysFreeString(pImpLib->name);
-
-          list_remove(&pImpLib->entry);
-          free(pImpLib);
-      }
-
-      LIST_FOR_EACH_ENTRY_SAFE(ref_type, ref_type_next, &This->ref_list, TLBRefType, entry)
-      {
-          list_remove(&ref_type->entry);
-          free(ref_type);
-      }
-
-      for (i = 0; i < This->TypeInfoCount; ++i){
-          free(This->typeinfos[i]->tdescAlias);
-          ITypeInfoImpl_Destroy(This->typeinfos[i]);
-      }
-      free(This->typeinfos);
-      free(This);
+    if (ref) {
+        LeaveCriticalSection(&cache_section);
+        return ref;
     }
+
+    /* remove cache entry */
+    if(This->path) {
+        TRACE("removing from cache list\n");
+        if(This->entry.next)
+            list_remove(&This->entry);
+        free(This->path);
+    }
+    TRACE(" destroying ITypeLib(%p)\n",This);
+
+    LIST_FOR_EACH_ENTRY_SAFE(tlbstr, tlbstr_next, &This->string_list, TLBString, entry) {
+        list_remove(&tlbstr->entry);
+        SysFreeString(tlbstr->str);
+        free(tlbstr);
+    }
+
+    LIST_FOR_EACH_ENTRY_SAFE(tlbstr, tlbstr_next, &This->name_list, TLBString, entry) {
+        list_remove(&tlbstr->entry);
+        SysFreeString(tlbstr->str);
+        free(tlbstr);
+    }
+
+    LIST_FOR_EACH_ENTRY_SAFE(tlbguid, tlbguid_next, &This->guid_list, TLBGuid, entry) {
+        list_remove(&tlbguid->entry);
+        free(tlbguid);
+    }
+
+    TLB_FreeCustData(&This->custdata_list);
+
+    for (int i = 0; i < This->ctTypeDesc; i++) {
+        if (This->pTypeDesc[i].vt == VT_CARRAY)
+            free(This->pTypeDesc[i].lpadesc);
+    }
+    free(This->pTypeDesc);
+
+    LIST_FOR_EACH_ENTRY_SAFE(pImpLib, pImpLibNext, &This->implib_list, TLBImpLib, entry)
+    {
+        if (pImpLib->pImpTypeLib)
+            ITypeLib2_Release(&pImpLib->pImpTypeLib->ITypeLib2_iface);
+        SysFreeString(pImpLib->name);
+
+        list_remove(&pImpLib->entry);
+        free(pImpLib);
+    }
+
+    LIST_FOR_EACH_ENTRY_SAFE(ref_type, ref_type_next, &This->ref_list, TLBRefType, entry)
+    {
+        list_remove(&ref_type->entry);
+        free(ref_type);
+    }
+
+    for (int i = 0; i < This->TypeInfoCount; ++i) {
+        free(This->typeinfos[i]->tdescAlias);
+        ITypeInfoImpl_Destroy(This->typeinfos[i]);
+    }
+    free(This->typeinfos);
+    free(This);
 
     LeaveCriticalSection(&cache_section);
     return ref;
@@ -5663,21 +5663,20 @@ static const ITypeCompVtbl tlbtcvt =
 /*================== ITypeInfo(2) Methods ===================================*/
 static ITypeInfoImpl* ITypeInfoImpl_Constructor(void)
 {
-    ITypeInfoImpl *pTypeInfoImpl;
+    ITypeInfoImpl *pTypeInfoImpl = calloc(1, sizeof(ITypeInfoImpl));
+    if (!pTypeInfoImpl)
+        return NULL;
 
-    pTypeInfoImpl = calloc(1, sizeof(ITypeInfoImpl));
-    if (pTypeInfoImpl)
-    {
-      pTypeInfoImpl->ITypeInfo2_iface.lpVtbl = &tinfvt;
-      pTypeInfoImpl->ITypeComp_iface.lpVtbl = &tcompvt;
-      pTypeInfoImpl->ICreateTypeInfo2_iface.lpVtbl = &CreateTypeInfo2Vtbl;
-      pTypeInfoImpl->ref = 0;
-      pTypeInfoImpl->hreftype = -1;
-      pTypeInfoImpl->typeattr.memidConstructor = MEMBERID_NIL;
-      pTypeInfoImpl->typeattr.memidDestructor = MEMBERID_NIL;
-      pTypeInfoImpl->pcustdata_list = &pTypeInfoImpl->custdata_list;
-      list_init(pTypeInfoImpl->pcustdata_list);
-    }
+    pTypeInfoImpl->ITypeInfo2_iface.lpVtbl = &tinfvt;
+    pTypeInfoImpl->ITypeComp_iface.lpVtbl = &tcompvt;
+    pTypeInfoImpl->ICreateTypeInfo2_iface.lpVtbl = &CreateTypeInfo2Vtbl;
+    pTypeInfoImpl->ref = 0;
+    pTypeInfoImpl->hreftype = -1;
+    pTypeInfoImpl->typeattr.memidConstructor = MEMBERID_NIL;
+    pTypeInfoImpl->typeattr.memidDestructor = MEMBERID_NIL;
+    pTypeInfoImpl->pcustdata_list = &pTypeInfoImpl->custdata_list;
+    list_init(pTypeInfoImpl->pcustdata_list);
+
     TRACE("(%p)\n", pTypeInfoImpl);
     return pTypeInfoImpl;
 }
@@ -5704,13 +5703,15 @@ static HRESULT WINAPI ITypeInfo_fnQueryInterface(
     else if(IsEqualIID(riid, &IID_ITypeComp))
         *ppvObject = &This->ITypeComp_iface;
 
-    if(*ppvObject){
-        IUnknown_AddRef((IUnknown*)*ppvObject);
-        TRACE("-- Interface: (%p)->(%p)\n",ppvObject,*ppvObject);
-        return S_OK;
+    if(!*ppvObject){
+        TRACE("-- Interface: E_NOINTERFACE\n");
+        return E_NOINTERFACE;
     }
-    TRACE("-- Interface: E_NOINTERFACE\n");
-    return E_NOINTERFACE;
+
+    IUnknown_AddRef((IUnknown*)*ppvObject);
+    TRACE("-- Interface: (%p)->(%p)\n",ppvObject,*ppvObject);
+
+    return S_OK;
 }
 
 static ULONG WINAPI ITypeInfo_fnAddRef( ITypeInfo2 *iface)
@@ -5784,17 +5785,17 @@ static ULONG WINAPI ITypeInfo_fnRelease(ITypeInfo2 *iface)
 {
     ITypeInfoImpl *This = impl_from_ITypeInfo2(iface);
     ULONG ref = InterlockedDecrement(&This->ref);
+    BOOL not_attached_to_typelib = This->not_attached_to_typelib;
 
     TRACE("%p, refcount %lu.\n", iface, ref);
 
-    if (!ref)
-    {
-        BOOL not_attached_to_typelib = This->not_attached_to_typelib;
-        ITypeLib2_Release(&This->pTypeLib->ITypeLib2_iface);
-        if (not_attached_to_typelib)
-            free(This);
-        /* otherwise This will be freed when typelib is freed */
-    }
+    if (ref)
+        return ref;
+
+    ITypeLib2_Release(&This->pTypeLib->ITypeLib2_iface);
+    if (not_attached_to_typelib)
+        free(This);
+    /* otherwise This will be freed when typelib is freed */
 
     return ref;
 }
@@ -7955,7 +7956,7 @@ static HRESULT WINAPI ITypeInfo_fnGetDllEntry( ITypeInfo2 *iface, MEMBERID memid
 
     if (pBstrDllName) *pBstrDllName = SysAllocString(TLB_get_bstr(This->DllName));
 
-    if (!IS_INTRESOURCE(pFDesc->Entry) && (pFDesc->Entry != (void*)-1))
+    if (!IS_INTRESOURCE(pFDesc->Entry) && (pFDesc->Entry != TLB_REF_NOT_FOUND))
     {
         if (pBstrName) *pBstrName = SysAllocString(TLB_get_bstr(pFDesc->Entry));
         if (pwOrdinal) *pwOrdinal = -1;
