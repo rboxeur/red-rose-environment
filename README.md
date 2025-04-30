@@ -1,4 +1,4 @@
-# About Red Rose  (Wine from GE-Proton 9 and other stuffs)
+# Red Rose: Wine from GE-Proton 9 and other stuffs)
 
 This repository provides my Wine build to play native Windows games on Linux.
 
