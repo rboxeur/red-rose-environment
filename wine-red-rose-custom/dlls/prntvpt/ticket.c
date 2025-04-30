@@ -1434,7 +1434,7 @@ static inline int pixels_to_mm_x1000(int pixels, int dpi)
     return MulDiv(pixels, 25400, dpi);
 }
 
-static HRESULT write_PageImageableSize_caps(const WCHAR *device, IXMLDOMElement *root)
+static HRESULT write_PageImageableSize_caps(const WCHAR *device, IXMLDOMElement *root, int orientation)
 {
     HRESULT hr;
     HDC hdc;
@@ -1461,11 +1461,11 @@ static HRESULT write_PageImageableSize_caps(const WCHAR *device, IXMLDOMElement 
 
     hr = create_Property(page, L"psk:ImageableSizeWidth", &property);
     if (hr != S_OK) goto fail;
-    write_int_value(property, phys_width);
+    write_int_value(property, orientation == DMORIENT_PORTRAIT ? phys_width : phys_height);
     IXMLDOMElement_Release(property);
     hr = create_Property(page, L"psk:ImageableSizeHeight", &property);
     if (hr != S_OK) goto fail;
-    write_int_value(property, phys_height);
+    write_int_value(property, orientation == DMORIENT_PORTRAIT ? phys_height : phys_width);
     IXMLDOMElement_Release(property);
 
     hr = create_Property(page, L"psk:ImageableArea", &area);
@@ -1473,20 +1473,20 @@ static HRESULT write_PageImageableSize_caps(const WCHAR *device, IXMLDOMElement 
 
     hr = create_Property(area, L"psk:OriginWidth", &property);
     if (hr != S_OK) goto fail;
-    write_int_value(property, offset_x);
+    write_int_value(property, orientation == DMORIENT_PORTRAIT ? offset_x : offset_y);
     IXMLDOMElement_Release(property);
     hr = create_Property(area, L"psk:OriginHeight", &property);
     if (hr != S_OK) goto fail;
-    write_int_value(property, offset_y);
+    write_int_value(property, orientation == DMORIENT_PORTRAIT ? offset_y : offset_x);
     IXMLDOMElement_Release(property);
 
     hr = create_Property(area, L"psk:ExtentWidth", &property);
     if (hr != S_OK) goto fail;
-    write_int_value(property, width);
+    write_int_value(property, orientation == DMORIENT_PORTRAIT ? width : height);
     IXMLDOMElement_Release(property);
     hr = create_Property(area, L"psk:ExtentHeight", &property);
     if (hr != S_OK) goto fail;
-    write_int_value(property, height);
+    write_int_value(property, orientation == DMORIENT_PORTRAIT ? height : width);
     IXMLDOMElement_Release(property);
 
     IXMLDOMElement_Release(area);
@@ -1663,7 +1663,7 @@ fail:
     return hr;
 }
 
-static HRESULT write_print_capabilities(const WCHAR *device, IStream *stream)
+static HRESULT write_print_capabilities(const WCHAR *device, IStream *stream, int orientation)
 {
     static const char xmldecl[] = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n";
     HRESULT hr;
@@ -1686,7 +1686,7 @@ static HRESULT write_print_capabilities(const WCHAR *device, IStream *stream)
 
     hr = write_PageMediaSize_caps(device, root);
     if (hr != S_OK) goto fail;
-    hr = write_PageImageableSize_caps(device, root);
+    hr = write_PageImageableSize_caps(device, root, orientation);
     if (hr != S_OK) goto fail;
     hr = write_PageOutputColor_caps(device, root);
     if (hr != S_OK) goto fail;
@@ -1730,5 +1730,5 @@ HRESULT WINAPI PTGetPrintCapabilities(HPTPROVIDER provider, IStream *stream, ISt
     hr = parse_ticket(stream, kPTJobScope, &ticket);
     if (hr != S_OK) return hr;
 
-    return write_print_capabilities(prov->name, caps);
+    return write_print_capabilities(prov->name, caps, ticket.page.orientation);
 }

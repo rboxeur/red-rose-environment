@@ -1787,7 +1787,7 @@ GpStatus WINGDIPAPI GdipIsOutlineVisiblePathPoint(GpPath* path, REAL x, REAL y,
 
     if (stat != Ok)
         return stat;
-
+    // if (graphics != NULL) // TODO Why we are checking Pen?
     if (pen->unit == UnitPixel && graphics != NULL)
     {
         stat = GdipCreateMatrix(&transform);

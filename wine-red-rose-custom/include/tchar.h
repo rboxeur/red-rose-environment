@@ -36,6 +36,7 @@ extern "C" {
 #define _strnextc(str)          ((unsigned int)*(str))
 #define _strninc(str,n)         (((char*)(str))+(n))
 #define _strspnp(s1,s2)         (*((s1)+=strspn((s1),(s2))) ? (s1) : NULL)
+#define _wcsinc(current)        (((wchar_t*)(current))+1)
 
 
 /*****************************************************************************
@@ -94,7 +95,9 @@ extern "C" {
 #define _puttchar     WINE_tchar_routine(putchar,         putchar,     putwchar)
 #define _putts        WINE_tchar_routine(puts,            puts,        putws)
 #define _sntprintf    WINE_tchar_routine(snprintf,        snprintf,    _snwprintf)
+#define _sntprintf_s  WINE_tchar_routine(snprintf_s,      snprintf_s,  _snwprintf_s)
 #define _stprintf     WINE_tchar_routine(sprintf,         sprintf,     swprintf)
+#define _stprintf_s   WINE_tchar_routine(sprintf_s,       sprintf-s,   swprintf_s)
 #define _stscanf      WINE_tchar_routine(sscanf,          sscanf,      swscanf)
 #define _stscanf_s    WINE_tchar_routine(sscanf_s,        sscanf_s,    swscanf_s)
 #define _taccess      WINE_tchar_routine(access,          _access,     _waccess)
@@ -225,7 +228,9 @@ extern "C" {
 #define _ungettc      WINE_tchar_routine(ungetc,          ungetc,      ungetwc)
 #define _vftprintf    WINE_tchar_routine(vfprintf,        vfprintf,    vfwprintf)
 #define _vsntprintf   WINE_tchar_routine(vsnprintf,       _vsnprintf,  _vsnwprintf)
+#define _vsntprintf_s WINE_tchar_routine(vsnprintf_s      _vsnprintf_s,_vsnwprintf_s)
 #define _vstprintf    WINE_tchar_routine(vsprintf,        vsprintf,    vswprintf)
+#define _vstprintf_s  WINE_tchar_routine(vsprintf_s,      vsprintf_s   vswprintf_s)
 #define _vtprintf     WINE_tchar_routine(vprintf,         vprintf,     vwprintf)
 #define _TEOF         WINE_tchar_routine(EOF,             EOF,         WEOF)
 

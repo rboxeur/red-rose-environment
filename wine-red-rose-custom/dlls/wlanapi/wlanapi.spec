@@ -1,18 +1,18 @@
 @ stdcall WlanAllocateMemory(long)
 @ stdcall WlanCloseHandle(ptr ptr)
-@ stub WlanConnect
+@ stdcall WlanConnect(ptr ptr ptr ptr)
 @ stub WlanDeleteProfile
-@ stub WlanDisconnect
+@ stdcall WlanDisconnect(ptr ptr ptr)
 @ stdcall WlanEnumInterfaces(long ptr ptr)
 @ stub WlanExtractPsdIEDataList
 @ stdcall WlanFreeMemory(ptr)
 @ stdcall WlanGetAvailableNetworkList(ptr ptr long ptr ptr)
 @ stub WlanGetFilterList
 @ stub WlanGetInterfaceCapability
-@ stub WlanGetNetworkBssList
+@ stdcall WlanGetNetworkBssList(ptr ptr ptr long long ptr ptr)
 @ stub WlanGetProfile
 @ stub WlanGetProfileCustomUserData
-@ stub WlanGetProfileList
+@ stdcall WlanGetProfileList(ptr ptr ptr ptr)
 @ stub WlanGetSecuritySettings
 @ stdcall WlanHostedNetworkQueryProperty(ptr long ptr ptr ptr ptr)
 @ stdcall WlanHostedNetworkQuerySecondaryKey(ptr ptr ptr ptr ptr ptr ptr)
@@ -29,7 +29,7 @@
 @ stub WlanSetAutoConfigParameter
 @ stub WlanSetFilterList
 @ stub WlanSetInterface
-@ stub WlanSetProfile
+@ stdcall WlanSetProfile(ptr ptr long ptr ptr long ptr ptr)
 @ stub WlanSetProfileCustomUserData
 @ stub WlanSetProfileEapUserData
 @ stub WlanSetProfileEapXmlUserData

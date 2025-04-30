@@ -2,4 +2,5 @@ TESTDLL   = wlanapi.dll
 IMPORTS   = wlanapi
 
 SOURCES = \
+	resource.rc \
 	wlanapi.c

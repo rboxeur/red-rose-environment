@@ -514,6 +514,18 @@ static BOOL copy_file( const WCHAR *source, const WCHAR *dest, COPYFILE2_EXTENDE
         SetLastError( ERROR_INVALID_PARAMETER );
         return FALSE;
     }
+
+    if (!RtlGetCurrentPeb()->IsLongPathAwareProcess && wcsncmp(source, L"\\\\?\\", 4) && wcslen(source) >= MAX_PATH )
+    {
+        SetLastError( ERROR_PATH_NOT_FOUND );
+        return FALSE;
+    }
+    if (!RtlGetCurrentPeb()->IsLongPathAwareProcess && wcsncmp(dest, L"\\\\?\\", 4) && wcslen(dest) >= MAX_PATH )
+    {
+        SetLastError( ERROR_PATH_NOT_FOUND );
+        return FALSE;
+    }
+
     if (!(buffer = HeapAlloc( GetProcessHeap(), 0, buffer_size )))
     {
         SetLastError( ERROR_NOT_ENOUGH_MEMORY );
@@ -992,9 +1004,12 @@ BOOLEAN WINAPI /* DECLSPEC_HOTPATCH */ CreateSymbolicLinkW( LPCWSTR link, LPCWST
 BOOL WINAPI DECLSPEC_HOTPATCH DeleteFileA( LPCSTR path )
 {
     WCHAR *pathW;
+    BOOL res;
 
-    if (!(pathW = file_name_AtoW( path, FALSE ))) return FALSE;
-    return DeleteFileW( pathW );
+    if (!(pathW = file_name_AtoW( path, TRUE ))) return FALSE;
+    res = DeleteFileW( pathW );
+    HeapFree( GetProcessHeap(), 0, pathW );
+    return res;
 }
 
 
@@ -1010,6 +1025,18 @@ BOOL WINAPI DECLSPEC_HOTPATCH DeleteFileW( LPCWSTR path )
     IO_STATUS_BLOCK io;
 
     TRACE( "%s\n", debugstr_w(path) );
+
+    if (!path)
+    {
+        SetLastError( ERROR_PATH_NOT_FOUND );
+        return FALSE;
+    }
+
+    if (!RtlGetCurrentPeb()->IsLongPathAwareProcess && wcsncmp(path, L"\\\\?\\", 4) && wcslen(path) >= MAX_PATH )
+    {
+        SetLastError( ERROR_PATH_NOT_FOUND );
+        return FALSE;
+    }
 
     if (!RtlDosPathNameToNtPathName_U( path, &nameW, NULL, NULL ))
     {

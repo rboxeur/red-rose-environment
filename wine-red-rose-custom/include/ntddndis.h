@@ -217,6 +217,13 @@ typedef struct _NDIS_802_11_BSSID_LIST {
     NDIS_WLAN_BSSID Bssid[1];
 } NDIS_802_11_BSSID_LIST, *PNDIS_802_11_BSSID_LIST;
 
+typedef struct _NDIS_OBJECT_HEADER
+{
+    UCHAR Type;
+    UCHAR Revision;
+    USHORT Size;
+} NDIS_OBJECT_HEADER, *PNDIS_OBJECT_HEADER;
+
 #ifndef _NDIS_
 typedef int NDIS_STATUS, *PNDIS_STATUS;
 #endif

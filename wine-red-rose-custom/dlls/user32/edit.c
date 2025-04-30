@@ -3162,6 +3162,9 @@ static LRESULT EDIT_WM_Char(EDITSTATE *es, WCHAR c)
 	if (es->bCaptureState)
 		return 1;
 
+	if (es->bCaptureState)
+		return 1;
+
 	control = NtUserGetKeyState(VK_CONTROL) & 0x8000;
 
 	switch (c) {
@@ -3436,6 +3439,9 @@ static LRESULT EDIT_WM_KeyDown(EDITSTATE *es, INT key)
 
 	if (es->bCaptureState)
 		return 0;
+
+	if (es->bCaptureState)
+		return 1;
 
 	if (es->bCaptureState)
 		return 1;

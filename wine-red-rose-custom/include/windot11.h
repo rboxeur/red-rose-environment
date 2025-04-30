@@ -19,6 +19,8 @@
 #ifndef _WINDOT11_H
 #define _WINDOT11_H
 
+#include <ntddndis.h>
+
 typedef enum _DOT11_PHY_TYPE
 {
     dot11_phy_type_unknown = 0x00,
@@ -37,5 +39,15 @@ typedef enum _DOT11_PHY_TYPE
 
 typedef UCHAR DOT11_MAC_ADDRESS[6];
 typedef DOT11_MAC_ADDRESS *PDOT11_MAC_ADDRESS;
+
+typedef struct _DOT11_BSSID_LIST
+{
+    NDIS_OBJECT_HEADER Header;
+    ULONG uNumOfEntries;
+    ULONG uTotalNumOfEntries;
+    DOT11_MAC_ADDRESS BSSIDs[1];
+} DOT11_BSSID_LIST, *PDOT11_BSSID_LIST;
+
+#define DOT11_RATE_SET_MAX_LENGTH 126
 
 #endif /* _WINDOT11_H */

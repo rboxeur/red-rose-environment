@@ -2617,6 +2617,8 @@ static void EDIT_EM_ReplaceSel(EDITSTATE *es, BOOL can_undo, const WCHAR *lpsz_r
 	    if (!notify_parent(es, EN_CHANGE)) return;
 	}
 	EDIT_InvalidateUniscribeData(es);
+
+	NotifyWinEvent(EVENT_OBJECT_VALUECHANGE, es->hwndSelf, OBJID_CLIENT, 0);
 }
 
 
@@ -2886,6 +2888,7 @@ static BOOL EDIT_EM_Undo(EDITSTATE *es)
 	EDIT_EM_ScrollCaret(es);
 	Free(utext);
 
+	NotifyWinEvent(EVENT_OBJECT_VALUECHANGE, es->hwndSelf, OBJID_CLIENT, 0);
 	TRACE("after UNDO:insertion length = %d, deletion buffer = %s\n",
 			es->undo_insert_count, debugstr_w(es->undo_text));
 	return TRUE;
@@ -3008,6 +3011,9 @@ static LRESULT EDIT_WM_Char(EDITSTATE *es, WCHAR c)
 
 	if (es->bCaptureState)
 		return 0;
+
+	if (es->bCaptureState)
+		return 1;
 
 	if (es->bCaptureState)
 		return 1;
@@ -3270,6 +3276,9 @@ static LRESULT EDIT_WM_KeyDown(EDITSTATE *es, INT key)
 
 	if (es->bCaptureState)
 		return 0;
+
+	if (es->bCaptureState)
+		return 1;
 
 	if (es->bCaptureState)
 		return 1;
@@ -3827,6 +3836,7 @@ static void EDIT_WM_SetText(EDITSTATE *es, LPCWSTR text)
     EDIT_EM_ScrollCaret(es);
     EDIT_UpdateScrollInfo(es);
     EDIT_InvalidateUniscribeData(es);
+    NotifyWinEvent(EVENT_OBJECT_VALUECHANGE, es->hwndSelf, OBJID_CLIENT, 0);
 }
 
 

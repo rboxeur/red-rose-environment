@@ -279,11 +279,15 @@ HRESULT DP_HandleMessage( IDirectPlayImpl *This, const void *lpcMessageBody,
 
     /* Name server needs to handle this request */
     case DPMSGCMD_ENUMSESSIONSREPLY:
+      EnterCriticalSection( &This->lock );
+
       /* No reply expected */
       NS_AddRemoteComputerAsNameServer( lpcMessageHeader,
                                         This->dp2->spData.dwSPHeaderSize,
                                         lpcMessageBody,
                                         This->dp2->lpNameServerData );
+
+      LeaveCriticalSection( &This->lock );
       break;
 
     case DPMSGCMD_REQUESTNEWPLAYERID:
@@ -2265,34 +2269,27 @@ static HRESULT WINAPI IDirectPlay4Impl_EnumPlayers( IDirectPlay4 *iface, GUID *i
 /* This function should call the registered callback function that the user
    passed into EnumSessions for each entry available.
  */
-static void DP_InvokeEnumSessionCallbacks
+static BOOL DP_InvokeEnumSessionCallbacks
        ( LPDPENUMSESSIONSCALLBACK2 lpEnumSessionsCallback2,
          LPVOID lpNSInfo,
-         DWORD dwTimeout,
+         DWORD *timeout,
          LPVOID lpContext )
 {
   LPDPSESSIONDESC2 lpSessionDesc;
 
   FIXME( ": not checking for conditions\n" );
 
-  /* Not sure if this should be pruning but it's convenient */
-  NS_PruneSessionCache( lpNSInfo );
-
-  NS_ResetSessionEnumeration( lpNSInfo );
-
   /* Enumerate all sessions */
   /* FIXME: Need to indicate ANSI */
   while( (lpSessionDesc = NS_WalkSessions( lpNSInfo ) ) != NULL )
   {
     TRACE( "EnumSessionsCallback2 invoked\n" );
-    if( !lpEnumSessionsCallback2( lpSessionDesc, &dwTimeout, 0, lpContext ) )
-    {
-      return;
-    }
+    if( !lpEnumSessionsCallback2( lpSessionDesc, timeout, 0, lpContext ) )
+      return FALSE;
   }
 
   /* Invoke one last time to indicate that there is no more to come */
-  lpEnumSessionsCallback2( NULL, &dwTimeout, DPESC_TIMEDOUT, lpContext );
+  return lpEnumSessionsCallback2( NULL, timeout, DPESC_TIMEDOUT, lpContext );
 }
 
 static DWORD CALLBACK DP_EnumSessionsSendAsyncRequestThread( LPVOID lpContext )
@@ -2406,7 +2403,9 @@ static HRESULT WINAPI IDirectPlay4Impl_EnumSessions( IDirectPlay4 *iface, DPSESS
         DWORD timeout, LPDPENUMSESSIONSCALLBACK2 enumsessioncb, void *context, DWORD flags )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay4( iface );
+    DWORD defaultTimeout;
     void *connection;
+    DPCAPS caps;
     DWORD  size;
     HRESULT hr = DP_OK;
 
@@ -2449,18 +2448,11 @@ static HRESULT WINAPI IDirectPlay4Impl_EnumSessions( IDirectPlay4 *iface, DPSESS
         This->dp2->bSPInitialized = TRUE;
     }
 
-
-    /* Use the service provider default? */
-    if ( !timeout )
-    {
-        DPCAPS caps;
-        caps.dwSize = sizeof( caps );
-
-        IDirectPlayX_GetCaps( &This->IDirectPlay4_iface, &caps, 0 );
-        timeout = caps.dwTimeout;
-        if ( !timeout )
-            timeout = DPMSG_WAIT_5_SECS; /* Provide the TCP/IP default */
-    }
+    caps.dwSize = sizeof( caps );
+    IDirectPlayX_GetCaps( &This->IDirectPlay4_iface, &caps, 0 );
+    defaultTimeout = caps.dwTimeout;
+    if ( !defaultTimeout )
+        defaultTimeout = DPMSG_WAIT_5_SECS; /* Provide the TCP/IP default */
 
     if ( flags & DPENUMSESSIONS_STOPASYNC )
     {
@@ -2468,12 +2460,39 @@ static HRESULT WINAPI IDirectPlay4Impl_EnumSessions( IDirectPlay4 *iface, DPSESS
         return hr;
     }
 
+    for ( ;; )
+    {
+        if ( !(flags & DPENUMSESSIONS_ASYNC) )
+        {
+            EnterCriticalSection( &This->lock );
+
+            /* Invalidate the session cache for the interface */
+            NS_InvalidateSessionCache( This->dp2->lpNameServerData );
+
+            LeaveCriticalSection( &This->lock );
+
+            /* Send the broadcast for session enumeration */
+            hr = NS_SendSessionRequestBroadcast( &sdesc->guidApplication, flags,
+                                                 &This->dp2->spData );
+            if ( FAILED( hr ) )
+                return hr;
+            SleepEx( timeout ? timeout : defaultTimeout, FALSE );
+        }
+
+        EnterCriticalSection( &This->lock );
+
+        NS_PruneSessionCache( This->dp2->lpNameServerData );
+        NS_ResetSessionEnumeration( This->dp2->lpNameServerData );
+
+        LeaveCriticalSection( &This->lock );
+
+        if ( !DP_InvokeEnumSessionCallbacks( enumsessioncb, This->dp2->lpNameServerData, &timeout,
+                                             context ) )
+            break;
+    }
+
     if ( flags & DPENUMSESSIONS_ASYNC )
     {
-        /* Enumerate everything presently in the local session cache */
-        DP_InvokeEnumSessionCallbacks( enumsessioncb, This->dp2->lpNameServerData, timeout,
-                context );
-
         if ( This->dp2->dwEnumSessionLock )
             return DPERR_CONNECTING;
 
@@ -2496,7 +2515,7 @@ static HRESULT WINAPI IDirectPlay4Impl_EnumSessions( IDirectPlay4 *iface, DPSESS
                 data->lpSpData  = &This->dp2->spData;
                 data->requestGuid = sdesc->guidApplication;
                 data->dwEnumSessionFlags = flags;
-                data->dwTimeout = timeout;
+                data->dwTimeout = timeout ? timeout : defaultTimeout;
 
                 This->dp2->hKillEnumSessionThreadEvent = CreateEventW( NULL, TRUE, FALSE, NULL );
                 if ( !DuplicateHandle( GetCurrentProcess(), This->dp2->hKillEnumSessionThreadEvent,
@@ -2510,16 +2529,6 @@ static HRESULT WINAPI IDirectPlay4Impl_EnumSessions( IDirectPlay4 *iface, DPSESS
             }
             This->dp2->dwEnumSessionLock--;
         }
-    }
-    else
-    {
-        /* Invalidate the session cache for the interface */
-        NS_InvalidateSessionCache( This->dp2->lpNameServerData );
-        /* Send the broadcast for session enumeration */
-        hr = NS_SendSessionRequestBroadcast( &sdesc->guidApplication, flags, &This->dp2->spData );
-        SleepEx( timeout, FALSE );
-        DP_InvokeEnumSessionCallbacks( enumsessioncb, This->dp2->lpNameServerData, timeout,
-                context );
     }
 
     return hr;
