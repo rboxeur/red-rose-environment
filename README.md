@@ -1,4 +1,4 @@
-# Red Rose: Wine from GE-Proton 9 with chaos stuffs
+# Red Rose: Wine from GE-Proton 9 with chaotic stuffs
 
 This repository provides my Wine build to play native Windows games on Linux.
 
