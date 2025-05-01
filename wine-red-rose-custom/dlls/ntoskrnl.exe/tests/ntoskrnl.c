@@ -1367,7 +1367,10 @@ static void add_file_to_catalog(HANDLE catalog, const WCHAR *file)
 static const GUID bus_class     = {0xdeadbeef, 0x29ef, 0x4538, {0xa5, 0xfd, 0xb6, 0x95, 0x73, 0xa3, 0x62, 0xc1}};
 static const GUID child_class   = {0xdeadbeef, 0x29ef, 0x4538, {0xa5, 0xfd, 0xb6, 0x95, 0x73, 0xa3, 0x62, 0xc2}};
 
-static unsigned int got_bus_arrival, got_bus_removal, got_child_arrival, got_child_removal;
+static unsigned int got_bus_arrival, got_bus_removal, got_child_arrival, got_child_removal, got_custom_event;
+
+static HDEVNOTIFY notify_handle_custom;
+static HANDLE bus;
 
 static LRESULT WINAPI device_notify_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
@@ -1438,6 +1441,69 @@ static LRESULT WINAPI device_notify_proc(HWND window, UINT message, WPARAM wpara
             }
             break;
         }
+
+        case DBT_CUSTOMEVENT:
+        {
+            const DEV_BROADCAST_HANDLE *handle = (const DEV_BROADCAST_HANDLE *)lparam;
+            INT i;
+
+            if (handle->dbch_devicetype != DBT_DEVTYP_HANDLE)
+                break;
+
+            if (winetest_debug > 1) trace("custom device event\n");
+
+            ok( handle->dbch_handle == bus, "Expected dbch_handle %p, got %p.\n", bus, handle->dbch_handle );
+
+            for (i = 0; i < ARRAY_SIZE( custom_events ); i++)
+            {
+                const GUID *guid = &custom_events[i].eventguid;
+                DWORD expect_size;
+                DWORD size = 0;
+
+                if (!IsEqualGUID( &handle->dbch_eventguid, guid ))
+                    continue;
+
+                winetest_push_context( "custom_events %d", i );
+                got_custom_event++;
+
+                if (custom_events[i].data) size = custom_events[i].data_size;
+                if (custom_events[i].strA) size += strlen( custom_events[i].strA );
+
+                expect_size = offsetof( DEV_BROADCAST_HANDLE, dbch_data[size] );
+                ok( handle->dbch_size >= expect_size,
+                    "Unexpected dbch_size=%lu, expected atleast %lu.\n", handle->dbch_size,
+                    expect_size );
+                ok( handle->dbch_handle == bus, "Expected dbch_handle=%p, got %p.\n", bus,
+                   handle->dbch_handle );
+                ok( handle->dbch_hdevnotify == notify_handle_custom,
+                    "Expected dbch_hdevnotify=%p, got %p.\n", notify_handle_custom,
+                    handle->dbch_hdevnotify );
+
+                if (handle->dbch_size < expect_size)
+                {
+                    winetest_pop_context();
+                    continue;
+                }
+
+                if (custom_events[i].data)
+                    ok( !memcmp( handle->dbch_data, custom_events[i].data, custom_events[i].data_size ),
+                       "Unexpected dbch_data contents.\n");
+
+                if (custom_events[i].strA)
+                {
+                    const CHAR *strA = (CHAR *)&handle->dbch_data[handle->dbch_nameoffset];
+
+                    ok( handle->dbch_nameoffset != -1, "Expected dbch_nameoffset = %lu, got -1.\n",
+                       handle->dbch_nameoffset );
+                    ok( !strcmp( strA, custom_events[i].strA ), "Expected %s, got %s\n",
+                        debugstr_a( custom_events[i].strA ), debugstr_a( strA ) );
+                }
+                else
+                    ok( handle->dbch_nameoffset == -1, "%lu != -1\n", handle->dbch_nameoffset);
+                winetest_pop_context();
+            }
+            break;
+        }
     }
     return DefWindowProcA(window, message, wparam, lparam);
 }
@@ -1467,10 +1533,15 @@ static void test_pnp_devices(void)
     SP_DEVICE_INTERFACE_DETAIL_DATA_A *iface_detail = (void *)buffer;
     SP_DEVICE_INTERFACE_DATA iface = {sizeof(iface)};
     SP_DEVINFO_DATA device = {sizeof(device)};
-    DEV_BROADCAST_DEVICEINTERFACE_A filter =
+    DEV_BROADCAST_DEVICEINTERFACE_A filter_iface =
     {
-        .dbcc_size = sizeof(filter),
+        .dbcc_size = sizeof(filter_iface),
         .dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE,
+    };
+    DEV_BROADCAST_HANDLE filter_handle =
+    {
+        .dbch_size = sizeof(filter_handle),
+        .dbch_devicetype = DBT_DEVTYP_HANDLE,
     };
     static const WNDCLASSA class =
     {
@@ -1479,7 +1550,7 @@ static void test_pnp_devices(void)
     };
     HDEVNOTIFY notify_handle;
     DWORD size, type, dword;
-    HANDLE bus, child, tmp;
+    HANDLE child, tmp;
     OBJECT_ATTRIBUTES attr;
     UNICODE_STRING string;
     OVERLAPPED ovl = {0};
@@ -1488,12 +1559,13 @@ static void test_pnp_devices(void)
     HWND window;
     BOOL ret;
     int id;
+    INT i;
 
     ret = RegisterClassA(&class);
     ok(ret, "failed to register class\n");
     window = CreateWindowA("ntoskrnl_test_wc", NULL, 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
     ok(!!window, "failed to create window\n");
-    notify_handle = RegisterDeviceNotificationA(window, &filter, DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
+    notify_handle = RegisterDeviceNotificationA(window, &filter_iface, DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
     ok(!!notify_handle, "failed to register window, error %lu\n", GetLastError());
 
     set = SetupDiGetClassDevsA(&control_class, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
@@ -1524,8 +1596,17 @@ static void test_pnp_devices(void)
     bus = CreateFileA(iface_detail->DevicePath, 0, 0, NULL, OPEN_EXISTING, 0, NULL);
     ok(bus != INVALID_HANDLE_VALUE, "got error %lu\n", GetLastError());
 
+    filter_handle.dbch_handle = bus;
+    notify_handle_custom = RegisterDeviceNotificationA(window, &filter_handle, 0);
+    ok(!!notify_handle_custom, "failed to register for device notifications, error %lu\n", GetLastError());
+
     ret = DeviceIoControl(bus, IOCTL_WINETEST_BUS_MAIN, NULL, 0, NULL, 0, &size, NULL);
     ok(ret, "got error %lu\n", GetLastError());
+    for (i = 0; i < ARRAY_SIZE(custom_events); i++)
+        pump_messages();
+    ok(got_custom_event == ARRAY_SIZE(custom_events),
+       "got %u custom event messages, expected %d\n", got_custom_event,
+       (int)ARRAY_SIZE(custom_events));
 
     /* Test IoRegisterDeviceInterface() and IoSetDeviceInterfaceState(). */
 
@@ -1745,6 +1826,7 @@ static void test_pnp_devices(void)
     CloseHandle(bus);
 
     UnregisterDeviceNotification(notify_handle);
+    UnregisterDeviceNotification(notify_handle_custom);
     DestroyWindow(window);
     UnregisterClassA("ntoskrnl_test_wc", GetModuleHandleA(NULL));
 }

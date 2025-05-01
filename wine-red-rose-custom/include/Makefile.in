@@ -892,6 +892,7 @@ SOURCES = \
 	wine/asm.h \
 	wine/atsvc.idl \
 	wine/condrv.h \
+	wine/dbt.h \
 	wine/dcetypes.idl \
 	wine/debug.h \
 	wine/dplaysp.h \

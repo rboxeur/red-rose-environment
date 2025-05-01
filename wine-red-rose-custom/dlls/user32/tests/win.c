@@ -61,6 +61,7 @@ static BOOL (WINAPI *pSetWindowDisplayAffinity)(HWND hwnd, DWORD affinity);
 static BOOL (WINAPI *pAdjustWindowRectExForDpi)(LPRECT,DWORD,BOOL,DWORD,UINT);
 static BOOL (WINAPI *pSystemParametersInfoForDpi)(UINT,UINT,void*,UINT,UINT);
 static HICON (WINAPI *pInternalGetWindowIcon)(HWND window, UINT type);
+static DPI_AWARENESS_CONTEXT (WINAPI *pSetThreadDpiAwarenessContext)(DPI_AWARENESS_CONTEXT);
 
 static BOOL test_lbuttondown_flag;
 static DWORD num_gettext_msgs;
@@ -8963,18 +8964,131 @@ static void test_hwnd_message(void)
     DestroyWindow(hwnd);
 }
 
+static BOOL compare_uint(unsigned int x, unsigned int y, unsigned int max_diff)
+{
+    unsigned int diff = x > y ? x - y : y - x;
+
+    return diff <= max_diff;
+}
+
+static BOOL compare_colour(DWORD c1, DWORD c2, BYTE max_diff)
+{
+    return compare_uint(c1 & 0xff, c2 & 0xff, max_diff)
+            && compare_uint((c1 >> 8) & 0xff, (c2 >> 8) & 0xff, max_diff)
+            && compare_uint((c1 >> 16) & 0xff, (c2 >> 16) & 0xff, max_diff)
+            && compare_uint((c1 >> 24) & 0xff, (c2 >> 24) & 0xff, max_diff);
+}
+
+#define COLOR_IDX_ORIG 0
+#define COLOR_IDX_ALPHA128 1
+#define COLOR_IDX_ALPHA255 2
+struct color_test
+{
+    const char* colName;
+    COLORREF colors[3];
+};
+
+#define NUM_COLORS 6
+static const struct color_test color_tests[NUM_COLORS] =
+{
+    { "black", { RGB(0, 0, 0),       RGB(0, 128, 0),     RGB(0, 255, 0) } },
+    { "white", { RGB(255, 255, 255), RGB(128, 255, 128), RGB(0, 255, 0) } },
+    { "gray",  { RGB(128, 128, 128), RGB(64, 192, 64),   RGB(0, 255, 0) } },
+    { "red",   { RGB(255, 0, 0),     RGB(128, 128, 0),   RGB(0, 255, 0) } },
+    { "green", { RGB(0, 255, 0),     RGB(0, 255, 0),     RGB(0, 255, 0) } },
+    { "blue",  { RGB(0, 0, 255),     RGB(0, 128, 128),   RGB(0, 255, 0) } },
+};
+
+struct expect_color_test_result
+{
+    const char* name;
+    BYTE color_idx;
+    BYTE maxdiff;
+    BOOL todo[NUM_COLORS];
+};
+static const struct expect_color_test_result expect_original = { "orig", COLOR_IDX_ORIG, 0, { 0 } };
+static const struct expect_color_test_result expect_alpha0 = { "alpha0", COLOR_IDX_ORIG, 0, { 0 } };
+static const struct expect_color_test_result expect_alpha128 = { "alpha128", COLOR_IDX_ALPHA128, 1, { 0, 1, 1, 1, 0, 1 } };
+static const struct expect_color_test_result expect_alpha128_hdc_null = { "alpha128/hdc=null", COLOR_IDX_ALPHA128, 1, { 1, 1, 1, 1, 0, 1 } };
+static const struct expect_color_test_result expect_alpha255 = { "alpha255", COLOR_IDX_ALPHA255, 0, { 0, 1, 1, 1, 0, 1 } };
+static const struct expect_color_test_result expect_opaque = { "opaque", COLOR_IDX_ALPHA255, 0, { 0, 1, 1, 1, 0, 1 } };
+
+static LRESULT WINAPI color_filled_window_procA(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+    switch (msg)
+    {
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC hdc;
+
+        hdc = BeginPaint(hwnd, &ps);
+
+        for (int i = 0; i < ARRAY_SIZE(color_tests); ++i)
+        {
+            /* draw rectangles with width=20, height=220 */
+            const int x = 20 + 20 * i;
+            RECT rc = { x, 0, x + 20, 220 };
+            HBRUSH hbrushFill = CreateSolidBrush(color_tests[i].colors[COLOR_IDX_ORIG]);
+            FillRect( hdc, &rc, hbrushFill);
+            DeleteObject(hbrushFill);
+        }
+
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+    }
+    return DefWindowProcA(hwnd, msg, wparam, lparam);
+}
+
+static void check_screen_colors(HDC hdcScreen, HDC hdcWnd, RECT *rect, const struct expect_color_test_result *expect)
+{
+    const char *desc = expect->name;
+    const int idx = expect->color_idx;
+    int width = rect->right - rect->left;
+    int height = rect->bottom - rect->top;
+
+    HDC mem_dc = CreateCompatibleDC(hdcWnd);
+    HBITMAP mem_bitmap = CreateCompatibleBitmap(hdcWnd, width, height);
+    HBITMAP oldbmp = SelectObject(mem_dc, mem_bitmap);
+
+    BitBlt(mem_dc, 0, 0, width, height, hdcScreen, rect->left, rect->top, SRCCOPY);
+
+    for (int i = 0; i < ARRAY_SIZE(color_tests); ++i)
+    {
+        /* layered window is shifted relative to behind wnd by (10, 10) */
+        /* point in the middle of the rectangle */
+        const int x = 10 + 20 + 20 * i;
+        const int y = 10 + 100;
+        COLORREF actual = GetPixel(mem_dc, x, y);
+        todo_wine_if(expect->todo[i])
+        ok ( compare_colour(actual, color_tests[i].colors[idx], expect->maxdiff), "%s: pixel %d x=%d y=%d should have color %08lx from idx=%d, color is %08lx, maxdiff=%d\n",
+             desc, i, x, y, color_tests[i].colors[idx], idx, actual, expect->maxdiff);
+    }
+
+    SelectObject(mem_dc, oldbmp);
+    DeleteObject(mem_bitmap);
+    DeleteDC(mem_dc);
+}
+
 static void test_layered_window(void)
 {
-    HWND hwnd, child;
+    HWND hwnd, child, hwndBehind;
     COLORREF key = 0;
     BYTE alpha = 0;
     DWORD flags = 0;
     POINT pt = { 0, 0 };
     SIZE sz = { 200, 200 };
-    HDC hdc;
+    RECT rc = { 0, 0, 200, 200 };
+    RECT rectBehind = { 90, 90, 310, 310 };
+    RECT rectBehindWindow = rectBehind;
+    BLENDFUNCTION blend = { AC_SRC_OVER, 0, 0, 0 };
+    HDC hdc, hdcScreen, hdcWnd;
     HBITMAP hbm;
     BOOL ret;
     MSG msg;
+    COLORREF colr;
+    HBRUSH hbrushFill;
+    DPI_AWARENESS_CONTEXT oldDpiAwareness = NULL;
 
     if (!pGetLayeredWindowAttributes || !pSetLayeredWindowAttributes || !pUpdateLayeredWindow)
     {
@@ -8982,13 +9096,59 @@ static void test_layered_window(void)
         return;
     }
 
-    hdc = CreateCompatibleDC( 0 );
-    hbm = CreateCompatibleBitmap( hdc, 200, 200 );
-    SelectObject( hdc, hbm );
+    /* avoid DPI-scaling of window when checking pixels on screen */
+    if (pSetThreadDpiAwarenessContext)
+    {
+        oldDpiAwareness = pSetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+    }
 
-    hwnd = CreateWindowExA(0, "MainWindowClass", "message window", WS_CAPTION,
+    {
+        WNDCLASSA cls;
+        BOOL success;
+
+        cls.style = CS_DBLCLKS;
+        cls.lpfnWndProc = color_filled_window_procA;
+        cls.cbClsExtra = 0;
+        cls.cbWndExtra = 0;
+        cls.hInstance = GetModuleHandleA(0);
+        cls.hIcon = 0;
+        cls.hCursor = LoadCursorA(0, (LPCSTR)IDC_ARROW);
+        cls.hbrBackground = GetStockObject(BLACK_BRUSH);
+        cls.lpszMenuName = NULL;
+        cls.lpszClassName = "ColorFilledWindowClass";
+
+        success = RegisterClassA(&cls);
+        ok(success,"RegisterClassA failed, error: %lu\n", GetLastError());
+    }
+
+    AdjustWindowRectEx(&rectBehindWindow, WS_CAPTION, FALSE, 0);
+    hwndBehind = CreateWindowExA(0, "ColorFilledWindowClass", "message window", WS_CAPTION | WS_VISIBLE,
+                           rectBehindWindow.left,
+                           rectBehindWindow.top,
+                           rectBehindWindow.right - rectBehindWindow.left,
+                           rectBehindWindow.bottom - rectBehindWindow.top,
+                           0, 0, 0, NULL);
+    assert( hwndBehind );
+    SetForegroundWindow(hwndBehind);
+
+    hwnd = CreateWindowExA(0, "MainWindowClass", "message window", WS_POPUP,
                            100, 100, 200, 200, 0, 0, 0, NULL);
     assert( hwnd );
+    flush_events(TRUE);
+
+    hdcScreen = GetDC(NULL);
+    hdcWnd  = GetDC(hwnd);
+    hdc = CreateCompatibleDC( hdcWnd );
+    hbm = CreateCompatibleBitmap( hdcScreen, 200, 200 );
+    SelectObject( hdc, hbm );
+
+    hbrushFill = CreateSolidBrush(RGB(0, 255, 0));
+    FillRect( hdc, &rc, hbrushFill);
+    DeleteObject(hbrushFill);
+
+    colr = GetPixel( hdc, 100, 100 );
+    ok ( colr == 0x00ff00, "bitmap pixel should be green, color is %08lx\n", colr);
+
     SetLastError( 0xdeadbeef );
     ret = pUpdateLayeredWindow( hwnd, 0, NULL, &sz, hdc, &pt, 0, NULL, ULW_OPAQUE );
     ok( !ret, "UpdateLayeredWindow should fail on non-layered window\n" );
@@ -9026,8 +9186,42 @@ static void test_layered_window(void)
     SetWindowLongA( hwnd, GWL_EXSTYLE, GetWindowLongA(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED );
     ret = pGetLayeredWindowAttributes( hwnd, &key, &alpha, &flags );
     ok( !ret, "GetLayeredWindowAttributes should fail on layered but not initialized window\n" );
-    ret = pUpdateLayeredWindow( hwnd, 0, NULL, &sz, hdc, &pt, 0, NULL, ULW_OPAQUE );
+    ShowWindow(hwnd, SW_SHOW);
+    flush_events(TRUE);
+    Sleep(200); /* fails on win11 without sleep */
+    check_screen_colors(hdcScreen, hdcWnd, &rectBehind, &expect_original);
+
+    blend.SourceConstantAlpha = 0x0;
+    ret = pUpdateLayeredWindow( hwnd, hdcScreen, NULL, &sz, hdc, &pt, 0, &blend, ULW_ALPHA );
+    ok( ret, "UpdateLayeredWindow ULW_ALPHA should succeed on layered window\n" );
+    flush_events(TRUE);
+    check_screen_colors(hdcScreen, hdcWnd, &rectBehind, &expect_alpha0);
+    /* Buhl Tax 2024 calls UpdateLayeredWindow with hdc_src=NULL for its tooltips */
+    blend.SourceConstantAlpha = 0x80;
+    ret = pUpdateLayeredWindow( hwnd, 0, 0, 0, 0, 0, 0, &blend, ULW_ALPHA );
+    ok( ret, "UpdateLayeredWindow ULW_ALPHA should succeed on layered window hdc_src=NULL\n" );
+    flush_events(TRUE);
+    /* TODO: MSDN says if display has 256 colors or less, it could be rendered opaque */
+    check_screen_colors(hdcScreen, hdcWnd, &rectBehind, &expect_alpha128_hdc_null);
+
+    ret = pUpdateLayeredWindow( hwnd, hdcScreen, NULL, &sz, hdc, &pt, 0, &blend, ULW_ALPHA );
+    ok( ret, "UpdateLayeredWindow no dc ULW_ALPHA should succeed on layered window\n" );
+    flush_events(TRUE);
+
+    /* TODO: MSDN says if display has 256 colors or less, it could be rendered opaque */
+    check_screen_colors(hdcScreen, hdcWnd, &rectBehind, &expect_alpha128);
+
+    blend.SourceConstantAlpha = 0xff;
+    ret = pUpdateLayeredWindow( hwnd, hdcScreen, NULL, &sz, hdc, &pt, 0, &blend, ULW_ALPHA );
+    ok( ret, "UpdateLayeredWindow ULW_ALPHA should succeed on layered window\n" );
+    flush_events(TRUE);
+    check_screen_colors(hdcScreen, hdcWnd, &rectBehind, &expect_alpha255);
+
+    ret = pUpdateLayeredWindow( hwnd, hdcScreen, NULL, &sz, hdc, &pt, 0, NULL, ULW_OPAQUE );
     ok( ret, "UpdateLayeredWindow should succeed on layered window\n" );
+    flush_events(TRUE);
+    check_screen_colors(hdcScreen, hdcWnd, &rectBehind, &expect_opaque);
+    ShowWindow(hwnd, SW_HIDE);
     ret = pUpdateLayeredWindow( hwnd, 0, NULL, &sz, hdc, &pt, 0, NULL, ULW_OPAQUE | ULW_EX_NORESIZE );
     ok( !ret, "UpdateLayeredWindow should fail with ex flag\n" );
     ok( GetLastError() == ERROR_INVALID_PARAMETER, "wrong error %lu\n", GetLastError() );
@@ -9148,9 +9342,17 @@ static void test_layered_window(void)
             break;
     }
 
-    DestroyWindow( hwnd );
     DeleteDC( hdc );
     DeleteObject( hbm );
+    ReleaseDC(hwnd, hdcWnd);
+    ReleaseDC(NULL, hdcScreen);
+    DestroyWindow( hwnd );
+    DestroyWindow( hwndBehind );
+    UnregisterClassA("ColorFilledWindowClass", GetModuleHandleA(NULL));
+    if (pSetThreadDpiAwarenessContext && oldDpiAwareness)
+    {
+        pSetThreadDpiAwarenessContext(oldDpiAwareness);
+    }
 }
 
 static MONITORINFO mi;
@@ -13250,6 +13452,7 @@ START_TEST(win)
     pAdjustWindowRectExForDpi = (void *)GetProcAddress( user32, "AdjustWindowRectExForDpi" );
     pSystemParametersInfoForDpi = (void *)GetProcAddress( user32, "SystemParametersInfoForDpi" );
     pInternalGetWindowIcon = (void *)GetProcAddress( user32, "InternalGetWindowIcon" );
+    pSetThreadDpiAwarenessContext = (void *)GetProcAddress( user32, "SetThreadDpiAwarenessContext");
 
     if (argc == 4)
     {

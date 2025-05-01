@@ -1037,9 +1037,10 @@ typedef struct _WIN32_FILE_ATTRIBUTES_DATA {
  * This one seems to be a Win32 only definition. It also is defined with
  * WINAPI instead of CALLBACK in the windows headers.
  */
-typedef DWORD (CALLBACK *LPPROGRESS_ROUTINE)(LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER,
-                                           LARGE_INTEGER, DWORD, DWORD, HANDLE,
-                                           HANDLE, LPVOID);
+typedef DWORD (CALLBACK *LPPROGRESS_ROUTINE)(LARGE_INTEGER total_file_size,
+              LARGE_INTEGER total_bytes_transferred, LARGE_INTEGER stream_size,
+              LARGE_INTEGER stream_bytes_transferred, DWORD stream_number,
+              DWORD callback_reason, HANDLE source_file, HANDLE destination_file, void *user_data);
 
 typedef DWORD (WINAPI *APPLICATION_RECOVERY_CALLBACK)(PVOID);
 

@@ -64,6 +64,7 @@ struct event
 {
     struct list entry;
     DWORD code;
+    WCHAR *path;
     BYTE *data;
     unsigned int size;
 };
@@ -108,7 +109,7 @@ plugplay_rpc_handle __cdecl plugplay_register_listener(void)
     return listener;
 }
 
-DWORD __cdecl plugplay_get_event( plugplay_rpc_handle handle, BYTE **data, unsigned int *size )
+DWORD __cdecl plugplay_get_event( plugplay_rpc_handle handle, WCHAR **path, BYTE **data, unsigned int *size )
 {
     struct listener *listener = handle;
     struct event *event;
@@ -128,6 +129,7 @@ DWORD __cdecl plugplay_get_event( plugplay_rpc_handle handle, BYTE **data, unsig
     ret = event->code;
     *data = event->data;
     *size = event->size;
+    *path = event->path;
     free( event );
     return ret;
 }
@@ -137,14 +139,17 @@ void __cdecl plugplay_unregister_listener( plugplay_rpc_handle handle )
     destroy_listener( handle );
 }
 
-void __cdecl plugplay_send_event( DWORD code, const BYTE *data, unsigned int size )
+void __cdecl plugplay_send_event( DWORD code, const WCHAR *path, const BYTE *data, unsigned int size )
 {
     struct listener *listener;
     struct event *event;
+    const DEV_BROADCAST_HDR *header = (const DEV_BROADCAST_HDR *)data;
 
-    BroadcastSystemMessageW( 0, NULL, WM_DEVICECHANGE, code, (LPARAM)data );
-    BroadcastSystemMessageW( 0, NULL, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0 );
-
+    if (header->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
+    {
+        BroadcastSystemMessageW( 0, NULL, WM_DEVICECHANGE, code, (LPARAM)data );
+        BroadcastSystemMessageW( 0, NULL, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0 );
+    }
     EnterCriticalSection( &plugplay_cs );
 
     LIST_FOR_EACH_ENTRY(listener, &listener_list, struct listener, entry)
@@ -153,6 +158,13 @@ void __cdecl plugplay_send_event( DWORD code, const BYTE *data, unsigned int siz
             break;
 
         if (!(event->data = malloc( size )))
+        {
+            free( event );
+            break;
+        }
+
+        event->path = NULL;
+        if (!(event->path = wcsdup( path )))
         {
             free( event );
             break;

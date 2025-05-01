@@ -683,11 +683,11 @@ static LONG WINAPI rpc_filter( EXCEPTION_POINTERS *eptr )
     return I_RpcExceptionFilter( eptr->ExceptionRecord->ExceptionCode );
 }
 
-static void send_devicechange( DWORD code, void *data, unsigned int size )
+static void send_devicechange( DWORD code, const WCHAR *path, void *data, unsigned int size )
 {
     __TRY
     {
-        plugplay_send_event( code, data, size );
+        plugplay_send_event( code, path, data, size );
     }
     __EXCEPT(rpc_filter)
     {
@@ -803,7 +803,7 @@ NTSTATUS WINAPI IoSetDeviceInterfaceState( UNICODE_STRING *name, BOOLEAN enable 
         broadcast->dbcc_classguid  = iface->interface_class;
         lstrcpynW( broadcast->dbcc_name, name->Buffer, namelen + 1 );
         if (namelen > 1) broadcast->dbcc_name[1] = '\\';
-        send_devicechange( enable ? DBT_DEVICEARRIVAL : DBT_DEVICEREMOVECOMPLETE, broadcast, len );
+        send_devicechange( enable ? DBT_DEVICEARRIVAL : DBT_DEVICEREMOVECOMPLETE, L"", broadcast, len );
         heap_free( broadcast );
     }
     return ret;
@@ -938,6 +938,57 @@ NTSTATUS WINAPI IoRegisterDeviceInterface(DEVICE_OBJECT *device, const GUID *cla
     RtlFreeUnicodeString( &device_path );
 
     return status;
+}
+
+/***********************************************************************
+ *           IoReportTargetDeviceChange   (NTOSKRNL.EXE.@)
+ */
+NTSTATUS WINAPI IoReportTargetDeviceChange( DEVICE_OBJECT *pdo, VOID *n )
+{
+    OBJECT_NAME_INFORMATION *name_info;
+    DEV_BROADCAST_HANDLE *event_handle;
+    DWORD data_size;
+    TARGET_DEVICE_CUSTOM_NOTIFICATION *notification = n;
+    ULONG size;
+    NTSTATUS ret;
+
+    TRACE( "(%p, %p)\n", pdo, n );
+
+    if (notification->Version != 1)
+        return STATUS_INVALID_PARAMETER;
+
+    ret = ObQueryNameString( pdo, NULL, 0, &size );
+    if (ret != STATUS_INFO_LENGTH_MISMATCH)
+        return ret;
+
+    name_info = heap_alloc( size );
+    if (!name_info)
+        return STATUS_NO_MEMORY;
+
+    ret = ObQueryNameString( pdo, name_info, size, &size );
+    if (ret != STATUS_SUCCESS) return ret;
+
+    data_size = notification->Size - offsetof(TARGET_DEVICE_CUSTOM_NOTIFICATION, CustomDataBuffer);
+    if (notification->NameBufferOffset != -1 && notification->CustomDataBuffer[data_size - 1] != '\0')
+        data_size++;
+    event_handle = heap_alloc_zero( offsetof( DEV_BROADCAST_HANDLE, dbch_data[data_size] ) );
+    if (!event_handle)
+    {
+        heap_free( name_info );
+        return STATUS_NO_MEMORY;
+    }
+    event_handle->dbch_size = offsetof( DEV_BROADCAST_HANDLE, dbch_data[data_size] );
+    event_handle->dbch_devicetype = DBT_DEVTYP_HANDLE;
+    event_handle->dbch_eventguid = notification->Event;
+    event_handle->dbch_nameoffset = notification->NameBufferOffset;
+    memcpy( event_handle->dbch_data, notification->CustomDataBuffer,
+            notification->Size -
+                offsetof( TARGET_DEVICE_CUSTOM_NOTIFICATION, CustomDataBuffer[1] ) );
+    send_devicechange( DBT_CUSTOMEVENT, name_info->Name.Buffer, (BYTE *)event_handle, event_handle->dbch_size );
+    heap_free( event_handle );
+    heap_free( name_info );
+
+    return STATUS_SUCCESS;
 }
 
 /***********************************************************************

@@ -36,6 +36,9 @@
 #include "svcctl.h"
 #include "plugplay.h"
 
+#include "wine/heap.h"
+#include "wine/dbt.h"
+
 WINE_DEFAULT_DEBUG_CHANNEL(service);
 
 struct notify_data
@@ -511,7 +514,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH ChangeServiceConfig2A( SC_HANDLE service, DWORD le
         free( faw.lpRebootMsg );
         free( faw.lpCommand );
     }
-    else if (level == SERVICE_CONFIG_PRESHUTDOWN_INFO)
+    else if (level == SERVICE_CONFIG_PRESHUTDOWN_INFO || level == SERVICE_CONFIG_DELAYED_AUTO_START_INFO)
     {
         r = ChangeServiceConfig2W( service, level, info );
     }
@@ -2004,17 +2007,6 @@ BOOL WINAPI DECLSPEC_HOTPATCH StartServiceCtrlDispatcherW( const SERVICE_TABLE_E
     return service_run_main_thread();
 }
 
-struct device_notification_details
-{
-    DWORD (CALLBACK *cb)(HANDLE handle, DWORD flags, DEV_BROADCAST_HDR *header);
-    HANDLE handle;
-    union
-    {
-        DEV_BROADCAST_HDR header;
-        DEV_BROADCAST_DEVICEINTERFACE_W iface;
-    } filter;
-};
-
 static HANDLE device_notify_thread;
 static struct list device_notify_list = LIST_INIT(device_notify_list);
 
@@ -2024,22 +2016,35 @@ struct device_notify_registration
     struct device_notification_details details;
 };
 
-static BOOL notification_filter_matches( DEV_BROADCAST_HDR *filter, DEV_BROADCAST_HDR *event )
+static BOOL notification_filter_matches( const struct device_notification_details *filter,
+                                         const WCHAR *path, const DEV_BROADCAST_HDR *event )
 {
-    if (!filter->dbch_devicetype) return TRUE;
-    if (filter->dbch_devicetype != event->dbch_devicetype) return FALSE;
+    if (!filter->devicetype) return TRUE;
+    if (filter->devicetype != event->dbch_devicetype) return FALSE;
 
-    if (filter->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
+    switch (filter->devicetype)
     {
-        DEV_BROADCAST_DEVICEINTERFACE_W *filter_iface = (DEV_BROADCAST_DEVICEINTERFACE_W *)filter;
-        DEV_BROADCAST_DEVICEINTERFACE_W *event_iface = (DEV_BROADCAST_DEVICEINTERFACE_W *)event;
-        if (filter_iface->dbcc_size == offsetof(DEV_BROADCAST_DEVICEINTERFACE_W, dbcc_classguid)) return TRUE;
-        return IsEqualGUID( &filter_iface->dbcc_classguid, &event_iface->dbcc_classguid );
+        case DBT_DEVTYP_DEVICEINTERFACE:
+        {
+            DEV_BROADCAST_DEVICEINTERFACE_W *event_iface = (DEV_BROADCAST_DEVICEINTERFACE_W *)event;
+            if (filter->filter.deviceinterface.all_classes) return TRUE;
+            return IsEqualGUID( &filter->filter.deviceinterface.class,
+                                &event_iface->dbcc_classguid );
+        }
+        case DBT_DEVTYP_HANDLE:
+            return !wcscmp( path, filter->filter.device.name_info->Name.Buffer );
+        default:
+            FIXME( "Filter devicetype %lu not implemented \n", filter->devicetype );
     }
 
-    FIXME( "Filter dbch_devicetype %lu not implemented\n", filter->dbch_devicetype );
     return TRUE;
 }
+
+struct device_notification_details_with_hdevnotify
+{
+    HDEVNOTIFY notify_handle;
+    struct device_notification_details details;
+};
 
 static DWORD WINAPI device_notify_proc( void *arg )
 {
@@ -2048,12 +2053,13 @@ static DWORD WINAPI device_notify_proc( void *arg )
     RPC_WSTR binding_str;
     DWORD err = ERROR_SUCCESS;
     struct device_notify_registration *registration;
-    struct device_notification_details *details_copy;
+    struct device_notification_details_with_hdevnotify *details_copy;
     unsigned int details_copy_nelems, details_copy_size;
     plugplay_rpc_handle handle = NULL;
     DWORD code = 0;
     unsigned int i, size;
     BYTE *buf;
+    WCHAR *path;
 
     SetThreadDescription( GetCurrentThread(), L"wine_sechost_device_notify" );
 
@@ -2092,9 +2098,10 @@ static DWORD WINAPI device_notify_proc( void *arg )
     for (;;)
     {
         buf = NULL;
+        path = NULL;
         __TRY
         {
-            code = plugplay_get_event( handle, &buf, &size );
+            code = plugplay_get_event( handle, &path, &buf, &size );
             err = ERROR_SUCCESS;
         }
         __EXCEPT(rpc_filter)
@@ -2115,7 +2122,8 @@ static DWORD WINAPI device_notify_proc( void *arg )
         EnterCriticalSection( &service_cs );
         LIST_FOR_EACH_ENTRY(registration, &device_notify_list, struct device_notify_registration, entry)
         {
-            details_copy[i++] = registration->details;
+            details_copy[i].details = registration->details;
+            details_copy[i++].notify_handle = registration;
             details_copy_nelems++;
             if (i == details_copy_size)
             {
@@ -2127,10 +2135,19 @@ static DWORD WINAPI device_notify_proc( void *arg )
 
         for (i = 0; i < details_copy_nelems; i++)
         {
-            if (!notification_filter_matches( &details_copy[i].filter.header, (DEV_BROADCAST_HDR *)buf )) continue;
-            details_copy[i].cb( details_copy[i].handle, code, (DEV_BROADCAST_HDR *)buf );
+            const struct device_notification_details *details = &details_copy[i].details;
+
+            if (!notification_filter_matches( details, path, (DEV_BROADCAST_HDR *)buf )) continue;
+            if (details->devicetype == DBT_DEVTYP_HANDLE)
+            {
+                DEV_BROADCAST_HANDLE *handle = (DEV_BROADCAST_HANDLE *)buf;
+                handle->dbch_handle = details->filter.device.device;
+                handle->dbch_hdevnotify = details_copy[i].notify_handle;
+            }
+            details->cb( details->handle, code, (DEV_BROADCAST_HDR *)buf );
         }
         MIDL_user_free(buf);
+        MIDL_user_free( path );
     }
 
     __TRY
@@ -2147,6 +2164,28 @@ static DWORD WINAPI device_notify_proc( void *arg )
     return 0;
 }
 
+static inline const char *
+debugstr_device_notification_details( const struct device_notification_details *details )
+{
+    if (!details) return "(null)";
+    switch (details->devicetype)
+    {
+    case DBT_DEVTYP_DEVICEINTERFACE:
+        if (details->filter.deviceinterface.all_classes)
+            return wine_dbg_sprintf( "{%p %p DBT_DEVTYP_DEVICEINTERFACE {all_classes=1}}",
+                                     details->cb, details->handle );
+        return wine_dbg_sprintf( "{%p %p DBT_DEVTYP_DEVICEINTERFACE {%s}}", details->cb,
+                                 details->handle,
+                                 debugstr_guid( &details->filter.deviceinterface.class ) );
+    case DBT_DEVTYP_HANDLE:
+        return wine_dbg_sprintf( "{%p %p DBT_DEVTYP_HANDLE {%s %p}}", details->cb, details->handle,
+                                 debugstr_w( details->filter.device.name_info->Name.Buffer ),
+                                 details->filter.device.device );
+    default:
+        return wine_dbg_sprintf( "{%p %p (unknown %#lx)}", details->cb, details->handle, details->devicetype);
+    }
+}
+
 /******************************************************************************
  *     I_ScRegisterDeviceNotification   (sechost.@)
  */
@@ -2155,7 +2194,8 @@ HDEVNOTIFY WINAPI I_ScRegisterDeviceNotification( struct device_notification_det
 {
     struct device_notify_registration *registration;
 
-    TRACE("callback %p, handle %p, filter %p, flags %#lx\n", details->cb, details->handle, filter, flags);
+    TRACE( "details %s, filter %p, flags %#lx\n", debugstr_device_notification_details( details ),
+           filter, flags );
 
     if (!(registration = malloc( sizeof(struct device_notify_registration) )))
     {
@@ -2191,6 +2231,8 @@ BOOL WINAPI I_ScUnregisterDeviceNotification( HDEVNOTIFY handle )
     EnterCriticalSection( &service_cs );
     list_remove( &registration->entry );
     LeaveCriticalSection(&service_cs);
+    if (registration->details.devicetype == DBT_DEVTYP_HANDLE)
+        heap_free( registration->details.filter.device.name_info );
     free( registration );
     return TRUE;
 }

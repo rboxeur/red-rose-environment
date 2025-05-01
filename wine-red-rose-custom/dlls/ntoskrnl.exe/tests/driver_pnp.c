@@ -610,6 +610,48 @@ static void test_bus_query(void)
     ObDereferenceObject(top_device);
 }
 
+static void test_devicechange( DEVICE_OBJECT *obj )
+{
+    INT i;
+
+    for (i = 0; i < ARRAY_SIZE( custom_events ); i++)
+    {
+        TARGET_DEVICE_CUSTOM_NOTIFICATION *notif = NULL;
+        SIZE_T size = offsetof(TARGET_DEVICE_CUSTOM_NOTIFICATION, CustomDataBuffer[1]);
+        NTSTATUS status;
+
+        winetest_push_context( "custom_events %d", i );
+        if (custom_events[i].data)
+            size += custom_events[i].data_size;
+
+        if (custom_events[i].str)
+            size += wcslen(custom_events[i].str) * sizeof(WCHAR) + 1;
+
+        notif = ExAllocatePool( PagedPool, size );
+        ok( notif != NULL, "Failed to allocate memory for notification.\n" );
+        notif->Version = 1;
+        notif->Size = size;
+        notif->Event = custom_events[i].eventguid;
+        notif->FileObject = NULL;
+
+        if (custom_events[i].data)
+            memcpy(notif->CustomDataBuffer, custom_events[i].data, custom_events[i].data_size);
+
+        if (custom_events[i].str)
+        {
+            notif->NameBufferOffset = custom_events[i].data_size;
+            wcscpy( (WCHAR *)&notif->CustomDataBuffer[notif->NameBufferOffset], custom_events[i].str );
+        }
+        else
+            notif->NameBufferOffset = -1;
+
+        status = IoReportTargetDeviceChange( obj, notif );
+        ok( status == STATUS_SUCCESS, "IoReportTargetDeviceChange failed, status %#lx size %d,\n", status, notif->Size );
+        ExFreePool( notif );
+        winetest_pop_context();
+    }
+}
+
 static NTSTATUS fdo_ioctl(IRP *irp, IO_STACK_LOCATION *stack, ULONG code)
 {
     switch (code)

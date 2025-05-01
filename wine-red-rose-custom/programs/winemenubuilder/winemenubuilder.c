@@ -2622,6 +2622,10 @@ static void thumbnail_lnk(LPCWSTR lnkPath, LPCWSTR outputPath)
     ICONDIRENTRY *pIconDirEntries = NULL;
     int numEntries;
     HRESULT hr;
+    WCHAR *fileName = NULL;
+    WCHAR *extName = NULL;
+    HICON icons[1];
+    int numIcons;
 
     utf8lnkPath = wchars_to_utf8_chars(lnkPath);
     winLnkPath = wine_get_dos_file_name(utf8lnkPath);
@@ -2649,8 +2653,46 @@ static void thumbnail_lnk(LPCWSTR lnkPath, LPCWSTR outputPath)
     hr = IPersistFile_Load(persistFile, winLnkPath, STGM_READ);
     if (FAILED(hr))
     {
-        WINE_ERR("could not read .lnk, error 0x%08lX\n", hr);
-        goto end;
+        WINE_WARN("could not read .lnk, error 0x%08lX\n", hr);
+        fileName = PathFindFileNameW(lnkPath);
+        extName = PathFindExtensionW(fileName);
+        if (lstrcmpiW(extName, L".exe") == 0)
+        {
+            WINE_WARN("read .exe and generate icons normally \n");
+            numIcons = PrivateExtractIconExW(lnkPath, 0, NULL, icons, 1);
+            if (numIcons > 0 && icons[0] != NULL)
+            {
+                hr = open_icon(lnkPath, 0, FALSE, &stream, &pIconDirEntries, &numEntries);
+                if (SUCCEEDED(hr))
+                {
+                    hr = write_native_icon(stream, pIconDirEntries, numEntries, outputPath);
+                    if (FAILED(hr))
+                    {
+                        WINE_ERR("could not save icon, error 0x%08lX\n", hr);
+                    }
+                    if (stream) stream->lpVtbl->Release(stream);
+                    if (pIconDirEntries) heap_free(pIconDirEntries);    
+                }
+                DestroyIcon(icons[0]);
+                heap_free(fileName); 
+                heap_free(extName);  
+                goto end;
+            }
+            else
+            {
+                WINE_ERR("could not extract icon from %s, error 0x%08lX \n", wine_dbgstr_w(lnkPath), hr);
+                heap_free(fileName); 
+                heap_free(extName);  
+                goto end;
+            }
+        }
+        else
+        {   
+            WINE_ERR("the target %s is not an executable file. please check!\n",  wine_dbgstr_w(lnkPath));
+            heap_free(fileName); 
+            heap_free(extName);  
+            goto end;
+        }
     }
 
     get_cmdline(shellLink, szTmp, MAX_PATH, szArgs, INFOTIPSIZE);

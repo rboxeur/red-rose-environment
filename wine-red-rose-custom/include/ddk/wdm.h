@@ -1596,6 +1596,15 @@ typedef enum _DIRECTORY_NOTIFY_INFORMATION_CLASS {
     DirectoryNotifyExtendedInformation
 } DIRECTORY_NOTIFY_INFORMATION_CLASS, *PDIRECTORY_NOTIFY_INFORMATION_CLASS;
 
+typedef struct _TARGET_DEVICE_CUSTOM_NOTIFICATION {
+    USHORT Version;
+    USHORT Size;
+    GUID Event;
+    FILE_OBJECT *FileObject;
+    LONG NameBufferOffset;
+    UCHAR CustomDataBuffer[1];
+} TARGET_DEVICE_CUSTOM_NOTIFICATION, *PTARGET_DEVICE_CUSTOM_NOTIFICATION;
+
 typedef enum _WORK_QUEUE_TYPE {
     CriticalWorkQueue,
     DelayedWorkQueue,
@@ -1762,6 +1771,7 @@ NTSTATUS  WINAPI IoRegisterDeviceInterface(PDEVICE_OBJECT,const GUID*,PUNICODE_S
 void      WINAPI IoReleaseCancelSpinLock(KIRQL);
 void      WINAPI IoReleaseRemoveLockAndWaitEx(IO_REMOVE_LOCK*,void*,ULONG);
 void      WINAPI IoReleaseRemoveLockEx(IO_REMOVE_LOCK*,void*,ULONG);
+NTSTATUS  WINAPI IoReportTargetDeviceChange(DEVICE_OBJECT*, void*);
 void      WINAPI IoReuseIrp(IRP*,NTSTATUS);
 NTSTATUS  WINAPI IoSetDeviceInterfaceState(UNICODE_STRING*,BOOLEAN);
 NTSTATUS  WINAPI IoSetDevicePropertyData(DEVICE_OBJECT*,const DEVPROPKEY*,LCID,ULONG,DEVPROPTYPE,ULONG,void*);

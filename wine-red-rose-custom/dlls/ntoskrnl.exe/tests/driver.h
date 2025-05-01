@@ -78,5 +78,43 @@ struct return_status_params
 
 static const GUID control_class = {0xdeadbeef, 0x29ef, 0x4538, {0xa5, 0xfd, 0xb6, 0x95, 0x73, 0xa3, 0x62, 0xc0}};
 
+static const struct
+{
+    GUID eventguid;
+    BYTE *data;
+    SIZE_T data_size;
+    const WCHAR *str;
+    const CHAR *strA;
+} custom_events[] = {
+    {
+        {0xdeadbeef, 0xdead, 0xbeef, { 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0x01}},
+        NULL,
+        0,
+        NULL,
+        NULL,
+    },
+    {
+        {0xdeadbeef, 0xdead, 0xbeef, { 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0x02}},
+        (BYTE *)(&custom_events[1].eventguid),
+        sizeof(GUID),
+        NULL,
+        NULL,
+    },
+    {
+        {0xdeadbeef, 0xdead, 0xbeef, { 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0x03}},
+        (BYTE *)(&custom_events[2].eventguid),
+        sizeof(GUID),
+        L"Wine is not an emulator",
+        "Wine is not an emulator"
+    },
+    {
+        {0xdeadbeef, 0xdead, 0xbeef, { 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0x04}},
+        NULL,
+        0,
+        L"Wine is not an emulator",
+        "Wine is not an emulator"
+    }
+};
+
 #define SERVER_LISTEN_PORT 9374
 #define CLIENT_LISTEN_PORT 9375
