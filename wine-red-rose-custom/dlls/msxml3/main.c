@@ -22,6 +22,7 @@
 #define COBJMACROS
 
 #include <stdarg.h>
+#include <libxml/globals.h>
 #include <libxml/parser.h>
 #include <libxml/xmlerror.h>
 #include <libxslt/pattern.h>
@@ -77,7 +78,7 @@ void wineXmlCallbackLog(char const* caller, xmlErrorLevel lvl, char const* msg, 
     wine_dbg_log(dbcl, &__wine_dbch_msxml, caller, "%s", buff);
 }
 
-void wineXmlCallbackError(char const* caller, xmlErrorPtr err)
+void wineXmlCallbackError(char const* caller, xmlError* err)
 {
     enum __wine_debug_class dbcl;
 

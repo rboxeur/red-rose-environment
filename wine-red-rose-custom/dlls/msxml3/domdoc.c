@@ -26,7 +26,7 @@
 #include <libxml/parser.h>
 #include <libxml/xmlerror.h>
 #include <libxml/xpathInternals.h>
-# include <libxml/xmlsave.h>
+#include <libxml/xmlsave.h>
 #include <libxml/SAX2.h>
 #include <libxml/parserInternals.h>
 
@@ -502,7 +502,7 @@ static void LIBXML2_LOG_CALLBACK sax_warning(void* ctx, char const* msg, ...)
     va_end(ap);
 }
 
-static void sax_serror(void* ctx, xmlErrorPtr err)
+static void sax_serror(void* ctx, xmlError* err)
 {
     LIBXML2_CALLBACK_SERROR(doparse, err);
 }
