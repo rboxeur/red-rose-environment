@@ -32,6 +32,7 @@
 
 #include "wine/debug.h"
 #include "explorer_private.h"
+#include "resource.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(explorer);
 
@@ -848,7 +849,7 @@ static void load_graphics_driver( const WCHAR *driver, GUID *guid )
     static const WCHAR device_keyW[] = L"System\\CurrentControlSet\\Control\\Video\\{%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}\\0000";
     static const WCHAR video_keyW[]  = L"System\\CurrentControlSet\\Control\\Video\\0000";
 
-    WCHAR buffer[MAX_PATH], libname[32], *name, *next;
+    WCHAR buffer[MAX_PATH], *env_name, libname[32], *name, *next;
     WCHAR key[ARRAY_SIZE( device_keyW ) + 39];
     BOOL null_driver = FALSE;
     HMODULE module = 0;
@@ -860,7 +861,9 @@ static void load_graphics_driver( const WCHAR *driver, GUID *guid )
         lstrcpyW( buffer, default_driver );
 
         /* @@ Wine registry key: HKCU\Software\Wine\Drivers */
-        if (!RegOpenKeyW( HKEY_CURRENT_USER, L"Software\\Wine\\Drivers", &hkey ))
+        if ((env_name = _wgetenv( L"WINE_VIDEO_DRIVER" )) && env_name[0] != '\0')
+            lstrcpynW( buffer, env_name, ARRAY_SIZE( buffer ));
+        else if (!RegOpenKeyW( HKEY_CURRENT_USER, L"Software\\Wine\\Drivers", &hkey ))
         {
             DWORD count = sizeof(buffer);
             RegQueryValueExW( hkey, L"Graphics", 0, NULL, (LPBYTE)buffer, &count );
@@ -892,7 +895,7 @@ static void load_graphics_driver( const WCHAR *driver, GUID *guid )
             strcpy( error, "The graphics driver is missing. Check your build!" );
             break;
         case ERROR_DLL_INIT_FAILED:
-            strcpy( error, "Make sure that your X server is running and that $DISPLAY is set correctly." );
+            strcpy( error, "Make sure that your display server is running and that its variables are set." );
             break;
         default:
             sprintf( error, "Unknown error (%lu).", GetLastError() );
@@ -982,30 +985,31 @@ static void initialize_display_settings( unsigned int width, unsigned int height
 
 static void set_desktop_window_title( HWND hwnd, const WCHAR *name )
 {
-    static const WCHAR desktop_nameW[] = L"Wine desktop";
     static const WCHAR desktop_name_separatorW[] = L" - ";
+    WCHAR desktop_titleW[64];
     WCHAR *window_titleW = NULL;
     int window_title_len;
 
-    if (!name[0])
+    LoadStringW( NULL, IDS_DESKTOP_TITLE, desktop_titleW, ARRAY_SIZE(desktop_titleW) );
+
+    if (!name[0] || !wcscmp( name, L"Default" ))
     {
-        SetWindowTextW( hwnd, desktop_nameW );
+        SetWindowTextW( hwnd, desktop_titleW );
         return;
     }
 
-    window_title_len = lstrlenW(name) * sizeof(WCHAR)
-                     + sizeof(desktop_name_separatorW)
-                     + sizeof(desktop_nameW);
+    window_title_len = (wcslen(name) + wcslen(desktop_titleW)) * sizeof(WCHAR)
+                     + sizeof(desktop_name_separatorW);
     window_titleW = malloc( window_title_len );
     if (!window_titleW)
     {
-        SetWindowTextW( hwnd, desktop_nameW );
+        SetWindowTextW( hwnd, desktop_titleW );
         return;
     }
 
     lstrcpyW( window_titleW, name );
     lstrcatW( window_titleW, desktop_name_separatorW );
-    lstrcatW( window_titleW, desktop_nameW );
+    lstrcatW( window_titleW, desktop_titleW );
 
     SetWindowTextW( hwnd, window_titleW );
     free( window_titleW );
@@ -1116,11 +1120,19 @@ void manage_desktop( WCHAR *arg )
     }
 
     /* parse the desktop option */
-    /* the option is of the form /desktop=name[,widthxheight[,driver]] */
+    /* the option is of the form /desktop[=name[,widthxheight[,driver]]] */
     if ((arg[0] == '=' || arg[0] == ',') && arg[1] && arg[1] != ',')
     {
-        arg++;
-        name = arg;
+        if (arg[0] == ',')
+        {
+            name = get_default_desktop_name();
+        }
+        else
+        {
+            arg++;
+            name = arg;
+        }
+
         if ((p = wcschr( arg, ',' )))
         {
             *p++ = 0;

@@ -807,7 +807,51 @@ static void logfontex_WtoA( const ENUMLOGFONTEXW *fontW, LPENUMLOGFONTEXA fontA 
  */
 DWORD WINAPI GdiGetCodePage( HDC hdc )
 {
+    CHARSETINFO csi;
     DC_ATTR *dc_attr = get_dc_attr( hdc );
+
+    if(is_meta_dc(hdc))
+    {
+        UINT charset = METADC_GetTextCharset(hdc);
+        UINT cp = CP_ACP;
+        if (TranslateCharsetInfo( ULongToPtr(charset), &csi, TCI_SRCCHARSET ))
+            cp = csi.ciACP;
+        else
+        {
+            switch(charset)
+            {
+            case OEM_CHARSET:
+                cp = GetOEMCP();
+                break;
+            case DEFAULT_CHARSET:
+                cp = GetACP();
+                break;
+
+            case VISCII_CHARSET:
+            case TCVN_CHARSET:
+            case KOI8_CHARSET:
+            case ISO3_CHARSET:
+            case ISO4_CHARSET:
+            case ISO10_CHARSET:
+            case CELTIC_CHARSET:
+                /* FIXME: These have no place here, but because x11drv
+                    enumerates fonts with these (made up) charsets some apps
+                    might use them and then the FIXME below would become
+                    annoying.  Now we could pick the intended codepage for
+                    each of these, but since it's broken anyway we'll just
+                    use CP_ACP and hope it'll go away...
+                */
+                cp = CP_ACP;
+                break;
+
+            default:
+                FIXME("Can't find codepage for charset %d\n", charset);
+                break;
+            }
+        }
+        return cp;
+    }
+
     return dc_attr ? dc_attr->font_code_page : CP_ACP;
 }
 
@@ -1971,6 +2015,7 @@ BOOL WINAPI GetAspectRatioFilterEx( HDC hdc, SIZE *aspect_ratio )
  */
 UINT WINAPI GetTextCharset( HDC hdc )
 {
+    if(is_meta_dc(hdc)) return METADC_GetTextCharset(hdc);
     /* MSDN docs say this is equivalent */
     return NtGdiGetTextCharsetInfo( hdc, NULL, 0 );
 }

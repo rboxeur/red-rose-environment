@@ -47,40 +47,68 @@ static inline struct keyboard *impl_from_IDirectInputDevice8W( IDirectInputDevic
                               struct keyboard, base );
 }
 
+static struct {
+  BYTE scan;
+  BYTE dik;
+} jp_map[] = {
+    {0x0d, DIK_CIRCUMFLEX}, /* ^ */
+    {0x1a, DIK_AT},         /* @ */
+    {0x1b, DIK_LBRACKET},   /* [ */
+    {0x28, DIK_COLON},      /* : */
+    {0x29, DIK_KANJI},      /* Hankaku/Zenkaku */
+    {0x2b, DIK_RBRACKET},   /* ] */
+    {0x73, DIK_BACKSLASH},  /* \ */
+};
+
 static BYTE map_dik_code(DWORD scanCode, DWORD vkCode, DWORD subType, DWORD version)
 {
+    int i;
     if (!scanCode && version < 0x0800)
         scanCode = MapVirtualKeyW(vkCode, MAPVK_VK_TO_VSC);
 
     if (subType == DIDEVTYPEKEYBOARD_JAPAN106)
     {
-        switch (scanCode)
+        for (i = 0; i < ARRAY_SIZE(jp_map); i++)
         {
-        case 0x0d: /* ^ */
-            scanCode = DIK_CIRCUMFLEX;
-            break;
-        case 0x1a: /* @ */
-            scanCode = DIK_AT;
-            break;
-        case 0x1b: /* [ */
-            scanCode = DIK_LBRACKET;
-            break;
-        case 0x28: /* : */
-            scanCode = DIK_COLON;
-            break;
-        case 0x29: /* Hankaku/Zenkaku */
-            scanCode = DIK_KANJI;
-            break;
-        case 0x2b: /* ] */
-            scanCode = DIK_RBRACKET;
-            break;
-        case 0x73: /* \ */
-            scanCode = DIK_BACKSLASH;
-            break;
+            if (jp_map[i].scan == scanCode)
+            {
+                scanCode = jp_map[i].dik;
+                break;
+            }
         }
     }
     if (scanCode & 0x100) scanCode |= 0x80;
     return (BYTE)scanCode;
+}
+
+static DWORD map_scan_code(BYTE dikCode, DWORD subType, DWORD version)
+{
+    int i;
+    DWORD result = dikCode;
+
+    if (version < 0x0800)
+        return 0;
+
+    /* TODO: Is this only on English keyboards? Are there edge cases on other keyboards? */
+    if (dikCode == DIK_NUMLOCK)
+        return 0x451DE1;
+    if (dikCode == DIK_PAUSE)
+        return 0x45;
+
+    if (subType == DIDEVTYPEKEYBOARD_JAPAN106)
+    {
+        for (i = 0; i < ARRAY_SIZE(jp_map); i++)
+        {
+            if (jp_map[i].dik == dikCode)
+            {
+                result = jp_map[i].dik;
+                break;
+            }
+        }
+    }
+    if (result & 0x80)
+        result = ((result - 0x80) << 8) | 0xe0;
+    return result;
 }
 
 static void keyboard_handle_event( struct keyboard *impl, DWORD vkey, DWORD scan_code, BOOL up )
@@ -189,6 +217,8 @@ HRESULT keyboard_create_device( struct dinput *dinput, const GUID *guid, IDirect
 {
     struct keyboard *impl;
     HRESULT hr;
+    DWORD i, index, dik;
+    WCHAR buffer[2];
 
     TRACE( "dinput %p, guid %s, out %p.\n", dinput, debugstr_guid( guid ), out );
 
@@ -207,6 +237,18 @@ HRESULT keyboard_create_device( struct dinput *dinput, const GUID *guid, IDirect
 
     if (FAILED(hr = dinput_device_init_device_format( &impl->base.IDirectInputDevice8W_iface ))) goto failed;
 
+    for (i = 0, index = 0; i < impl->base.device_format.dwNumObjs; ++i)
+    {
+        if (!GetKeyNameTextW( i << 16, buffer, ARRAY_SIZE(buffer) )) continue;
+        if (!(dik = map_dik_code(
+                  i, 0, GET_DIDEVICE_SUBTYPE(impl->base.instance.dwDevType),
+                  impl->base.dinput->dwVersion)))
+            continue;
+
+        impl->base.object_properties[index++].scan_code = map_scan_code(
+            dik, GET_DIDEVICE_SUBTYPE(impl->base.instance.dwDevType),
+            impl->base.dinput->dwVersion);
+    }
     *out = &impl->base.IDirectInputDevice8W_iface;
     return DI_OK;
 

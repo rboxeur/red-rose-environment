@@ -2597,6 +2597,27 @@ static void test_ImageList_WriteEx(void)
     pImageList_Destroy(himl);
 }
 
+static void test_ImageList_read_version(void)
+{
+    HRSRC resource = FindResourceA(GetModuleHandleA(NULL), MAKEINTRESOURCEA(IDR_IMAGELIST_DATA), MAKEINTRESOURCEA(RT_RCDATA));
+    HGLOBAL resource_data = LoadResource(GetModuleHandleA(NULL), resource);
+    DWORD data_size = SizeofResource(GetModuleHandleA(NULL), resource);
+    IStream* stream = NULL;
+    ULONG bytes_written = 0;
+    LARGE_INTEGER large_int = {0};
+    HIMAGELIST hImageList = NULL;
+
+    ok(resource != 0, "Failed to find IDR_IMAGELIST_DATA.\n");
+    ok(CreateStreamOnHGlobal(NULL, TRUE, &stream) >= 0, "Faile to create IStream.\n");
+    ok(stream->lpVtbl->Write(stream, LockResource(resource_data), data_size, &bytes_written) >= 0
+       || bytes_written == data_size, "Failed to write bytes to IStream.\n");
+    stream->lpVtbl->Seek(stream, large_int, 0, NULL);
+    hImageList = pImageList_Read(stream);
+    IStream_Release(stream);
+    ok(hImageList != 0, "Failed to read imagelist from stream.\n");
+    pImageList_Destroy(hImageList);
+}
+
 static void init_functions(void)
 {
     HMODULE hComCtl32 = LoadLibraryA("comctl32.dll");
@@ -2694,6 +2715,7 @@ START_TEST(imagelist)
     test_IImageList_GetImageCount();
     test_IImageList_GetIconSize();
     test_ImageList_WriteEx();
+    test_ImageList_read_version();
 
     CoUninitialize();
 

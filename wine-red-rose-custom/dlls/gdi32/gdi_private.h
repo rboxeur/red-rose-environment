@@ -94,6 +94,7 @@ BOOL METADC_ExtTextOut( HDC hdc, INT x, INT y, UINT flags, const RECT *rect,
 BOOL METADC_FillRgn( HDC hdc, HRGN hrgn, HBRUSH hbrush );
 BOOL METADC_FrameRgn( HDC hdc, HRGN hrgn, HBRUSH hbrush, INT x, INT y );
 INT  METADC_GetDeviceCaps( HDC hdc, INT cap );
+UINT METADC_GetTextCharset( HDC hdc );
 BOOL METADC_IntersectClipRect( HDC hdc, INT left, INT top, INT right, INT bottom );
 BOOL METADC_InvertRgn( HDC hdc, HRGN hrgn );
 BOOL METADC_LineTo( HDC hdc, INT x, INT y );

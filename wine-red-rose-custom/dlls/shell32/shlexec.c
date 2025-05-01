@@ -655,7 +655,15 @@ static UINT SHELL_FindExecutable(LPCWSTR lpPath, LPCWSTR lpFile, LPCWSTR lpVerb,
             /* The file was found in lpPath or one of the directories in the system-wide search path */
         }
         else
-            xlpFile[0] = '\0';
+        {
+            /* Checking for an unix application */
+            if( (xlpFile[0] == '/') || PathFindOnPathW(xlpFile, search_paths))
+            {
+                lstrcpyW(lpResult, xlpFile);
+            }
+            else
+                xlpFile[0] = '\0';
+        }
     }
 
     attribs = GetFileAttributesW(lpFile);
@@ -1917,6 +1925,8 @@ static BOOL SHELL_execute( LPSHELLEXECUTEINFOW sei, SHELL_ExecuteW32 execfunc )
 
 end:
     TRACE("retval %Iu\n", retval);
+    if (retval == SE_ERR_NOASSOC)
+        SetLastError(ERROR_FILE_NOT_FOUND);
 
     free(wszApplicationName);
     if (wszParameters != parametersBuffer)

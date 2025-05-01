@@ -235,6 +235,18 @@ WINE_D3D_CONFIG="renderer=vulkan;VideoPciVendorID=0xc0de"
 If an individual setting is specified in both
 the environment variable and the registry, the former takes precedence.
 .TP
+.B WINE_VIDEO_DRIVER
+Specifies the list of graphics drivers Wine should try to load. It
+can be used instead of modifying the
+.B HKEY_CURRENT_USER\\\\Software\\\\Wine\\\\Drivers\\\\Graphics
+registry value. The value is a comma-separated list of driver names
+(same as the registry one). For example:
+.IP
+WINE_VIDEODRIVER="x11,wayland"
+.IP
+If the driver list is specified in both the environment variable
+and the registry, the former takes precedence.
+.TP
 .B DISPLAY
 Specifies the X11 display to use.
 .TP

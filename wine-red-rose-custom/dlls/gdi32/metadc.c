@@ -1269,6 +1269,43 @@ BOOL METADC_ExtEscape( HDC hdc, INT escape, INT input_size, const void *input,
     return ret;
 }
 
+static inline WCHAR facename_tolower( WCHAR c )
+{
+    if (c >= 'A' && c <= 'Z') return c - 'A' + 'a';
+    else if (c > 127) return RtlDowncaseUnicodeChar( c );
+    else return c;
+}
+
+static inline int facename_compare( const WCHAR *str1, const WCHAR *str2, SIZE_T len )
+{
+    while (len--)
+    {
+        WCHAR c1 = facename_tolower( *str1++ ), c2 = facename_tolower( *str2++ );
+        if (c1 != c2) return c1 - c2;
+        else if (!c1) return 0;
+    }
+    return 0;
+}
+
+UINT METADC_GetTextCharset( HDC hdc )
+{
+    UINT ret = DEFAULT_CHARSET;
+    struct metadc *metadc;
+    static const WCHAR symbolW[] = {'S','y','m','b','o','l',0};
+
+    if(!(metadc = get_metadc_ptr( hdc ))) return ret;
+    if(metadc->font)
+    {
+        LOGFONTW lf;
+        NtGdiExtGetObjectW( metadc->font, sizeof(lf), &lf );
+        if (!facename_compare( lf.lfFaceName, symbolW, -1 ))
+            lf.lfCharSet = SYMBOL_CHARSET;
+        return lf.lfCharSet;
+    }
+
+    return ret;
+}
+
 INT METADC_GetDeviceCaps( HDC hdc, INT cap )
 {
     if (!get_metadc_ptr( hdc )) return 0;

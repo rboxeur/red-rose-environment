@@ -320,6 +320,9 @@ static HRESULT DELNODE_recurse_dirtree(LPWSTR fname, DWORD flags)
         BOOL done = TRUE;
         int fname_len = lstrlenW(fname);
 
+        if (flags & ADN_DEL_IF_EMPTY)
+            goto onlyemptydir;
+
         /* Generate a path with wildcard suitable for iterating */
         if (fname_len && fname[fname_len-1] != '\\') fname[fname_len++] = '\\';
         lstrcpyW(fname + fname_len, L"*");
@@ -347,8 +350,10 @@ static HRESULT DELNODE_recurse_dirtree(LPWSTR fname, DWORD flags)
 
         if (done)
         {
+onlyemptydir:
             TRACE("%s: directory\n", debugstr_w(fname));
-            if (SetFileAttributesW(fname, FILE_ATTRIBUTE_NORMAL) && RemoveDirectoryW(fname))
+            SetFileAttributesW(fname, FILE_ATTRIBUTE_NORMAL);
+            if (RemoveDirectoryW(fname))
             {
                 ret = S_OK;
             }
@@ -357,7 +362,8 @@ static HRESULT DELNODE_recurse_dirtree(LPWSTR fname, DWORD flags)
     else
     {
         TRACE("%s: file\n", debugstr_w(fname));
-        if (SetFileAttributesW(fname, FILE_ATTRIBUTE_NORMAL) && DeleteFileW(fname))
+        SetFileAttributesW(fname, FILE_ATTRIBUTE_NORMAL);
+        if (DeleteFileW(fname))
         {
             ret = S_OK;
         }

@@ -567,7 +567,11 @@ static void test_multibyte_to_unicode_translations(IMultiLanguage2 *iML2)
 {
     /* these APIs are broken regarding constness of the input buffer */
     char stringA[] = "Just a test string\0"; /* double 0 for CP_UNICODE tests */
+    char bad936A_end[] = "test\xb2\xe2\xca\xd4";
+    char bad936A_mid[] = "test\xb2\x31\xca\xd4";
     WCHAR stringW[] = {'J','u','s','t',' ','a',' ','t','e','s','t',' ','s','t','r','i','n','g',0};
+    WCHAR bad936W_end[] = {'t','e','s','t',0x6d4b,0};
+    WCHAR bad936W_mid[] = {'t','e','s','t','?',0x8bd5,0};
     char bufA[256];
     WCHAR bufW[256];
     UINT lenA, lenW, expected_len;
@@ -643,6 +647,27 @@ static void test_multibyte_to_unicode_translations(IMultiLanguage2 *iML2)
     ok(lenA == lstrlenA(stringA), "expected lenA %u, got %u\n", lstrlenA(stringA), lenA);
     expected_len = MultiByteToWideChar(1252, 0, stringA, lenA, NULL, 0);
     ok(lenW == expected_len, "expected lenW %u, got %u\n", expected_len, lenW);
+
+    memset(bufW, 'x', sizeof(bufW));
+    lenA = lstrlenA(bad936A_end);
+    lenA -= 1; /* chinese character truncation */
+    lenW = ARRAY_SIZE(bufW);
+    ret = pConvertINetMultiByteToUnicode(NULL, 936, bad936A_end, (INT *)&lenA, bufW, (INT *)&lenW);
+    ok(ret == S_OK, "ConvertINetMultiByteToUnicode failed: %08lx\n", ret);
+    ok(lenA == lstrlenA(bad936A_end) - 2, "expected lenA %u, got %u\n", lstrlenA(bad936A_end) - 2, lenA);
+    expected_len = MultiByteToWideChar(936, 0, bad936A_end, lenA, NULL, 0);
+    ok(lenW == expected_len, "expected lenW %u, got %u\n", expected_len, lenW);
+    ok(!memcmp(bufW, bad936W_end, lenW * sizeof(WCHAR)), "bufW/stringW mismatch\n");
+
+    memset(bufW, 'x', sizeof(bufW));
+    lenA = lstrlenA(bad936A_mid);
+    lenW = ARRAY_SIZE(bufW);
+    ret = pConvertINetMultiByteToUnicode(NULL, 936, bad936A_mid, (INT *)&lenA, bufW, (INT *)&lenW);
+    ok(ret == S_OK, "ConvertINetMultiByteToUnicode failed: %08lx\n", ret);
+    ok(lenA == lstrlenA(bad936A_mid), "expected lenA %u, got %u\n", lstrlenA(bad936A_mid), lenA);
+    expected_len = MultiByteToWideChar(936, 0, bad936A_mid, lenA, NULL, 0);
+    ok(lenW == expected_len, "expected lenW %u, got %u\n", expected_len, lenW);
+    ok(!memcmp(bufW, bad936W_mid, lenW * sizeof(WCHAR)), "bufW/stringW mismatch\n");
 
     /* IMultiLanguage2_ConvertStringFromUnicode tests */
 

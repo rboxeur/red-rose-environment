@@ -2284,8 +2284,6 @@ HIMAGELIST WINAPI ImageList_Read(IStream *pstm)
 	return NULL;
     if (ilHead.usMagic != (('L' << 8) | 'I'))
 	return NULL;
-    if (ilHead.usVersion != 0x101) /* probably version? */
-	return NULL;
 
     TRACE("cx %u, cy %u, flags 0x%04x, cCurImage %u, cMaxImage %u\n",
           ilHead.cx, ilHead.cy, ilHead.flags, ilHead.cCurImage, ilHead.cMaxImage);
