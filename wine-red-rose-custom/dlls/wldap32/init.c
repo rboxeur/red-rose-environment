@@ -127,11 +127,14 @@ static char *join_hostnames( const char *scheme, char **hostnames, ULONG portnum
 
     sprintf( port, ":%lu", portnumber );
 
+    size_t scheme_len = strlen( scheme );
+    size_t port_len = strlen( port );
+
     for (v = hostnames; *v; v++)
     {
         if (!has_ldap_scheme( *v ))
         {
-            size += strlen( scheme );
+            size += scheme_len;
             q = *v;
         }
         else
@@ -141,12 +144,13 @@ static char *join_hostnames( const char *scheme, char **hostnames, ULONG portnum
         size += strlen( *v );
 
         if (!strchr( q, ':' ))
-            size += strlen( port );
+            size += port_len;
 
         i++;
     }
 
-    size += (i - 1) * strlen( sep );
+    size_t sep_len = strlen( sep );
+    size += (i - 1) * sep_len;
     if (!(res = malloc( size + 1 ))) return NULL;
 
     p = res;
@@ -155,13 +159,13 @@ static char *join_hostnames( const char *scheme, char **hostnames, ULONG portnum
         if (v != hostnames)
         {
             strcpy( p, sep );
-            p += strlen( sep );
+            p += sep_len;
         }
 
         if (!has_ldap_scheme( *v ))
         {
             strcpy( p, scheme );
-            p += strlen( scheme );
+            p += scheme_len;
             q = *v;
         }
         else
@@ -174,7 +178,7 @@ static char *join_hostnames( const char *scheme, char **hostnames, ULONG portnum
         if (!strchr( q, ':' ))
         {
             strcpy( p, port );
-            p += strlen( port );
+            p += port_len;
         }
     }
     return res;

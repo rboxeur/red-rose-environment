@@ -127,6 +127,7 @@ static void xim_update_comp_string( UINT offset, UINT old_len, const WCHAR *text
     memmove( ptr + new_len, ptr + old_len, (len - offset - old_len) * sizeof(WCHAR) );
     if (text) memcpy( ptr, text, new_len * sizeof(WCHAR) );
     ime_comp_buf[len + diff] = 0;
+    free(ptr);
 }
 
 void xim_set_result_string( HWND hwnd, const char *str, UINT count )

@@ -5718,7 +5718,9 @@ static void test_max_http_automatic_redirects (void)
     size = sizeof(url);
     ret = WinHttpQueryOption(request, WINHTTP_OPTION_URL, url, &size);
     ok(ret, "got %lu\n", GetLastError());
-    ok(!wcscmp(url, L"http://test.winehq.org/tests/redirecttest.php?id=2&max=3"), "got %s\n", wine_dbgstr_w(url));
+    ok(!wcscmp(url, L"http://test.winehq.org/tests/redirecttest.php?id=2&max=3") ||
+       broken(!wcscmp(url, L"http://test.winehq.org/tests/redirecttest.php?id=1&max=3")) /* < Win10 1809 */,
+       "got %s\n", wine_dbgstr_w(url));
 
  done:
     ret = WinHttpCloseHandle(request);
@@ -5974,7 +5976,6 @@ static const BYTE pfxdata[] =
 static void test_client_cert_authentication(void)
 {
     HINTERNET ses, req, con;
-    DWORD protocols;
     BOOL ret;
     CRYPT_DATA_BLOB pfx;
     HCERTSTORE store;
@@ -5982,16 +5983,6 @@ static void test_client_cert_authentication(void)
 
     ses = WinHttpOpen( L"winetest", WINHTTP_ACCESS_TYPE_NO_PROXY, NULL, NULL, 0 );
     ok( ses != NULL, "failed to open session %lu\n", GetLastError() );
-
-    protocols = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1;
-    ret = WinHttpSetOption( ses, WINHTTP_OPTION_SECURE_PROTOCOLS, &protocols, sizeof(protocols) );
-    if (!ret && GetLastError() == ERROR_INVALID_PARAMETER) /* vista */
-    {
-        win_skip( "can't set secure protocols\n" );
-        WinHttpCloseHandle( ses );
-        return;
-    }
-    ok( ret, "failed to set protocols %lu\n", GetLastError() );
 
     con = WinHttpConnect( ses, L"test.winehq.org", 443, 0 );
     ok( con != NULL, "failed to open a connection %lu\n", GetLastError() );
@@ -6025,7 +6016,7 @@ static void test_client_cert_authentication(void)
     ret = WinHttpReceiveResponse( req, NULL );
     todo_wine {
     ok( !ret, "unexpected success\n" );
-    ok( GetLastError() == SEC_E_CERT_EXPIRED, "got %lu\n", GetLastError() );
+    ok( GetLastError() == ERROR_WINHTTP_SECURE_FAILURE, "got %lu\n", GetLastError() );
     }
 
     CertFreeCertificateContext( cert );

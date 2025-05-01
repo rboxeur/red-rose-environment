@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#define COBJMACROS
 
 #include <stdarg.h>
 
@@ -26,6 +27,8 @@
 #include "winreg.h"
 #include "wininet.h"
 #include "winnls.h"
+#include "shtypes.h"
+#include "shlobj.h"
 
 #include "wine/test.h"
 
@@ -35,6 +38,7 @@ static HMODULE hshdocvw;
 static HRESULT (WINAPI *pURLSubRegQueryA)(LPCSTR, LPCSTR, DWORD, LPVOID, DWORD, DWORD);
 static DWORD (WINAPI *pParseURLFromOutsideSourceA)(LPCSTR, LPSTR, LPDWORD, LPDWORD);
 static DWORD (WINAPI *pParseURLFromOutsideSourceW)(LPCWSTR, LPWSTR, LPDWORD, LPDWORD);
+static HRESULT (WINAPI *pIEParseDisplayNameWithBCW)(DWORD, LPCWSTR, LPBC, LPITEMIDLIST *);
 
 static const char appdata[] = "AppData";
 static const char common_appdata[] = "Common AppData";
@@ -76,6 +80,7 @@ static void init_functions(void)
     pURLSubRegQueryA = (void *) GetProcAddress(hshdocvw, (LPSTR) 151);
     pParseURLFromOutsideSourceA = (void *) GetProcAddress(hshdocvw, (LPSTR) 169);
     pParseURLFromOutsideSourceW = (void *) GetProcAddress(hshdocvw, (LPSTR) 170);
+    pIEParseDisplayNameWithBCW = (void *) GetProcAddress(hshdocvw, (LPSTR) 218);
 }
 
 /* ################ */
@@ -352,11 +357,87 @@ static void test_ParseURLFromOutsideSourceW(void)
 
 /* ################ */
 
+static void test_IE_pidl(LPITEMIDLIST pidl, const WCHAR *name)
+{
+#include <pshpack1.h>
+    struct ie_pidl_data
+    {
+        BYTE type; /* 0x61 - PT_IESPECIAL1 */
+        BYTE dummy1; /* 0x80 */
+        DWORD dummy2; /* 0 */
+        WCHAR name[1]; /* terminated by double \0 */
+    } *data;
+#include <poppack.h>
+
+    while (pidl->mkid.cb)
+    {
+        int len;
+
+        if (pidl->mkid.abID[0] == 0x1f)
+        {
+            GUID *guid = (GUID *)&pidl->mkid.abID[2];
+            ok(IsEqualGUID(guid, &CLSID_Internet), "got %s\n", wine_dbgstr_guid(guid));
+            ok(pidl->mkid.abID[1] == 0, "got %#x\n", pidl->mkid.abID[1]);
+            len = sizeof(GUID) + 4;
+            ok(pidl->mkid.cb == len, "expected %d, got %d\n", len, pidl->mkid.cb);
+        }
+        else if (pidl->mkid.abID[0] == 0x61)
+        {
+            data = (struct ie_pidl_data *)pidl->mkid.abID;
+            ok(data->dummy1 == 0x80, "got %#x\n", data->dummy1);
+            ok(data->dummy2 == 0, "got %#lx\n", data->dummy2);
+            ok(!wcscmp(data->name, name), "got %s\n", wine_dbgstr_w(data->name));
+            len = wcslen(data->name) + 1;
+            ok(data->name[len] == 0, "got %d\n", data->name[len]);
+            ok(data->name[len + 1] == 0, "got %d\n", data->name[len + 1]);
+            len = FIELD_OFFSET(struct ie_pidl_data, name) + (len + 2) * sizeof(WCHAR);
+            ok(pidl->mkid.cb == len, "expected %d, got %d\n", len, pidl->mkid.cb);
+        }
+
+        pidl = (LPITEMIDLIST)((char *)pidl + pidl->mkid.cb);
+    }
+}
+
+static void test_IEParseDisplayNameWithBCW(void)
+{
+    HRESULT hr;
+    IBindCtx *ctx;
+    LPITEMIDLIST pidl;
+
+    if (!pIEParseDisplayNameWithBCW)
+    {
+        skip("IEParseDisplayNameWithBCW not found\n");
+        return;
+    }
+
+    hr = CreateBindCtx(0, &ctx);
+    ok(hr == S_OK, "got %#lx\n", hr);
+
+    hr = pIEParseDisplayNameWithBCW(0, L"custom://url", ctx, &pidl);
+    ok(hr == S_OK, "got %#lx\n", hr);
+    test_IE_pidl(pidl, L"custom://url");
+    SHFree(pidl);
+
+    hr = pIEParseDisplayNameWithBCW(0, L"readme.txt", ctx, &pidl);
+    ok(hr == E_FAIL, "got %#lx\n", hr);
+
+    hr = pIEParseDisplayNameWithBCW(0, L"ftp://url.org/readme.txt", ctx, &pidl);
+    ok(hr == S_OK, "got %#lx\n", hr);
+    test_IE_pidl(pidl, L"ftp://url.org/readme.txt");
+    SHFree(pidl);
+
+    if (0) /* hangs */
+        hr = pIEParseDisplayNameWithBCW(0, L"file://readme.txt", ctx, &pidl);
+
+    IBindCtx_Release(ctx);
+}
+
 START_TEST(shdocvw)
 {
     init_functions();
     test_URLSubRegQueryA();
     test_ParseURLFromOutsideSourceA();
     test_ParseURLFromOutsideSourceW();
+    test_IEParseDisplayNameWithBCW();
     FreeLibrary(hshdocvw);
 }

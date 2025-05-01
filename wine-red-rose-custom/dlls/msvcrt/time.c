@@ -1743,6 +1743,7 @@ errno_t CDECL _ctime64_s(char *res, size_t len, const __time64_t *time)
 
     t = _localtime64( time );
     strcpy( res, asctime( t ) );
+    free(t);
     return 0;
 }
 
@@ -1772,6 +1773,7 @@ errno_t CDECL _ctime32_s(char *res, size_t len, const __time32_t *time)
 
     t = _localtime32( time );
     strcpy( res, asctime( t ) );
+    free(t);
     return 0;
 }
 

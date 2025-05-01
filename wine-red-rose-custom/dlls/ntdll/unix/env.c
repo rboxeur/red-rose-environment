@@ -940,6 +940,15 @@ static const char overrides_help_message[] =
     "Example:\n"
     "  WINEDLLOVERRIDES=\"comdlg32=n,b;shell32,shlwapi=b\"\n";
 
+struct str_len {
+    char *str;
+    size_t len;
+};
+
+static int cmp_str_len(const void *a, const void *b) {
+    return ((struct str_len*) a)->len - ((struct str_len*) b)->len;
+}
+
 /*************************************************************************
  *		get_initial_environment
  *
@@ -947,20 +956,46 @@ static const char overrides_help_message[] =
  */
 static WCHAR *get_initial_environment( SIZE_T *pos, SIZE_T *size )
 {
-    char **e;
     WCHAR *env, *ptr, *end;
+    SIZE_T i, env_count = 0;
+    struct str_len *env_vars;
+    /* Windows has a limit of 32767 characters for the environment block, and
+     * some programs malfunction if this is exceeded. As a workaround, don't add
+     * the biggest environment variables. Leave some space for variables that
+     * the program itself might add. */
+    /* FIXME: Prevent exceeding the limit after initialization. */
+    const SIZE_T MAX_ENV_SIZE = 30000;
+
+    while (main_envp[env_count]) env_count++;
+
+    env_vars = calloc(env_count, sizeof(struct str_len));
 
     /* estimate needed size */
     *size = 1;
-    for (e = main_envp; *e; e++) *size += strlen(*e) + 1;
+    for (i = 0; i < env_count; i++) {
+        env_vars[i].str = main_envp[i];
+        env_vars[i].len = strlen(main_envp[i]) + 1;
+        *size += env_vars[i].len;
+    }
+    if (*size > MAX_ENV_SIZE){
+        /* sort environment variables by length in ascending order, to exclude
+         * only the biggest ones */
+        qsort(env_vars, env_count, sizeof(struct str_len), cmp_str_len);
+        *size = MAX_ENV_SIZE;
+    }
 
     env = malloc( *size * sizeof(WCHAR) );
     ptr = env;
     end = env + *size - 1;
-    for (e = main_envp; *e && ptr < end; e++)
-    {
-        char *str = *e;
+    for (i = 0; i < env_count; i++) {
+        char *str = env_vars[i].str;
 
+        if (ptr - env + env_vars[i].len >= MAX_ENV_SIZE)
+        {
+            WARN("Environment variables block exceeds or is close to the 32767 "
+                  "characters limit. Removing the biggest variables.\n");
+            break;
+        }
         /* skip Unix special variables and use the Wine variants instead */
         if (!strncmp( str, "WINE", 4 ))
         {
@@ -968,6 +1003,7 @@ static WCHAR *get_initial_environment( SIZE_T *pos, SIZE_T *size )
             else if (!strcmp( str, "WINEDLLOVERRIDES=help" ))
             {
                 MESSAGE( overrides_help_message );
+                free(env_vars);
                 exit(0);
             }
         }
@@ -977,6 +1013,7 @@ static WCHAR *get_initial_environment( SIZE_T *pos, SIZE_T *size )
         ptr += ntdll_umbstowcs( str, strlen(str) + 1, ptr, end - ptr );
     }
     *pos = ptr - env;
+    free(env_vars);
     return env;
 }
 

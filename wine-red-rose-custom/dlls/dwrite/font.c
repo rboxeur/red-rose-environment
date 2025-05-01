@@ -4095,15 +4095,16 @@ static const WCHAR *facename_remove_regular_term(WCHAR *facenameW, INT len)
     };
 
     const WCHAR *regular_ptr = NULL, *ptr;
+    size_t facename_len = wcslen(facenameW);
     int i = 0;
 
     if (len == -1)
-        len = wcslen(facenameW);
+        len = facename_len;
 
     /* remove rightmost regular variant from face name */
     while (!regular_ptr && (ptr = regular_patterns[i++]))
     {
-        int pattern_len = wcslen(ptr);
+        size_t pattern_len = wcslen(ptr);
         WCHAR *src;
 
         if (pattern_len > len)
@@ -4115,7 +4116,7 @@ static const WCHAR *facename_remove_regular_term(WCHAR *facenameW, INT len)
             if (!wcsnicmp(src, ptr, pattern_len))
             {
                 memmove(src, src + pattern_len, (len - pattern_len - (src - facenameW) + 1)*sizeof(WCHAR));
-                len = wcslen(facenameW);
+                len = facename_len;
                 regular_ptr = ptr;
                 break;
             }

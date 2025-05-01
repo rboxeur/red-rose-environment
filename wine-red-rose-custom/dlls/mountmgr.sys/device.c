@@ -1463,7 +1463,12 @@ NTSTATUS query_unix_drive( void *buff, SIZE_T insize, SIZE_T outsize, IO_STATUS_
     LeaveCriticalSection( &device_section );
 
     if (!volume)
+    {
+        free(device);
+        free(mount_point);
+        free(label);
         return STATUS_NO_SUCH_DEVICE;
+    }
 
     switch (device_type)
     {

@@ -199,8 +199,8 @@ HRESULT node_get_nodeName(xmlnode *This, BSTR *name)
         static const WCHAR colW = ':';
         WCHAR *ptr;
 
-        /* +1 for ':' */
-        ptr = *name = SysAllocStringLen(NULL, SysStringLen(base) + SysStringLen(prefix) + 1);
+        /* +1 for possible ':', +1 for \0 */
+        ptr = *name = SysAllocStringLen(NULL, SysStringLen(base) + SysStringLen(prefix) + 1 + 1);
         if (SysStringByteLen(prefix))
         {
             memcpy(ptr, prefix, SysStringByteLen(prefix));
@@ -211,8 +211,10 @@ HRESULT node_get_nodeName(xmlnode *This, BSTR *name)
             if (SysStringByteLen(prefix))
                 memcpy(ptr++, &colW, sizeof(WCHAR));
             memcpy(ptr, base, SysStringByteLen(base));
+            ptr += SysStringLen(base);
         }
 
+        *ptr = 0;
         SysFreeString(base);
         SysFreeString(prefix);
     }

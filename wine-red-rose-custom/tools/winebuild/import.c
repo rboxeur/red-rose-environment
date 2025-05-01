@@ -673,6 +673,8 @@ void read_undef_symbols( DLLSPEC *spec, struct strarray files )
     if (!(f = popen( cmd, "r" )))
         fatal_error( "Cannot execute '%s'\n", cmd );
 
+    size_t import_func_prefix_len = strlen( import_func_prefix );
+    size_t import_ord_prefix_len = strlen( import_ord_prefix );
     while (fgets( buffer, sizeof(buffer), f ))
     {
         char *p = buffer + strlen(buffer) - 1;
@@ -682,10 +684,10 @@ void read_undef_symbols( DLLSPEC *spec, struct strarray files )
         while (*p == ' ') p++;
         if (p[0] == 'U' && p[1] == ' ' && p[2]) p += 2;
         if (prefix_len && !strncmp( p, name_prefix, prefix_len )) p += prefix_len;
-        if (!strncmp( p, import_func_prefix, strlen(import_func_prefix) ))
-            add_undef_import( p + strlen( import_func_prefix ), 0 );
-        else if (!strncmp( p, import_ord_prefix, strlen(import_ord_prefix) ))
-            add_undef_import( p + strlen( import_ord_prefix ), 1 );
+        if (!strncmp( p, import_func_prefix, import_func_prefix_len ))
+            add_undef_import( p + import_func_prefix_len, 0 );
+        else if (!strncmp( p, import_ord_prefix, import_ord_prefix_len ))
+            add_undef_import( p + import_ord_prefix_len, 1 );
         else if (use_msvcrt || !find_name( p, stdc_functions ))
             strarray_add( &undef_symbols, xstrdup( p ));
     }

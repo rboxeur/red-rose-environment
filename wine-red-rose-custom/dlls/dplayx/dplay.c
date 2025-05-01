@@ -3015,7 +3015,7 @@ static HRESULT DP_IF_GetPlayerName( IDirectPlayImpl *This, DPID idPlayer, void *
     lpName->lpszShortNameA = NULL;
   }
 
-  if( lpPList->lpPData->name.lpszShortNameA )
+  if( lpPList->lpPData->name.lpszLongNameA )
   {
     strcpy( ((char*)lpName)+lpPList->lpPData->name.dwSize,
             lpPList->lpPData->name.lpszLongNameA );

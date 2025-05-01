@@ -433,11 +433,61 @@ DWORD WINAPI ParseURLFromOutsideSourceA(LPCSTR url, LPSTR out, LPDWORD plen, LPD
 /******************************************************************
  *  IEParseDisplayNameWithBCW (SHDOCVW.218)
  */
-HRESULT WINAPI IEParseDisplayNameWithBCW(DWORD codepage, LPCWSTR lpszDisplayName, LPBC pbc, LPITEMIDLIST *ppidl)
+HRESULT WINAPI IEParseDisplayNameWithBCW(DWORD codepage, LPCWSTR name, IBindCtx *pbc, LPITEMIDLIST *ppidl)
 {
+#include <pshpack1.h>
+    struct ie_pidl_data
+    {
+        BYTE type; /* 0x61 - PT_IESPECIAL1 */
+        BYTE dummy1; /* 0x80 */
+        DWORD dummy2; /* 0 */
+        WCHAR name[1]; /* terminated by double \0 */
+    } *ie_data;
+#include <poppack.h>
+    HRESULT hr;
+    LPITEMIDLIST parent, child, next, ret;
+    DWORD size, len;
+    PARSEDURLW res;
+
     /* Guessing at parameter 3 based on IShellFolder's  ParseDisplayName */
-    FIXME("stub: 0x%lx %s %p %p\n",codepage,debugstr_w(lpszDisplayName),pbc,ppidl);
-    return E_FAIL;
+    FIXME("%lu %s %p %p: semi-stub\n", codepage, debugstr_w(name), pbc, ppidl);
+
+    /* Make sure that it's correct URL */
+    res.cbSize = sizeof(res);
+    hr = ParseURLW(name, &res);
+    if (hr != S_OK) return E_FAIL;
+
+    hr = SHGetFolderLocation(0, CSIDL_INTERNET, 0, 0, &parent);
+    if (hr != S_OK) return hr;
+
+    len = wcslen(name) + 1;
+    size = FIELD_OFFSET(struct ie_pidl_data, name[len + 2]);
+
+    child = SHAlloc(size + sizeof(*next));
+    if (!child) return E_OUTOFMEMORY;
+
+    child->mkid.cb = size;
+    ie_data = (struct ie_pidl_data *)child->mkid.abID;
+    ie_data->type = 0x61;
+    ie_data->dummy1 = 0x80;
+    ie_data->dummy2 = 0;
+    wcscpy(ie_data->name, name);
+    ie_data->name[len] = 0;
+    ie_data->name[len + 1] = 0;
+
+    next = (LPITEMIDLIST)((char *)child + child->mkid.cb);
+    next->mkid.cb = 0;
+    next->mkid.abID[0] = 0;
+
+    ret = ILCombine(parent, child);
+
+    SHFree(parent);
+    SHFree(child);
+
+    if (!ret) return E_OUTOFMEMORY;
+
+    *ppidl = ret;
+    return S_OK;
 }
 
 /******************************************************************

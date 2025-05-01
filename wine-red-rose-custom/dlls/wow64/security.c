@@ -364,6 +364,7 @@ NTSTATUS WINAPI wow64_NtQueryInformationToken( UINT *args )
     case TokenElevation: /* TOKEN_ELEVATION */
     case TokenSessionId:  /* ULONG */
     case TokenVirtualizationEnabled:  /* ULONG */
+    case TokenUIAccess:  /* ULONG */
     case TokenIsAppContainer:  /* ULONG */
         /* nothing to map */
         return NtQueryInformationToken( handle, class, info, len, retlen );

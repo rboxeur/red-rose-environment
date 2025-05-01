@@ -1884,8 +1884,6 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetEnvironmentVariableA( LPCSTR name, LPSTR value
     NTSTATUS status;
     DWORD len, ret;
 
-    /* limit the size to sane values */
-    size = min( size, 32767 );
     if (!(valueW = HeapAlloc( GetProcessHeap(), 0, size * sizeof(WCHAR) ))) return 0;
 
     RtlCreateUnicodeStringFromAsciiz( &us_name, name );

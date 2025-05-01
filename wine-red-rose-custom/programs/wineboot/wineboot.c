@@ -1828,7 +1828,7 @@ static void update_wineprefix( BOOL force )
         update_win_version();
         update_root_certs();
 
-        WINE_MESSAGE( "wine: configuration in %s has been updated.\n", debugstr_w(prettyprint_configdir()) );
+        TRACE( "wine: configuration in %s has been updated.\n", debugstr_w(prettyprint_configdir()) );
     }
 
 done:

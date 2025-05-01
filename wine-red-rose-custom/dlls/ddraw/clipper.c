@@ -111,7 +111,7 @@ static ULONG WINAPI ddraw_clipper_Release(IDirectDrawClipper *iface)
             DeleteObject(clipper->region);
         /* make sure the object is no longer considered valid */
         SecureZeroMemory( &clipper->IDirectDrawClipper_iface.lpVtbl,
-                          sizeof(clipper->IDirectDrawClipper_iface.lpVtbl) );
+                          sizeof(*clipper->IDirectDrawClipper_iface.lpVtbl) );
         free(clipper);
     }
 

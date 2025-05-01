@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<WLANProfile xmlns="https://www.microsoft.com/networking/WLAN/profile/v1">
+    <name>Wine Testing WPA-PSK AES Profile</name>
+    <SSIDConfig>
+        <SSID> <name>Wine_WPA-PSK_AES</name> </SSID>
+    </SSIDConfig>
+    <connectionType>ESS</connectionType>
+    <connectionMode>auto</connectionMode>
+    <MSM>
+        <security>
+            <authEncryption>
+                <encryption>AES</encryption>
+		<authentication>WPAPSK</authentication>
+            </authEncryption>
+        </security>
+    </MSM>
+</WLANProfile>

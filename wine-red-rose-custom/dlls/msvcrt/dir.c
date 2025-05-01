@@ -1277,6 +1277,8 @@ wchar_t * CDECL _wfullpath(wchar_t * absPath, const wchar_t* relPath, size_t siz
 
   if (size < 4)
   {
+    if (alloced)
+      free(buffer);
     *_errno() = ERANGE;
     return NULL;
   }
@@ -1331,6 +1333,8 @@ char * CDECL _fullpath(char * absPath, const char* relPath, size_t size)
 
   if (size < 4)
   {
+    if (alloced)
+        free(buffer);
     *_errno() = ERANGE;
     return NULL;
   }

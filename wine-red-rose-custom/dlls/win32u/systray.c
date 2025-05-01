@@ -26,13 +26,37 @@
 #define WIN32_NO_STATUS
 #include "win32u_private.h"
 #include "ntuser_private.h"
+#ifdef SONAME_LIBDBUS_1
+#include "snidrv/snidrv.h"
+#endif
 #include "shellapi.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(systray);
 
+#ifdef SONAME_LIBDBUS_1
+static volatile LONG dbus_notifications_initialized = (LONG)FALSE;
+#endif
+
 LRESULT system_tray_call( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, void *data )
 {
+#ifdef SONAME_LIBDBUS_1
+    LONG l_dbus_notifications_initialized = InterlockedCompareExchange(&dbus_notifications_initialized, (LONG)FALSE, (LONG)FALSE);
+    if (!l_dbus_notifications_initialized && snidrv_notification_init())
+    {
+        InterlockedCompareExchange(&dbus_notifications_initialized, TRUE, FALSE);
+        l_dbus_notifications_initialized = TRUE;
+    }
+    if (l_dbus_notifications_initialized)
+    {
+        if (msg == WINE_SYSTRAY_RUN_LOOP)
+            return snidrv_run_loop();
+        if (msg == WINE_SYSTRAY_SHOW_BALLOON)
+            return snidrv_show_balloon(hwnd, wparam, lparam, data);
+    }
+
+#endif
+
     switch (msg)
     {
     case WINE_SYSTRAY_NOTIFY_ICON:
@@ -51,6 +75,12 @@ LRESULT system_tray_call( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, voi
         return 0;
     case WINE_SYSTRAY_DOCK_REMOVE:
         return user_driver->pSystrayDockRemove( hwnd );
+
+    case WINE_SYSTRAY_RUN_LOOP:
+        return -1;
+
+    case WINE_SYSTRAY_SHOW_BALLOON:
+        return user_driver->pSystrayShowBalloon( hwnd, wparam, lparam, data );
 
     default:
         FIXME( "Unknown NtUserSystemTrayCall msg %#x\n", msg );
