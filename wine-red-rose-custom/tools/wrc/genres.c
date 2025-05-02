@@ -34,6 +34,10 @@
 #include <assert.h>
 #include <ctype.h>
 
+#ifdef HAVE_ZLIB_H
+# include <zlib.h>
+#endif
+
 #include "../tools.h"
 #include "wrc.h"
 #include "utils.h"
@@ -958,6 +962,21 @@ static void user2res(name_id_t *name, user_t *usr)
 		tag = output_buffer_pos;
 		put_dword(4);		/* ResSize overwritten later*/
 	}
+
+#ifdef HAVE_ZLIB_H
+	if (compress_data)
+	{
+		uLongf size = compressBound(usr->data->size);
+		Bytef *compressed = xmalloc(size);
+		compress(compressed, &size, (Bytef *)usr->data->data, usr->data->size);
+		put_dword(0);
+		put_dword(usr->data->size);
+		put_data(compressed, size);
+		free(compressed);
+		set_res_size(tag);
+		return;
+	}
+#endif
 
 	put_data(usr->data->data, usr->data->size);
 	set_res_size(tag);

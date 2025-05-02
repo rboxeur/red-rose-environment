@@ -191,15 +191,6 @@ static NSString* WineLocalizedString(unsigned int stringID)
 
             windowsBeingDragged = [[NSMutableSet alloc] init];
 
-            // On macOS 10.12+, use notifications to more reliably detect when windows are being dragged.
-            if ([NSProcessInfo instancesRespondToSelector:@selector(isOperatingSystemAtLeastVersion:)])
-            {
-                NSOperatingSystemVersion requiredVersion = { 10, 12, 0 };
-                useDragNotifications = [[NSProcessInfo processInfo] isOperatingSystemAtLeastVersion:requiredVersion];
-            }
-            else
-                useDragNotifications = NO;
-
             if (!requests || !requestsManipQueue || !eventQueues || !eventQueuesLock ||
                 !keyWindows || !originalDisplayModes || !latentDisplayModes)
             {
@@ -256,13 +247,11 @@ static NSString* WineLocalizedString(unsigned int stringID)
             if (activateIfTransformed)
                 [self tryToActivateIgnoringOtherApps:YES];
 
-#if defined(MAC_OS_X_VERSION_10_9) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_9
-            if (!enable_app_nap && [NSProcessInfo instancesRespondToSelector:@selector(beginActivityWithOptions:reason:)])
+            if (!enable_app_nap)
             {
                 [[[NSProcessInfo processInfo] beginActivityWithOptions:NSActivityUserInitiatedAllowingIdleSystemSleep
                                                                 reason:@"Running Windows program"] retain]; // intentional leak
             }
-#endif
 
             mainMenu = [[[NSMenu alloc] init] autorelease];
 
@@ -1318,7 +1307,7 @@ static NSString* WineLocalizedString(unsigned int stringID)
     {
         for (WineWindow* w in [NSApp windows])
         {
-            if ([w isKindOfClass:[WineWindow class]] && ![w isMiniaturized] && [w isVisible])
+            if ([w isKindOfClass:[WineWindow class]] && ![w isMiniaturized] && [w isVisible] && [w presentsVisibleContent])
                 return YES;
         }
 
@@ -1848,17 +1837,6 @@ static NSString* WineLocalizedString(unsigned int stringID)
                     [window postKeyEvent:anEvent];
             }
         }
-        else if (!useDragNotifications && type == NSEventTypeAppKitDefined)
-        {
-            WineWindow *window = (WineWindow *)[anEvent window];
-            short subtype = [anEvent subtype];
-
-            // These subtypes are not documented but they appear to mean
-            // "a window is being dragged" and "a window is no longer being
-            // dragged", respectively.
-            if ((subtype == 20 || subtype == 21) && [window isKindOfClass:[WineWindow class]])
-                [self handleWindowDrag:window begin:(subtype == 20)];
-        }
 
         return ret;
     }
@@ -1918,25 +1896,23 @@ static NSString* WineLocalizedString(unsigned int stringID)
             [windowsBeingDragged removeObject:window];
         }];
 
-        if (useDragNotifications) {
-            [nc addObserverForName:NSWindowWillStartDraggingNotification
-                            object:nil
-                             queue:[NSOperationQueue mainQueue]
-                        usingBlock:^(NSNotification *note){
-                NSWindow* window = [note object];
-                if ([window isKindOfClass:[WineWindow class]])
-                    [self handleWindowDrag:(WineWindow *)window begin:YES];
-            }];
+        [nc addObserverForName:NSWindowWillStartDraggingNotification
+                        object:nil
+                         queue:[NSOperationQueue mainQueue]
+                    usingBlock:^(NSNotification *note){
+            NSWindow* window = [note object];
+            if ([window isKindOfClass:[WineWindow class]])
+                [self handleWindowDrag:(WineWindow *)window begin:YES];
+        }];
 
-            [nc addObserverForName:NSWindowDidEndDraggingNotification
-                            object:nil
-                             queue:[NSOperationQueue mainQueue]
-                        usingBlock:^(NSNotification *note){
-                NSWindow* window = [note object];
-                if ([window isKindOfClass:[WineWindow class]])
-                    [self handleWindowDrag:(WineWindow *)window begin:NO];
-            }];
-        }
+        [nc addObserverForName:NSWindowDidEndDraggingNotification
+                        object:nil
+                         queue:[NSOperationQueue mainQueue]
+                    usingBlock:^(NSNotification *note){
+            NSWindow* window = [note object];
+            if ([window isKindOfClass:[WineWindow class]])
+                [self handleWindowDrag:(WineWindow *)window begin:NO];
+        }];
 
         [nc addObserver:self
                selector:@selector(keyboardSelectionDidChange)
@@ -2105,17 +2081,24 @@ static NSString* WineLocalizedString(unsigned int stringID)
 
     - (void) unminimizeWindowIfNoneVisible
     {
-        if (![self frontWineWindow])
+        WineWindow *bestOption = nil;
+
+        if ([self isAnyWineWindowVisible])
+            return;
+
+        for (WineWindow *window in [NSApp windows])
         {
-            for (WineWindow* window in [NSApp windows])
-            {
-                if ([window isKindOfClass:[WineWindow class]] && [window isMiniaturized])
-                {
-                    [window deminiaturize:self];
-                    break;
-                }
-            }
+            if (![window isKindOfClass:[WineWindow class]] || ![window isMiniaturized])
+                continue;
+
+            bestOption = window;
+
+            /* Prefer any window that would actually show something. */
+            if ([window presentsVisibleContent])
+                break;
         }
+
+        [bestOption deminiaturize:self];
     }
 
     - (void) setRetinaMode:(int)mode

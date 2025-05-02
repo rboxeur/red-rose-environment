@@ -4629,6 +4629,7 @@ struct winhttp_request
     WINHTTP_PROXY_INFO proxy;
     BOOL async;
     UINT url_codepage;
+    DWORD security_flags;
 };
 
 static inline struct winhttp_request *impl_from_IWinHttpRequest( IWinHttpRequest *iface )
@@ -5379,6 +5380,9 @@ static DWORD request_set_parameters( struct winhttp_request *request )
     if (!WinHttpSetOption( request->hrequest, WINHTTP_OPTION_DISABLE_FEATURE, &request->disable_feature,
                            sizeof(request->disable_feature) )) return GetLastError();
 
+    if (!WinHttpSetOption( request->hrequest, WINHTTP_OPTION_SECURITY_FLAGS, &request->security_flags,
+                           sizeof(request->security_flags) )) return GetLastError();
+
     if (!WinHttpSetTimeouts( request->hrequest,
                              request->resolve_timeout,
                              request->connect_timeout,
@@ -5936,6 +5940,12 @@ static HRESULT WINAPI winhttp_request_get_Option(
         V_VT( value ) = VT_I4;
         V_I4( value ) = request->url_codepage;
         break;
+    case WinHttpRequestOption_SslErrorIgnoreFlags:
+    {
+        V_VT( value ) = VT_I4;
+        V_I4( value ) = request->security_flags;
+        break;
+    }
     default:
         FIXME("unimplemented option %u\n", option);
         hr = E_NOTIMPL;
@@ -5984,6 +5994,20 @@ static HRESULT WINAPI winhttp_request_put_Option(
         }
         else
             FIXME("URL codepage %s is not recognized\n", debugstr_variant( &value ));
+        break;
+    }
+    case WinHttpRequestOption_SslErrorIgnoreFlags:
+    {
+        static const DWORD accepted = SECURITY_FLAG_IGNORE_CERT_CN_INVALID   |
+                                      SECURITY_FLAG_IGNORE_CERT_DATE_INVALID |
+                                      SECURITY_FLAG_IGNORE_UNKNOWN_CA        |
+                                      SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE;
+
+        DWORD flags = V_I4( &value );
+        if (flags && (flags & ~accepted))
+            hr = E_INVALIDARG;
+        else
+            request->security_flags = flags;
         break;
     }
     default:

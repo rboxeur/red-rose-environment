@@ -228,6 +228,7 @@ struct dir_data
     struct file_identity    id;      /* directory file identity */
     struct dir_data_names  *names;   /* directory file names */
     struct dir_data_buffer *buffer;  /* head of data buffers list */
+    UNICODE_STRING          mask;    /* the mask used when creating the cache entry */
 };
 
 static const unsigned int dir_data_buffer_initial_size = 4096;
@@ -523,6 +524,7 @@ static void free_dir_data( struct dir_data *data )
         free( buffer );
     }
     free( data->names );
+    free( data->mask.Buffer );
     free( data );
 }
 
@@ -1744,8 +1746,8 @@ static int get_file_info( const char *path, struct stat *st, ULONG *attr )
 #ifdef ENODATA
         if (errno == ENODATA) return ret;
 #endif
-        WARN( "Failed to get extended attribute " SAMBA_XATTR_DOS_ATTRIB " from \"%s\". errno %d (%s)\n",
-              path, errno, strerror( errno ) );
+        WARN( "Failed to get extended attribute " SAMBA_XATTR_DOS_ATTRIB " from %s. errno %d (%s)\n",
+              debugstr_a(path), errno, strerror( errno ) );
     }
     return ret;
 }
@@ -2308,12 +2310,12 @@ static NTSTATUS get_dir_data_entry( struct dir_data *dir_data, void *info_ptr, I
 
     if (get_file_info( names->unix_name, &st, &attributes ) == -1)
     {
-        TRACE( "file no longer exists %s\n", names->unix_name );
+        TRACE( "file no longer exists %s\n", debugstr_a(names->unix_name) );
         return STATUS_SUCCESS;
     }
     if (is_ignored_file( &st ))
     {
-        TRACE( "ignoring file %s\n", names->unix_name );
+        TRACE( "ignoring file %s\n", debugstr_a(names->unix_name) );
         return STATUS_SUCCESS;
     }
     start = dir_info_align( io->Information );
@@ -2477,7 +2479,7 @@ static NTSTATUS read_directory_data_getattrlist( struct dir_data *data, const ch
             return STATUS_NO_SUCH_FILE;
     }
 
-    TRACE( "found %s\n", buffer.name );
+    TRACE( "found %s\n", debugstr_a(buffer.name) );
 
     if (!append_entry( data, buffer.name, NULL, NULL )) return STATUS_NO_MEMORY;
 
@@ -2500,7 +2502,7 @@ static NTSTATUS read_directory_data_stat( struct dir_data *data, const char *uni
     if (!get_dir_case_sensitivity( AT_FDCWD, "." )) return STATUS_NO_SUCH_FILE;
     if (stat( unix_name, &st ) == -1) return STATUS_NO_SUCH_FILE;
 
-    TRACE( "found %s\n", unix_name );
+    TRACE( "found %s\n", debugstr_a(unix_name) );
 
     if (!append_entry( data, unix_name, NULL, NULL )) return STATUS_NO_MEMORY;
 
@@ -2600,6 +2602,17 @@ static NTSTATUS init_cached_dir_data( struct dir_data **data_ret, int fd, const 
         return status;
     }
 
+    if (mask)
+    {
+        data->mask.Length = data->mask.MaximumLength = mask->Length;
+        if (!(data->mask.Buffer = malloc( mask->Length )))
+        {
+            free_dir_data( data );
+            return STATUS_NO_MEMORY;
+        }
+        memcpy(data->mask.Buffer, mask->Buffer, mask->Length);
+    }
+
     /* sort filenames, but not "." and ".." */
     i = 0;
     if (i < data->count && !strcmp( data->names[i].unix_name, "." )) i++;
@@ -2623,16 +2636,33 @@ static NTSTATUS init_cached_dir_data( struct dir_data **data_ret, int fd, const 
 
 
 /***********************************************************************
+ *           ustring_equal
+ *
+ * Simplified version of RtlEqualUnicodeString that performs only case-sensitive comparisons.
+ */
+static BOOLEAN ustring_equal( const UNICODE_STRING *a, const UNICODE_STRING *b )
+{
+    USHORT length_a = (a ? a->Length : 0);
+    USHORT length_b = (b ? b->Length : 0);
+
+    if (length_a != length_b) return FALSE;
+    if (length_a == 0) return TRUE;
+    return !memcmp(a->Buffer, b->Buffer, a->Length);
+}
+
+
+/***********************************************************************
  *           get_cached_dir_data
  *
  * Retrieve the cached directory data, or initialize it if necessary.
  */
 static unsigned int get_cached_dir_data( HANDLE handle, struct dir_data **data_ret, int fd,
-                                         const UNICODE_STRING *mask )
+                                         const UNICODE_STRING *mask, BOOLEAN restart_scan )
 {
     unsigned int i;
     int entry = -1, free_entries[16];
     unsigned int status;
+    BOOLEAN fresh_handle;
 
     SERVER_START_REQ( get_directory_cache_entry )
     {
@@ -2669,9 +2699,25 @@ static unsigned int get_cached_dir_data( HANDLE handle, struct dir_data **data_r
         dir_data_cache_size = size;
     }
 
-    if (!dir_data_cache[entry]) status = init_cached_dir_data( &dir_data_cache[entry], fd, mask );
+    fresh_handle = !dir_data_cache[entry];
+
+    if (dir_data_cache[entry] && restart_scan && mask &&
+        !ustring_equal(&dir_data_cache[entry]->mask, mask))
+    {
+        TRACE( "invalidating existing cache entry for handle %p, old mask: \"%s\", new mask: \"%s\"\n",
+               handle, debugstr_us(&(dir_data_cache[entry]->mask)), debugstr_us(mask));
+        free_dir_data( dir_data_cache[entry] );
+        dir_data_cache[entry] = NULL;
+    }
+
+    if (!dir_data_cache[entry])
+    {
+        status = init_cached_dir_data( &dir_data_cache[entry], fd, mask );
+        if (status == STATUS_NO_SUCH_FILE && !fresh_handle) status = STATUS_NO_MORE_FILES;
+    }
 
     *data_ret = dir_data_cache[entry];
+    if (restart_scan) (*data_ret)->pos = 0;
     return status;
 }
 
@@ -2789,17 +2835,16 @@ NTSTATUS WINAPI NtQueryDirectoryFile( HANDLE handle, HANDLE event, PIO_APC_ROUTI
     }
 
     io->Information = 0;
+    if (mask && mask->Length == 0) mask = NULL;
 
     mutex_lock( &dir_mutex );
 
     cwd = open( ".", O_RDONLY );
     if (fchdir( fd ) != -1)
     {
-        if (!(status = get_cached_dir_data( handle, &data, fd, mask )))
+        if (!(status = get_cached_dir_data( handle, &data, fd, mask, restart_scan )))
         {
             union file_directory_info *last_info = NULL;
-
-            if (restart_scan) data->pos = 0;
 
             while (!status && data->pos < data->count)
             {
@@ -2810,12 +2855,12 @@ NTSTATUS WINAPI NtQueryDirectoryFile( HANDLE handle, HANDLE event, PIO_APC_ROUTI
 
             if (!last_info) status = STATUS_NO_MORE_FILES;
             else if (status == STATUS_MORE_ENTRIES) status = STATUS_SUCCESS;
-
-            io->Status = status;
         }
         if (cwd == -1 || fchdir( cwd ) == -1) chdir( "/" );
     }
     else status = errno_to_status( errno );
+
+    if (status != STATUS_NO_SUCH_FILE) io->Status = status;
 
     mutex_unlock( &dir_mutex );
 
@@ -4243,22 +4288,22 @@ static NTSTATUS unmount_device( HANDLE handle )
             if ((mount_point = get_device_mount_point( st.st_rdev )))
             {
 #ifdef __APPLE__
-                static const char umount[] = "diskutil unmount >/dev/null 2>&1 ";
+                static char diskutil[] = "diskutil";
+                static char unmount[] = "unmount";
+                char *argv[4] = {diskutil, unmount, mount_point, NULL};
 #else
-                static const char umount[] = "umount >/dev/null 2>&1 ";
+                static char umount[] = "umount";
+                char *argv[3] = {umount, mount_point, NULL};
 #endif
-                char *cmd;
-                if (asprintf( &cmd, "%s%s", umount, mount_point ) != -1)
-                {
-                    system( cmd );
-                    free( cmd );
+                __wine_unix_spawnvp( argv, TRUE );
 #ifdef linux
-                    /* umount will fail to release the loop device since we still have
-                       a handle to it, so we release it here */
-                    if (major(st.st_rdev) == LOOP_MAJOR) ioctl( unix_fd, 0x4c01 /*LOOP_CLR_FD*/, 0 );
+                /* umount will fail to release the loop device since we still have
+                    a handle to it, so we release it here */
+                if (major(st.st_rdev) == LOOP_MAJOR) ioctl( unix_fd, 0x4c01 /*LOOP_CLR_FD*/, 0 );
 #endif
-                }
-                free( mount_point );
+                /* Add in a small delay. Without this subsequent tasks
+                    like IOCTL_STORAGE_EJECT_MEDIA might fail. */
+                usleep( 100000 );
             }
         }
         if (needs_close) close( unix_fd );
@@ -7213,6 +7258,9 @@ NTSTATUS get_device_info( int fd, FILE_FS_DEVICE_INFORMATION *info )
                     break;
                 case D_DISK:
                     info->DeviceType = FILE_DEVICE_DISK;
+#if defined(__APPLE__)
+                    if (major(st.st_rdev) == 3 && minor(st.st_rdev) == 2) info->DeviceType = FILE_DEVICE_NULL;
+#endif
                     break;
                 case D_TTY:
                     info->DeviceType = FILE_DEVICE_SERIAL_PORT;
@@ -7223,7 +7271,7 @@ NTSTATUS get_device_info( int fd, FILE_FS_DEVICE_INFORMATION *info )
                     break;
 #endif
                 }
-            /* no special d_type for parallel ports */
+                /* no special d_type for parallel ports */
             }
         }
 #endif

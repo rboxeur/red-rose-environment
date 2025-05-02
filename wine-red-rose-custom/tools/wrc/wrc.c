@@ -64,6 +64,7 @@ static const char usage[] =
 	"   -v, --verbose              Enable verbose mode\n"
 	"   --verify-translations      Check the status of the various translations\n"
 	"   --version                  Print version and exit\n"
+	"   -z                         Compress the resource with zlib\n"
 	"Input is taken from stdin if no sourcefile specified.\n"
 	"Debug level 'n' is a bitmask with following meaning:\n"
 	"    * 0x01 Tell which resource is parsed (verbose mode)\n"
@@ -127,6 +128,8 @@ int utf8_input = 0;
 
 int check_utf8 = 1;  /* whether to check for valid utf8 */
 
+int compress_data = 0;
+
 static char *output_name;	/* The name given by the -o option */
 const char *input_name = NULL;	/* The name given on the command-line */
 static struct strarray input_files;
@@ -164,7 +167,7 @@ enum long_options_values
 };
 
 static const char short_options[] =
-	"b:D:Ef:F:hi:I:J:l:m:o:O:ruU:v";
+	"b:D:Ef:F:hi:I:J:l:m:o:O:ruU:vz";
 static const struct long_option long_options[] = {
 	{ "debug", 1, LONG_OPT_DEBUG },
 	{ "define", 1, 'D' },
@@ -384,6 +387,9 @@ static void option_callback( int optc, char *optarg )
         break;
     case 'v':
         debuglevel = DEBUGLEVEL_CHAT;
+        break;
+    case 'z':
+        compress_data = 1;
         break;
     case '?':
         fprintf(stderr, "wrc: %s\n\n%s", optarg, usage);

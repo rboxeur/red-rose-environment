@@ -122,7 +122,9 @@ static void init_dll_name( DLLSPEC *spec )
     if (!spec->file_name && output_file_name)
     {
         char *p;
-        spec->file_name = xstrdup( output_file_name );
+        char *copy = xstrdup( output_file_name );
+        spec->file_name = xstrdup( basename(copy) );
+        free( copy );
         if ((p = strrchr( spec->file_name, '.' ))) *p = 0;
     }
     if (!spec->dll_name && spec->file_name)  /* set default name from file name */

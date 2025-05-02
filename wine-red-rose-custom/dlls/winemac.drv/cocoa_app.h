@@ -129,7 +129,6 @@ enum {
     BOOL beenActive;
 
     NSMutableSet* windowsBeingDragged;
-    BOOL useDragNotifications;
 }
 
 @property (nonatomic) CGEventSourceKeyboardType keyboardType;

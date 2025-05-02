@@ -3579,7 +3579,7 @@ static void output_test_module( struct makefile *make, unsigned int arch )
 
     output( "programs/winetest/%s%s_test.res: %s\n", arch_dirs[arch], basemodule,
             obj_dir_path( make, stripped ));
-    output( "\t%secho \"%s_test.exe TESTRES \\\"%s\\\"\" | %s -u -o $@\n", cmd_prefix( "WRC" ),
+    output( "\t%secho \"%s_test.exe TESTRES \\\"%s\\\"\" | %s -z -u -o $@\n", cmd_prefix( "WRC" ),
             basemodule, obj_dir_path( make, stripped ), tools_path( make, "wrc" ));
 
     if (make->disabled[arch] || (parent && parent->disabled[arch]))

@@ -3918,7 +3918,7 @@ msgstr "개체가 이 속성이나 메소드를 지원하지 않습니다"
 msgid "Object doesn't support this action"
 msgstr "개체는 이 행동을 지원하지 않음"
 
-#: dlls/jscript/jscript.rc:36
+#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:54
 msgid "Argument not optional"
 msgstr "인수는 옵션이 아닙니다"
 
@@ -12563,7 +12563,7 @@ msgstr "개체는 명명된 인수를 지원하지 않습니다"
 msgid "Object doesn't support current locale setting"
 msgstr "개체는 현재 로캘 설정을 지원하지 않습니다"
 
-#: dlls/vbscript/vbscript.rc:53 dlls/vbscript/vbscript.rc:54
+#: dlls/vbscript/vbscript.rc:53
 msgid "Named argument not found"
 msgstr "명명된 인수를 찾을 수 없습니다"
 
@@ -18160,6 +18160,40 @@ msgstr "실행 중"
 #: programs/taskmgr/taskmgr.rc:325
 msgid "Task"
 msgstr "작업"
+
+#: programs/timeout/timeout.rc:28
+msgid "Usage: timeout /T <timeout> [</NOBREAK>]\n"
+msgstr ""
+
+#: programs/timeout/timeout.rc:29
+#, fuzzy
+#| msgid "FINDSTR: Bad command line\n"
+msgid "TIMEOUT: Bad command line\n"
+msgstr "FINDSTR: 잘못된 명령줄\n"
+
+#: programs/timeout/timeout.rc:30
+msgid "waiting since %d sec. "
+msgstr ""
+
+#: programs/timeout/timeout.rc:31
+msgid "press CTRL+C..."
+msgstr ""
+
+#: programs/timeout/timeout.rc:32
+#, fuzzy
+#| msgid "Press any key to continue... "
+msgid "press a key to continue..."
+msgstr "계속하려면 아무 키나 누르세요... "
+
+#: programs/timeout/timeout.rc:33
+msgid "ERROR: not possible to redirect input\n"
+msgstr ""
+
+#: programs/timeout/timeout.rc:34
+msgid ""
+"ERROR: Timeout value out of range or invalid number. Valid range is -1 to "
+"99999.\n"
+msgstr ""
 
 #: programs/uninstaller/uninstaller.rc:29
 msgid "Wine Application Uninstaller"

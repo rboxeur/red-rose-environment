@@ -213,6 +213,16 @@ extern "C" {
 #define DECLSPEC_HOTPATCH
 #endif
 
+#ifndef DECLSPEC_CHPE_PATCHABLE
+# ifndef __arm64ec__
+#  define DECLSPEC_CHPE_PATCHABLE
+# elif defined(_MSC_VER)
+#  define DECLSPEC_CHPE_PATCHABLE __declspec(hybrid_patchable)
+# else
+#  define DECLSPEC_CHPE_PATCHABLE __attribute__((hybrid_patchable))
+# endif
+#endif
+
 #if defined(__GNUC__) && ((__GNUC__ > 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 3)))
 #define __WINE_ALLOC_SIZE(...) __attribute__((__alloc_size__(__VA_ARGS__)))
 #else
@@ -2428,7 +2438,7 @@ NTSYSAPI struct _TEB * WINAPI NtCurrentTeb(void);
 static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 {
     struct _TEB *teb;
-    __asm__(".byte 0x64\n\tmovl (0x18),%0" : "=r" (teb));
+    __asm__("movl %%fs:0x18,%0" : "=r" (teb));
     return teb;
 }
 #elif defined(__i386__) && defined(_MSC_VER)
@@ -2454,7 +2464,7 @@ static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 {
     struct _TEB *teb;
-    __asm__(".byte 0x65\n\tmovq (0x30),%0" : "=r" (teb));
+    __asm__("movq %%gs:0x30,%0" : "=r" (teb));
     return teb;
 }
 #elif defined(__x86_64__) && defined(_MSC_VER)
@@ -3230,7 +3240,7 @@ typedef struct _IMAGE_EXPORT_DIRECTORY {
 /* Import name entry */
 typedef struct _IMAGE_IMPORT_BY_NAME {
 	WORD	Hint;
-	BYTE	Name[1];
+	char	Name[1];
 } IMAGE_IMPORT_BY_NAME,*PIMAGE_IMPORT_BY_NAME;
 
 #include <pshpack8.h>
@@ -6222,6 +6232,7 @@ NTSYSAPI VOID WINAPI RtlRunOnceInitialize(PRTL_RUN_ONCE);
 NTSYSAPI DWORD WINAPI RtlRunOnceExecuteOnce(PRTL_RUN_ONCE,PRTL_RUN_ONCE_INIT_FN,PVOID,PVOID*);
 NTSYSAPI DWORD WINAPI RtlRunOnceBeginInitialize(PRTL_RUN_ONCE, DWORD, PVOID*);
 NTSYSAPI DWORD WINAPI RtlRunOnceComplete(PRTL_RUN_ONCE, DWORD, PVOID);
+NTSYSAPI WORD WINAPI RtlCaptureStackBackTrace(DWORD,DWORD,void**,DWORD*);
 
 #include <pshpack8.h>
 typedef struct _IO_COUNTERS {
@@ -7341,11 +7352,11 @@ static FORCEINLINE unsigned char InterlockedCompareExchange128( volatile __int64
 
 static FORCEINLINE void YieldProcessor(void)
 {
-#ifdef __GNUC__
-#if defined(__i386__) || defined(__x86_64__)
-    __asm__ __volatile__( "rep; nop" : : : "memory" );
-#elif defined(__arm__) || defined(__aarch64__)
+#if defined(__GNUC__) || defined(__clang__)
+#if defined(__arm__) || defined(__aarch64__) || defined(__arm64ec__)
     __asm__ __volatile__( "dmb ishst\n\tyield" : : : "memory" );
+#elif defined(__i386__) || defined(__x86_64__)
+    __asm__ __volatile__( "rep; nop" : : : "memory" );
 #else
     __asm__ __volatile__( "" : : : "memory" );
 #endif

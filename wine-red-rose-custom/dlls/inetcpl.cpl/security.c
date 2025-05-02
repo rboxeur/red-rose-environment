@@ -122,19 +122,60 @@ static void update_security_level(secdlg_data *sd, DWORD lv_index, DWORD tb_inde
 }
 
 /*********************************************************************
+ * get_zone_name [internal]
+ *
+ * For the standard zones (0-4), ignores the name that was loaded from the
+ * registry and returns a name in the user's own language.
+ *
+ */
+static WCHAR * get_zone_name(const secdlg_data *sd, DWORD lv_index)
+{
+    static WCHAR name[64];
+    DWORD zone = sd->zones[lv_index];
+
+    if (zone < 5)
+    {
+        LoadStringW(hcpl, IDS_SEC_ZONE0_NAME + zone, name, ARRAY_SIZE(name));
+        return name;
+    }
+
+    return sd->zone_attr[lv_index].szDisplayName;
+}
+
+/*********************************************************************
+ * get_zone_description [internal]
+ *
+ * For the standard zones (0-4), ignores the description that was loaded from
+ * the registry and returns a description in the user's own language.
+ *
+ */
+static WCHAR * get_zone_description(const secdlg_data *sd, DWORD lv_index)
+{
+    static WCHAR description[512];
+    DWORD zone = sd->zones[lv_index];
+
+    if (zone < 5)
+    {
+        LoadStringW(hcpl, IDS_SEC_ZONE0_DESC + zone, description, ARRAY_SIZE(description));
+        return description;
+    }
+
+    return sd->zone_attr[lv_index].szDescription;
+}
+
+/*********************************************************************
  * update_zone_info [internal]
  *
  */
 static void update_zone_info(secdlg_data *sd, DWORD lv_index)
 {
-    ZONEATTRIBUTES *za = &sd->zone_attr[lv_index];
     WCHAR name[MAX_PATH];
     DWORD len;
 
-    SetWindowTextW(GetDlgItem(sd->hsec, IDC_SEC_ZONE_INFO), za->szDescription);
+    SetWindowTextW(GetDlgItem(sd->hsec, IDC_SEC_ZONE_INFO), get_zone_description(sd, lv_index));
 
     len = LoadStringW(hcpl, IDS_SEC_SETTINGS, name, ARRAY_SIZE(name));
-    lstrcpynW(&name[len], za->szDisplayName, ARRAY_SIZE(name) - len - 1);
+    lstrcpynW(name + len, get_zone_name(sd, lv_index), ARRAY_SIZE(name) - len - 1);
 
     TRACE("new title: %s\n", debugstr_w(name));
     SetWindowTextW(GetDlgItem(sd->hsec, IDC_SEC_GROUP), name);
@@ -182,7 +223,7 @@ static void add_zone_to_listview(secdlg_data *sd, DWORD *pindex, DWORD zone)
         lvitem.mask = LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM;
         lvitem.iItem = lv_index;
         lvitem.iSubItem = 0;
-        lvitem.pszText = za->szDisplayName;
+        lvitem.pszText = get_zone_name(sd, lv_index);
         lvitem.lParam = (LPARAM) zone;
 
         /* format is "filename.ext#iconid" */

@@ -333,6 +333,13 @@ CRAM_DecompressQuery( Msvideo1Context *info, LPBITMAPINFO in, LPBITMAPINFO out )
         TRACE("out->height = %ld\n", out->bmiHeader.biHeight );
         TRACE("out->width  = %ld\n", out->bmiHeader.biWidth );
 
+        if ((out->bmiHeader.biCompression != BI_RGB) &&
+            (out->bmiHeader.biCompression != BI_BITFIELDS))
+        {
+            TRACE("incompatible compression requested\n");
+            return ICERR_BADFORMAT;
+        }
+
         if ((in->bmiHeader.biBitCount != out->bmiHeader.biBitCount) &&
             (in->bmiHeader.biBitCount != 16 || out->bmiHeader.biBitCount != 24))
         {
@@ -413,14 +420,6 @@ static void convert_depth(char *input, int depth_in, char *output, BITMAPINFOHEA
 
     if (depth_in == 16 && out_hdr->biBitCount == 24)
     {
-        static const unsigned char convert_5to8[] =
-        {
-            0x00, 0x08, 0x10, 0x19, 0x21, 0x29, 0x31, 0x3a,
-            0x42, 0x4a, 0x52, 0x5a, 0x63, 0x6b, 0x73, 0x7b,
-            0x84, 0x8c, 0x94, 0x9c, 0xa5, 0xad, 0xb5, 0xbd,
-            0xc5, 0xce, 0xd6, 0xde, 0xe6, 0xef, 0xf7, 0xff,
-        };
-
         for (y = 0; y < out_hdr->biHeight; y++)
         {
             WORD *src_row = (WORD *)(input + y * stride_in);
@@ -429,9 +428,9 @@ static void convert_depth(char *input, int depth_in, char *output, BITMAPINFOHEA
             for (x = 0; x < out_hdr->biWidth; x++)
             {
                 WORD pixel = *src_row++;
-                *out_row++ = convert_5to8[(pixel & 0x7c00u) >> 10];
-                *out_row++ = convert_5to8[(pixel & 0x03e0u) >> 5];
-                *out_row++ = convert_5to8[(pixel & 0x001fu)];
+                *out_row++ = (pixel << 3) & 0xf8;
+                *out_row++ = (pixel >> 2) & 0xf8;
+                *out_row++ = (pixel >> 7) & 0xf8;
             }
         }
     }

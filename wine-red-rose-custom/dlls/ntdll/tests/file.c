@@ -1417,14 +1417,13 @@ static void test_file_full_size_information(void)
 
     /* FileFsFullSizeInformationEx is supported on Windows 10 build 1809 and later */
     res = pNtQueryVolumeInformationFile(h, &io, &ffsie, sizeof ffsie, FileFsFullSizeInformationEx);
-    ok(res == STATUS_INVALID_PARAMETER || res == STATUS_SUCCESS, "cannot get attributes, res %lx\n", res);
-
-    if (res == STATUS_NOT_IMPLEMENTED || res == STATUS_INVALID_PARAMETER)
+    if (res == STATUS_NOT_IMPLEMENTED || res == STATUS_INVALID_PARAMETER || res == STATUS_INVALID_INFO_CLASS)
     {
         win_skip( "FileFsFullSizeInformationEx not supported.\n" );
         CloseHandle( h );
         return;
     }
+    ok(res == STATUS_SUCCESS, "cannot get attributes, res %lx\n", res);
 
     expected = ffsie.ActualAvailableAllocationUnits + ffsie.ActualPoolUnavailableAllocationUnits
             + ffsie.UsedAllocationUnits + ffsie.TotalReservedAllocationUnits;
@@ -4216,21 +4215,22 @@ static void _test_completion_flags(unsigned line, HANDLE handle, DWORD expected_
     ok_(__FILE__,line)(status == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %08lx\n", status);
     ok_(__FILE__,line)(io.Status == STATUS_SUCCESS, "Status = %lx\n", io.Status);
     ok_(__FILE__,line)(io.Information == sizeof(info), "Information = %Iu\n", io.Information);
-    /* FILE_SKIP_SET_USER_EVENT_ON_FAST_IO is not supported on win2k3 */
-    ok_(__FILE__,line)((info.Flags & ~FILE_SKIP_SET_USER_EVENT_ON_FAST_IO) == expected_flags,
-                       "got %08lx\n", info.Flags);
+    ok_(__FILE__,line)((info.Flags & expected_flags) == expected_flags, "got %08lx\n", info.Flags);
 }
 
 static void test_file_completion_information(void)
 {
     DECLSPEC_ALIGN(TEST_OVERLAPPED_READ_SIZE) static unsigned char aligned_buf[TEST_OVERLAPPED_READ_SIZE];
+    static const char pipe_name[] = "\\\\.\\pipe\\test_file_completion_information";
     static const char buf[] = "testdata";
     FILE_IO_COMPLETION_NOTIFICATION_INFORMATION info;
+    HANDLE port, h, completion, server, client;
+    FILE_COMPLETION_INFORMATION fci;
+    BYTE recv_buf[TEST_BUF_LEN];
+    DWORD num_bytes, flag;
     OVERLAPPED ov, *pov;
     IO_STATUS_BLOCK io;
     NTSTATUS status;
-    DWORD num_bytes;
-    HANDLE port, h;
     ULONG_PTR key;
     BOOL ret;
     int i;
@@ -4404,6 +4404,51 @@ static void test_file_completion_information(void)
     CloseHandle(ov.hEvent);
     CloseHandle(port);
     CloseHandle(h);
+
+    /* Test that setting FileCompletionInformation makes an overlapped file signaled unless FILE_SKIP_SET_EVENT_ON_HANDLE is set */
+    for (flag = 0; flag <= FILE_SKIP_SET_USER_EVENT_ON_FAST_IO; flag = flag ? flag << 1 : 1)
+    {
+        winetest_push_context("%#lx", flag);
+
+        status = pNtCreateIoCompletion(&completion, IO_COMPLETION_ALL_ACCESS, NULL, 0);
+        ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
+
+        server = CreateNamedPipeA(pipe_name, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+                                  PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, 4, 1024, 1024,
+                                  1000, NULL);
+        ok(server != INVALID_HANDLE_VALUE, "CreateNamedPipe failed, error %lu.\n", GetLastError());
+        client = CreateFileA(pipe_name, GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
+                             FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, NULL);
+        ok(client != INVALID_HANDLE_VALUE, "CreateFile failed, error %lu.\n", GetLastError());
+
+        memset(&ov, 0, sizeof(ov));
+        ReadFile(server, recv_buf, TEST_BUF_LEN, &num_bytes, &ov);
+        ok(!is_signaled(server), "Expected not signaled.\n");
+
+        info.Flags = flag;
+        status = pNtSetInformationFile(server, &io, &info, sizeof(info), FileIoCompletionNotificationInformation);
+        ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
+        test_completion_flags(server, flag);
+
+        fci.CompletionPort = completion;
+        fci.CompletionKey = CKEY_FIRST;
+        io.Status = 0xdeadbeef;
+        status = pNtSetInformationFile(server, &io, &fci, sizeof(fci), FileCompletionInformation);
+        ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
+        ok(io.Status == STATUS_SUCCESS, "Got unexpected iosb.Status %#lx.\n", io.Status);
+        if (flag == FILE_SKIP_SET_EVENT_ON_HANDLE)
+            ok(!is_signaled(server), "Expected not signaled.\n");
+        else
+            ok(is_signaled(server), "Expected signaled.\n");
+
+        status = pNtClose(client);
+        ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
+        status = pNtClose(server);
+        ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
+        status = pNtClose(completion);
+        ok(status == STATUS_SUCCESS, "Got unexpected status %#lx.\n", status);
+        winetest_pop_context();
+    }
 }
 
 static void test_file_id_information(void)

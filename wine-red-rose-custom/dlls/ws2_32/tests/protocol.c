@@ -422,8 +422,18 @@ static void test_WSALookupService(void)
     todo_wine
     ok(error == ERROR_INVALID_HANDLE, "expected 6, got %ld\n", error);
 
-    /* standard network list query */
+    ret = WSALookupServiceBeginW((WSAQUERYSETW *)0xdeadbeef, LUP_RETURN_ALL | LUP_DEEP, &handle);
+    error = WSAGetLastError();
+    ok(ret == SOCKET_ERROR, "WSALookupServiceBeginW should have failed\n");
+    todo_wine ok(error == WSAEFAULT, "expected 10014, got %ld\n", error);
+
     qs->dwSize = sizeof(*qs);
+    ret = WSALookupServiceBeginW(qs, LUP_RETURN_ALL | LUP_DEEP, (HANDLE)(0xdeadbeef));
+    error = WSAGetLastError();
+    ok(ret == SOCKET_ERROR, "WSALookupServiceBeginW should have failed\n");
+    todo_wine ok(error == WSAEFAULT, "expected 10014, got %ld\n", error);
+
+    /* standard network list query */
     handle = (HANDLE)0xdeadbeef;
     ret = WSALookupServiceBeginW(qs, LUP_RETURN_ALL | LUP_DEEP, &handle);
     error = WSAGetLastError();
@@ -433,10 +443,14 @@ static void test_WSALookupService(void)
         return;
     }
 
-    todo_wine
-    ok(!ret, "WSALookupServiceBeginW failed unexpectedly with error %ld\n", error);
-    todo_wine
-    ok(handle != (HANDLE)0xdeadbeef, "Handle was not filled\n");
+    todo_wine ok(!ret, "WSALookupServiceBeginW failed unexpectedly with error %ld\n", error);
+    todo_wine ok(handle != (HANDLE)0xdeadbeef, "Handle was not filled\n");
+
+    if (ret)
+    {
+        skip( "WSALookupServiceBeginW failed\n" );
+        return;
+    }
 
     offset = 0;
     do
@@ -530,9 +544,6 @@ static void test_WSALookupService(void)
         }
     }
     while (1);
-
-    ret = WSALookupServiceEnd(handle);
-    ok(!ret, "WSALookupServiceEnd failed unexpectedly\n");
 }
 
 #define WM_ASYNCCOMPLETE (WM_USER + 100)
@@ -1400,7 +1411,14 @@ static void test_WSAAddressToString(void)
 
         len = sizeof(output);
         ret = WSAAddressToStringA( (SOCKADDR *)&addr, sizeof(addr), NULL, output, &len );
-        ok( !ret, "got error %d\n", WSAGetLastError() );
+        ok( !ret ||
+            broken(WSAGetLastError() == WSAEINVAL), /* before Win10 1809 */
+            "got error %d\n", WSAGetLastError() );
+        if (WSAGetLastError() == WSAEINVAL)
+        {
+            winetest_pop_context();
+            continue;
+        }
         ok( !strcmp( output, exp_outputA ), "got string %s\n", debugstr_a( output ) );
         ok( len == strlen( exp_outputA ) + 1, "got len %lu\n", len );
 

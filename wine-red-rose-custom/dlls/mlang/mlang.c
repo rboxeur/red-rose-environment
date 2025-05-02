@@ -1352,6 +1352,8 @@ static INT CALLBACK map_font_enum_proc(const LOGFONTW *lf, const TEXTMETRICW *nt
     UINT charset;
     struct map_font_enum_data *data = (struct map_font_enum_data *)lParam;
 
+    if (type != TRUETYPE_FONTTYPE) return 1;
+
     data->src_lf.lfCharSet = lf->lfCharSet;
     wcscpy(data->src_lf.lfFaceName, lf->lfFaceName);
 
@@ -3496,11 +3498,15 @@ static HRESULT WINAPI fnIMLangFontLink2_GetFontCodePages(IMLangFontLink2 *iface,
 
     TRACE("(%p)->(%p %p %p)\n", This, hdc, hfont, codepages);
 
+    if (codepages) *codepages = 0;
+
     old_font = SelectObject(hdc, hfont);
+    if (!old_font) return E_FAIL;
     GetTextCharsetInfo(hdc, &fontsig, 0);
     SelectObject(hdc, old_font);
 
-    *codepages = fontsig.fsCsb[0];
+    if (codepages) *codepages = fontsig.fsCsb[0];
+
     TRACE("ret 0x%lx\n", fontsig.fsCsb[0]);
 
     return S_OK;

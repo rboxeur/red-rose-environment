@@ -135,6 +135,10 @@ Turns on verbose mode (equivalent to \fB-d 1\fR).
 .TP
 .I \fB\-\-version\fR
 Print version and exit.
+.TP
+.I \fB\-z\fR
+Compress the resource data, prepending a 32bit zero value followed by the
+decompressed size as a 32bit integer.
 .SH PREPROCESSOR
 The preprocessor is ANSI\-C compatible with some of the extensions of 
 the gcc preprocessor. 

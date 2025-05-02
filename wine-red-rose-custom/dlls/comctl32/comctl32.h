@@ -213,6 +213,18 @@ typedef struct
    int running;
 } SUBCLASS_INFO, *LPSUBCLASS_INFO;
 
+/* WM_NOTIFY unicode to ansi conversion and forwarding stuff */
+
+/* COMCTL32_UnicodeBuffer is for storing result of ansi to unicode conversion that happens after SendMessageW */
+/* (b.address==NULL)==(b.sizeInBytes==0) && (b.sizeInBytes&1)==0 should always be true (b is COMCTL32_UnicodeBuffer) */
+typedef struct
+{
+    WCHAR *address;
+    DWORD sizeInBytes;
+} COMCTL32_UnicodeBuffer;
+
+LRESULT COMCTL32_ForwardNotifyToAnsiWindow(HWND hwndNotify, NMHDR *hdr, COMCTL32_UnicodeBuffer *unicodeBuffer);
+
 /* undocumented functions */
 
 BOOL   WINAPI Free (LPVOID);

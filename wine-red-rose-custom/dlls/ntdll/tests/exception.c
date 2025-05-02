@@ -776,7 +776,8 @@ static DWORD handler( EXCEPTION_RECORD *rec, EXCEPTION_REGISTRATION_RECORD *fram
     ok( rec->ExceptionCode == except->status ||
         (except->alt_status != 0 && rec->ExceptionCode == except->alt_status),
         "%u: Wrong exception code %lx/%lx\n", entry, rec->ExceptionCode, except->status );
-    ok( context->Eip == (DWORD)code_mem + except->offset,
+    ok( context->Eip == (DWORD)code_mem + except->offset ||
+        (rec->ExceptionCode == STATUS_BREAKPOINT && context->Eip == (DWORD)code_mem + except->offset + 1),
         "%u: Unexpected eip %#lx/%#lx\n", entry,
         context->Eip, (DWORD)code_mem + except->offset );
     ok( rec->ExceptionAddress == (char*)context->Eip ||

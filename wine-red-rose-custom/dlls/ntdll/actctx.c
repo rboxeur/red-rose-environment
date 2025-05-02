@@ -3159,7 +3159,6 @@ static NTSTATUS get_manifest_in_associated_manifest( struct actctx_loader* acl, 
 static WCHAR *lookup_manifest_file( HANDLE dir, struct assembly_identity *ai )
 {
     static const WCHAR lookup_fmtW[] = L"%s_%s_%s_%u.%u.*.*_%s_*.manifest";
-    static const WCHAR wine_trailerW[] = {'d','e','a','d','b','e','e','f','.','m','a','n','i','f','e','s','t'};
 
     WCHAR *lookup, *ret = NULL;
     UNICODE_STRING lookup_us;
@@ -3207,22 +3206,8 @@ static WCHAR *lookup_manifest_file( HANDLE dir, struct assembly_identity *ai )
             tmp = wcschr(tmp, '.') + 1;
             revision = wcstoul( tmp, NULL, 10 );
             if (build == min_build && revision < min_revision) continue;
-            tmp = wcschr(tmp, '_') + 1;
-            tmp = wcschr(tmp, '_') + 1;
-            if (dir_info->FileNameLength - (tmp - dir_info->FileName) * sizeof(WCHAR) == sizeof(wine_trailerW) &&
-                !wcsnicmp( tmp, wine_trailerW, ARRAY_SIZE( wine_trailerW )))
-            {
-                /* prefer a non-Wine manifest if we already have one */
-                /* we'll still load the builtin dll if specified through DllOverrides */
-                if (ret) continue;
-            }
-            else
-            {
-                min_build = build;
-                min_revision = revision;
-            }
-            ai->version.build = build;
-            ai->version.revision = revision;
+            ai->version.build = min_build =  build;
+            ai->version.revision = min_revision = revision;
             RtlFreeHeap( GetProcessHeap(), 0, ret );
             if ((ret = RtlAllocateHeap( GetProcessHeap(), 0, dir_info->FileNameLength + sizeof(WCHAR) )))
             {

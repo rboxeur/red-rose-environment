@@ -1647,7 +1647,7 @@ static NTSTATUS WINAPI LdrpGetX64Information( ULONG type, void *output, void *ex
         return STATUS_SUCCESS;
     }
     default:
-        FIXME( "not implemented type %u\n", type );
+        FIXME( "not implemented type %lu\n", type );
         return STATUS_INVALID_PARAMETER;
     }
 }
@@ -1666,7 +1666,7 @@ static NTSTATUS WINAPI LdrpSetX64Information( ULONG type, ULONG_PTR input, void 
         return STATUS_SUCCESS;
     }
     default:
-        FIXME( "not implemented type %u\n", type );
+        FIXME( "not implemented type %lu\n", type );
         return STATUS_INVALID_PARAMETER;
     }
 }

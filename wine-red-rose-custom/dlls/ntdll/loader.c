@@ -3703,7 +3703,8 @@ NTSTATUS WINAPI DECLSPEC_HOTPATCH LdrLoadDll(LPCWSTR path_name, DWORD flags,
 
     RtlEnterCriticalSection( &loader_section );
 
-    nts = load_dll( path_name, dllname ? dllname : libname->Buffer, flags, &wm, FALSE );
+    nts = load_dll( path_name, dllname ? dllname : libname->Buffer, flags, &wm,
+            (flags & LDR_WINE_INTERNAL) != 0 );
 
     if (nts == STATUS_SUCCESS && !(wm->ldr.Flags & LDR_DONT_RESOLVE_REFS))
     {

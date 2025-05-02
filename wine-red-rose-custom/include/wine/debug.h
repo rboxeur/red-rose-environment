@@ -82,7 +82,7 @@ struct __wine_debug_channel
   (__WINE_GET_DEBUGGING##dbcl(dbch) && (__wine_dbg_get_channel_flags(dbch) & (1 << __WINE_DBCL##dbcl)))
 
 #define __WINE_DPRINTF(dbcl,dbch) \
-  do { if(__WINE_GET_DEBUGGING(dbcl,(dbch))) { \
+  do { if(__WINE_IS_DEBUG_ON(dbcl,(dbch))) { \
        struct __wine_debug_channel * const __dbch = (dbch); \
        const enum __wine_debug_class __dbcl = __WINE_DBCL##dbcl; \
        __WINE_DBG_LOG
@@ -90,7 +90,7 @@ struct __wine_debug_channel
 #define __WINE_DBG_LOG(...) \
    wine_dbg_log( __dbcl, __dbch, __func__, __VA_ARGS__); } } while(0)
 
-#if defined(__MINGW32__) || (!defined(__WINE_USE_MSVCRT) && (defined(__GNUC__) || defined(__clang__)))
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__MINGW32__) || defined (_MSC_VER) || !defined(__WINE_USE_MSVCRT))
 #define __WINE_PRINTF_ATTR(fmt,args) __attribute__((format (printf,fmt,args)))
 #else
 #define __WINE_PRINTF_ATTR(fmt,args)

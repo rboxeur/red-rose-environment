@@ -2315,6 +2315,7 @@ static BOOL after_end_dialog, test_def_id, paint_loop_done, wm_copydata_done;
 static int sequence_cnt, sequence_size;
 static struct recvd_message* sequence;
 static int log_all_parent_messages;
+static int log_painting_messages;
 static CRITICAL_SECTION sequence_cs;
 
 /* user32 functions */
@@ -9297,6 +9298,9 @@ static void subtest_swp_paint_regions_( int line, int wrap_toplevel, LPCSTR pare
     ok( hauxchild != 0, "Creating child window (%s) returned error %lu\n",
         debugstr_a( child_class ), GetLastError() );
 
+    SetWindowPos( htoplevel ? htoplevel : hparent, NULL, 0, 0, 0, 0,
+                  SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_SHOWWINDOW );
+
     for (i = 0; i < ARRAY_SIZE(exposure_tests); i++)
     {
         const struct exposure_test *extest = &exposure_tests[i];
@@ -14541,6 +14545,12 @@ static const struct message WmMouseHoverSeq[] = {
     { 0 }
 };
 
+static const struct message WmMouseLeaveSeq[] =
+{
+    { WM_MOUSELEAVE, sent | wparam | lparam, 0, 0 },
+    { 0 }
+};
+
 static void pump_msg_loop_timeout(DWORD timeout, BOOL inject_mouse_move)
 {
     MSG msg;
@@ -14589,9 +14599,10 @@ static void test_TrackMouseEvent(void)
 {
     TRACKMOUSEEVENT tme;
     BOOL ret;
-    HWND hwnd, hchild;
+    HWND hwnd, hwnd2, hchild;
     RECT rc_parent, rc_child;
     UINT default_hover_time, hover_width = 0, hover_height = 0;
+    POINT old_pt;
 
 #define track_hover(track_hwnd, track_hover_time) \
     tme.cbSize = sizeof(tme); \
@@ -14763,6 +14774,83 @@ static void test_TrackMouseEvent(void)
     track_hover_cancel(hwnd);
 
     DestroyWindow(hwnd);
+
+    /* Test that tracking a new window with TME_LEAVE and when the cursor is not in the new window,
+     * WM_MOUSELEAVE is immediately posted to the window */
+    hwnd = CreateWindowA("static", NULL, WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 100,
+                         100, 0, NULL, NULL, 0);
+    ok(!!hwnd, "Failed to create window, error %lu.\n", GetLastError());
+    hwnd2 = CreateWindowA("TestWindowClass", NULL, WS_OVERLAPPEDWINDOW | WS_VISIBLE, 0, 0, 50, 50,
+                          0, NULL, NULL, 0);
+    ok(!!hwnd2, "Failed to create window, error %lu.\n", GetLastError());
+
+    GetCursorPos(&old_pt);
+    SetCursorPos(150, 150);
+
+    flush_events();
+    flush_sequence();
+
+    tme.cbSize = sizeof(tme);
+    tme.dwFlags = TME_LEAVE;
+    tme.hwndTrack = hwnd;
+    tme.dwHoverTime = HOVER_DEFAULT;
+    SetLastError(0xdeadbeef);
+    ret = pTrackMouseEvent(&tme);
+    ok(ret, "TrackMouseEvent(TME_LEAVE) failed, error %ld\n", GetLastError());
+
+    tme.cbSize = sizeof(tme);
+    tme.dwFlags = TME_LEAVE;
+    tme.hwndTrack = hwnd2;
+    tme.dwHoverTime = HOVER_DEFAULT;
+    SetLastError(0xdeadbeef);
+    ret = pTrackMouseEvent(&tme);
+    ok(ret, "TrackMouseEvent(TME_LEAVE) failed, error %ld\n", GetLastError());
+    flush_events();
+    ok_sequence(WmMouseLeaveSeq, "WmMouseLeaveSeq", FALSE);
+
+    DestroyWindow(hwnd2);
+    DestroyWindow(hwnd);
+    SetCursorPos(old_pt.x, old_pt.y);
+
+    /* Test that tracking a new window with TME_LEAVE and when the cursor is not in the new window,
+     * the original tracking window is not changed */
+    hwnd = CreateWindowA("TestWindowClass", NULL, WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 100,
+                         100, 0, NULL, NULL, 0);
+    ok(!!hwnd, "Failed to create window, error %lu.\n", GetLastError());
+    hwnd2 = CreateWindowA("static", NULL, WS_OVERLAPPEDWINDOW | WS_VISIBLE, 0, 0, 50, 50, 0, NULL,
+                          NULL, 0);
+    ok(!!hwnd2, "Failed to create window, error %lu.\n", GetLastError());
+
+    GetCursorPos(&old_pt);
+    SetCursorPos(150, 150);
+
+    flush_events();
+    flush_sequence();
+
+    tme.cbSize = sizeof(tme);
+    tme.dwFlags = TME_LEAVE;
+    tme.hwndTrack = hwnd;
+    tme.dwHoverTime = HOVER_DEFAULT;
+    SetLastError(0xdeadbeef);
+    ret = pTrackMouseEvent(&tme);
+    ok(ret, "TrackMouseEvent(TME_LEAVE) failed, error %ld\n", GetLastError());
+
+    tme.cbSize = sizeof(tme);
+    tme.dwFlags = TME_LEAVE;
+    tme.hwndTrack = hwnd2;
+    tme.dwHoverTime = HOVER_DEFAULT;
+    SetLastError(0xdeadbeef);
+    ret = pTrackMouseEvent(&tme);
+    ok(ret, "TrackMouseEvent(TME_LEAVE) failed, error %ld\n", GetLastError());
+
+    SetCursorPos(500, 500);
+    Sleep(default_hover_time);
+    flush_events();
+    ok_sequence(WmMouseLeaveSeq, "WmMouseLeaveSeq", FALSE);
+
+    DestroyWindow(hwnd2);
+    DestroyWindow(hwnd);
+    SetCursorPos(old_pt.x, old_pt.y);
 
 #undef track_hover
 #undef track_query
@@ -16777,6 +16865,25 @@ static const struct message wm_lb_dblclick_0[] =
     { WM_LBUTTONUP, sent|wparam|lparam, 0, 0 },
     { 0 }
 };
+static const struct message wm_lb_setcount[] =
+{
+    { LB_SETCOUNT, sent|wparam|lparam, 100, 0 },
+    { WM_WINDOWPOSCHANGING, sent|wparam|defwinproc, SWP_NOACTIVATE|SWP_FRAMECHANGED|SWP_NOSIZE|SWP_NOMOVE },
+    { WM_NCCALCSIZE, sent|wparam|defwinproc, 1 },
+    { EVENT_OBJECT_REORDER, winevent_hook|wparam|lparam|msg_todo, 0, 0 },
+    { WM_ERASEBKGND, sent|parent },
+    { WM_WINDOWPOSCHANGED, sent|wparam|defwinproc, SWP_NOACTIVATE|SWP_FRAMECHANGED|SWP_NOSIZE|SWP_NOMOVE|SWP_NOCLIENTMOVE },
+    { WM_SIZE, sent|defwinproc },
+    { EVENT_OBJECT_VALUECHANGE, winevent_hook|wparam|lparam|msg_todo, OBJID_VSCROLL, 0 },
+    { EVENT_OBJECT_LOCATIONCHANGE, winevent_hook|wparam|lparam, OBJID_WINDOW, 0 },
+    { EVENT_OBJECT_VALUECHANGE, winevent_hook|wparam|lparam|msg_todo, OBJID_VSCROLL, 0 },
+    { WM_USER, sent|wparam|lparam, 0, 0 },
+    { WM_NCPAINT, sent|wparam|lparam, 1, 0 },
+    { WM_ERASEBKGND, sent },
+    { WM_CTLCOLORLISTBOX, sent|parent },
+    { WM_USER+1, sent|wparam|lparam, 0, 0 },
+    { 0 }
+};
 
 #define check_lb_state(a1, a2, a3, a4, a5) check_lb_state_dbg(a1, a2, a3, a4, a5, __LINE__)
 
@@ -16789,10 +16896,11 @@ static LRESULT WINAPI listbox_hook_proc(HWND hwnd, UINT message, WPARAM wp, LPAR
     struct recvd_message msg;
 
     /* do not log painting messages */
-    if (message != WM_PAINT &&
+    if ((log_painting_messages ||
+        (message != WM_PAINT &&
         message != WM_NCPAINT &&
         message != WM_SYNCPAINT &&
-        message != WM_ERASEBKGND &&
+        message != WM_ERASEBKGND)) &&
         message != WM_NCHITTEST &&
         message != WM_GETTEXT &&
         !ignore_message( message ))
@@ -16837,11 +16945,57 @@ static void check_lb_state_dbg(HWND listbox, int count, int cur_sel,
 
 static void test_listbox_messages(void)
 {
+    PAINTSTRUCT ps;
+    RECT rc, rc1;
     HWND parent, listbox;
     LRESULT ret;
 
     parent = CreateWindowExA(0, "TestParentClass", NULL, WS_OVERLAPPEDWINDOW  | WS_VISIBLE,
                              100, 100, 200, 200, 0, 0, 0, NULL);
+
+    /* test listbox redrawing after LB_SETCOUNT */
+    listbox = CreateWindowExA(WS_EX_NOPARENTNOTIFY, "ListBox", NULL,
+                              LBS_OWNERDRAWFIXED | LBS_NODATA | WS_CHILD | WS_VSCROLL | WS_VISIBLE,
+                              10, 10, 80, 80, parent, (HMENU)ID_LISTBOX, 0, NULL);
+    listbox_orig_proc = (WNDPROC)SetWindowLongPtrA(listbox, GWLP_WNDPROC, (ULONG_PTR)listbox_hook_proc);
+
+    UpdateWindow(listbox);
+
+    check_lb_state(listbox, 0, LB_ERR, 0, 0);
+
+    flush_sequence();
+
+    log_all_parent_messages++;
+    log_painting_messages++;
+
+    ret = GetWindowLongA(listbox, GWL_STYLE);
+    ok((ret & (WS_VSCROLL | WS_HSCROLL)) == 0, "Listbox should not have scroll bars\n");
+
+    ret = SendMessageA(listbox, LB_SETCOUNT, 100, 0);
+    ok(ret == 0, "got %Id\n", ret);
+    ret = GetWindowLongA(listbox, GWL_STYLE);
+    ok((ret & (WS_VSCROLL | WS_HSCROLL)) == WS_VSCROLL, "Listbox should have vertical scroll bar\n");
+
+    SendMessageA(listbox, WM_USER, 0, 0); /* Mark */
+    BeginPaint(listbox, &ps);
+    GetClientRect(parent, &rc1);
+    MapWindowPoints(parent, listbox, (POINT *)&rc1, 2);
+    GetClipBox(ps.hdc, &rc);
+    todo_wine
+    ok(EqualRect(&rc, &rc1), "hdc clipbox %s != parent client rect %s\n", wine_dbgstr_rect(&rc), wine_dbgstr_rect(&rc1));
+    GetClientRect(listbox, &rc);
+    ok(EqualRect(&ps.rcPaint, &rc), "rcPaint %s != listbox client rect %s\n", wine_dbgstr_rect(&ps.rcPaint), wine_dbgstr_rect(&rc));
+    EndPaint(listbox, &ps);
+    SendMessageA(listbox, WM_USER+1, 0, 0); /* Mark */
+
+    ok_sequence(wm_lb_setcount, "LB_SETCOUNT", FALSE);
+    flush_sequence();
+
+    log_painting_messages--;
+    log_all_parent_messages--;
+
+    DestroyWindow(listbox);
+
     /* with LBS_HASSTRINGS */
     listbox = CreateWindowExA(WS_EX_NOPARENTNOTIFY, "ListBox", NULL,
                               WS_CHILD | LBS_NOTIFY | LBS_OWNERDRAWVARIABLE | LBS_HASSTRINGS | WS_VISIBLE,
@@ -20404,6 +20558,79 @@ static void test_WM_COPYDATA(char **argv)
     CloseHandle(pi.hThread);
 }
 
+static LONG test_hook_cleanup_hook_proc_child_id;
+static DWORD test_hook_cleanup_hook_proc_thread_id, test_hook_cleanup_hook_proc_call_thread_id;
+
+static void CALLBACK test_hook_cleanup_hook_proc( HWINEVENTHOOK hook, DWORD event_id, HWND hwnd, LONG obj_id,
+                                                  LONG child_id, DWORD thread_id, DWORD event_time )
+{
+    test_hook_cleanup_hook_proc_child_id = child_id;
+    test_hook_cleanup_hook_proc_call_thread_id = GetCurrentThreadId();
+    test_hook_cleanup_hook_proc_thread_id = thread_id;
+}
+
+struct test_hook_cleanup_data
+{
+    HWND hwnd;
+    HANDLE hook_installed_event;
+    HANDLE done_event;
+    DWORD main_thread_id;
+};
+
+static DWORD WINAPI test_hook_cleanup_thread_proc( void *context )
+{
+    struct test_hook_cleanup_data *d = context;
+    HWINEVENTHOOK hook;
+
+    hook = SetWinEventHook( EVENT_MIN, EVENT_MAX, GetModuleHandleW( NULL ), test_hook_cleanup_hook_proc,
+                            GetCurrentProcessId(), 0, WINEVENT_INCONTEXT );
+    ok( !!hook, "got error %ld.\n", GetLastError() );
+
+    test_hook_cleanup_hook_proc_child_id = -1;
+    NotifyWinEvent( EVENT_MIN, d->hwnd, 1, 1 );
+    ok( test_hook_cleanup_hook_proc_child_id == 1, "got %ld.\n", test_hook_cleanup_hook_proc_child_id );
+    todo_wine ok( test_hook_cleanup_hook_proc_thread_id == d->main_thread_id, "got %#lx.\n",
+        test_hook_cleanup_hook_proc_thread_id );
+    ok( test_hook_cleanup_hook_proc_call_thread_id == GetCurrentThreadId(), "got %#lx.\n",
+        test_hook_cleanup_hook_proc_call_thread_id );
+
+    SetEvent( d->hook_installed_event );
+    WaitForSingleObject( d->done_event, INFINITE );
+    return 0;
+}
+
+static void test_hook_cleanup(void)
+{
+    struct test_hook_cleanup_data d;
+    HANDLE thread;
+
+    d.main_thread_id = GetCurrentThreadId();
+    d.hwnd = CreateWindowA ("static", "window", WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, 0, 0, 0, 0 );
+    d.hook_installed_event = CreateEventW( NULL, FALSE, FALSE, NULL );
+    d.done_event = CreateEventW( NULL, FALSE, FALSE, NULL );
+
+    thread = CreateThread( NULL, 0, test_hook_cleanup_thread_proc, &d, 0, NULL );
+    WaitForSingleObject( d.hook_installed_event, INFINITE );
+
+    test_hook_cleanup_hook_proc_child_id = -1;
+    NotifyWinEvent( EVENT_MIN, d.hwnd, 1, 2 );
+    ok( test_hook_cleanup_hook_proc_child_id == 2, "got %ld.\n", test_hook_cleanup_hook_proc_child_id );
+    ok( test_hook_cleanup_hook_proc_thread_id == GetCurrentThreadId(), "got %#lx.\n",
+        test_hook_cleanup_hook_proc_thread_id );
+    ok( test_hook_cleanup_hook_proc_call_thread_id == GetCurrentThreadId(), "got %#lx.\n",
+        test_hook_cleanup_hook_proc_call_thread_id );
+
+    SetEvent( d.done_event );
+    WaitForSingleObject( thread, INFINITE );
+
+    /* Hook is removed when thread which created it is terminated. */
+    test_hook_cleanup_hook_proc_child_id = -1;
+    NotifyWinEvent( EVENT_MIN, d.hwnd, 1, 3 );
+    ok( test_hook_cleanup_hook_proc_child_id == -1, "got %ld.\n", test_hook_cleanup_hook_proc_child_id );
+
+    DestroyWindow( d.hwnd );
+}
+
 START_TEST(msg)
 {
     char **test_argv;
@@ -20530,6 +20757,7 @@ START_TEST(msg)
     test_DoubleSetCapture();
     test_create_name();
     test_hook_changing_window_proc();
+    test_hook_cleanup();
     /* keep it the last test, under Windows it tends to break the tests
      * which rely on active/foreground windows being correct.
      */

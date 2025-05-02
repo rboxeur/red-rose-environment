@@ -47,6 +47,7 @@
 #include <AudioToolbox/AudioFormat.h>
 #include <AudioToolbox/AudioConverter.h>
 #include <AudioUnit/AudioUnit.h>
+#include <os/lock.h>
 
 #undef LoadResource
 #undef CompareString
@@ -73,16 +74,15 @@
 #define kAudioObjectPropertyElementMain kAudioObjectPropertyElementMaster
 #endif
 
-#if defined(MAC_OS_X_VERSION_10_12) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
-#include <os/lock.h>
-#else
-#include <libkern/OSAtomic.h>
-typedef OSSpinLock                  os_unfair_lock;
-#define os_unfair_lock_lock(lock)   OSSpinLockLock(lock)
-#define os_unfair_lock_unlock(lock) OSSpinLockUnlock(lock)
-#endif
-
 WINE_DEFAULT_DEBUG_CHANNEL(coreaudio);
+
+enum coreaudio_channel_state
+{
+    COREAUDIO_CHANNEL_STATE_UNCHECKED, /* have not yet performed any checks to see if we can set volume properties */
+    COREAUDIO_CHANNEL_STATE_FALLBACK, /* per-channel volume control is unavailble, fallback to setting the whole audio unit volume */
+    COREAUDIO_CHANNEL_STATE_IGNORE_MAIN, /* per-channel volume control is available, but not for the main ("master") channel */
+    COREAUDIO_CHANNEL_STATE_OK, /* all OK, per-channel volume control is available for all channels including main */
+};
 
 struct coreaudio_stream
 {
@@ -98,6 +98,7 @@ struct coreaudio_stream
     HANDLE event;
 
     BOOL playing, please_quit;
+    enum coreaudio_channel_state channel_volume_state;
     REFERENCE_TIME period;
     UINT32 period_frames;
     UINT32 bufsize_frames, resamp_bufsize_frames;
@@ -1791,6 +1792,58 @@ static NTSTATUS unix_get_prop_value(void *args)
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS unix_set_volumes_to_unit( struct coreaudio_stream *stream, struct set_volumes_params *params)
+{
+    Float32 level = 1.0, tmp;
+    OSStatus sc;
+    UINT32 i;
+
+    for(i = 0; i < stream->fmt->nChannels; ++i){
+        tmp = params->master_volume * params->volumes[i] * params->session_volumes[i];
+        level = tmp < level ? tmp : level;
+    }
+
+    sc = AudioUnitSetParameter(stream->unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, level, 0);
+    if(sc != noErr) {
+        WARN("Couldn't set volume: %x\n", (int)sc);
+    }
+
+    return STATUS_SUCCESS;
+}
+
+static void unix_check_channel_properties(struct coreaudio_stream *stream, struct set_volumes_params *params)
+{
+    Boolean set;
+    OSStatus sc;
+    UINT32 i;
+    // NOTE: keep in sync with unix_set_volumes
+    AudioObjectPropertyAddress prop_addr = {
+        kAudioDevicePropertyVolumeScalar,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMain
+    };
+
+    stream->channel_volume_state = COREAUDIO_CHANNEL_STATE_OK;
+
+    sc = AudioObjectIsPropertySettable(stream->dev_id, &prop_addr, &set);
+    if (sc != noErr || !set) {
+        WARN("Audio device lacks main channel control, checking if per-channel audio is available: %x\n", (int)sc);
+        stream->channel_volume_state = COREAUDIO_CHANNEL_STATE_IGNORE_MAIN;
+    }
+
+    // check if per-channel audio control is available
+    for (i = 1; i <= stream->fmt->nChannels; ++i) {
+        prop_addr.mElement = i;
+
+        sc = AudioObjectIsPropertySettable(stream->dev_id, &prop_addr, &set);
+        if (sc != noErr || !set) {
+            stream->channel_volume_state = COREAUDIO_CHANNEL_STATE_FALLBACK;
+            WARN("Audio device lacks per-channel control on channel #%u, falling back to old behavior: %x\n", i, (int)sc);
+            return;
+        }
+    }
+}
+
 static NTSTATUS unix_set_volumes(void *args)
 {
     struct set_volumes_params *params = args;
@@ -1804,7 +1857,16 @@ static NTSTATUS unix_set_volumes(void *args)
         kAudioObjectPropertyElementMain
     };
 
-    sc = AudioObjectSetPropertyData(stream->dev_id, &prop_addr, 0, NULL, sizeof(float), &level);
+    if (stream->channel_volume_state == COREAUDIO_CHANNEL_STATE_UNCHECKED)
+        unix_check_channel_properties(stream, params);
+
+    if (stream->channel_volume_state == COREAUDIO_CHANNEL_STATE_FALLBACK)
+        return unix_set_volumes_to_unit(stream, params);
+    else if (stream->channel_volume_state == COREAUDIO_CHANNEL_STATE_IGNORE_MAIN)
+        sc = kAudioHardwareUnknownPropertyError;
+    else
+        sc = AudioObjectSetPropertyData(stream->dev_id, &prop_addr, 0, NULL, sizeof(float), &level);
+
     if (sc == noErr)
         level = 1.0f;
     else

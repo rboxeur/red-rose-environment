@@ -1662,6 +1662,8 @@ static void dump_extension(const CERT_EXTENSION *ext)
         dump_name_constraints(ext);
     else if (!strcmp(ext->pszObjId, szOID_CERT_POLICIES))
         dump_cert_policies(ext);
+    else if (!strcmp(ext->pszObjId, szOID_APPLICATION_CERT_POLICIES))
+        FIXME("szOID_APPLICATION_CERT_POLICIES\n");
     else if (!strcmp(ext->pszObjId, szOID_ENHANCED_KEY_USAGE))
         dump_enhanced_key_usage(ext);
     else if (!strcmp(ext->pszObjId, szOID_NETSCAPE_CERT_TYPE))
@@ -1735,13 +1737,6 @@ static BOOL CRYPT_KeyUsageValid(CertificateChainEngine *engine,
          &usage, &size);
         if (!ret)
             return FALSE;
-        else if (usage.cbData > 2)
-        {
-            /* The key usage extension only defines 9 bits => no more than 2
-             * bytes are needed to encode all known usages.
-             */
-            return FALSE;
-        }
         else
         {
             /* The only bit relevant to chain validation is the keyCertSign
@@ -1819,6 +1814,8 @@ static BOOL CRYPT_CriticalExtensionsSupported(PCCERT_CONTEXT cert)
             else if (!strcmp(oid, szOID_SUBJECT_ALT_NAME2))
                 ret = TRUE;
             else if (!strcmp(oid, szOID_CERT_POLICIES))
+                ret = TRUE;
+            else if (!strcmp(oid, szOID_APPLICATION_CERT_POLICIES))
                 ret = TRUE;
             else if (!strcmp(oid, szOID_ENHANCED_KEY_USAGE))
                 ret = TRUE;
@@ -3860,8 +3857,7 @@ BOOL WINAPI CertVerifyCertificateChainPolicy(LPCSTR szPolicyOID,
         if (!set)
             set = CryptInitOIDFunctionSet(
              CRYPT_OID_VERIFY_CERTIFICATE_CHAIN_POLICY_FUNC, 0);
-        CryptGetOIDFunctionAddress(set, X509_ASN_ENCODING, szPolicyOID, 0,
-         (void **)&verifyPolicy, &hFunc);
+        CryptGetOIDFunctionAddress(set, 0, szPolicyOID, 0, (void **)&verifyPolicy, &hFunc);
     }
     if (verifyPolicy)
         ret = verifyPolicy(szPolicyOID, pChainContext, pPolicyPara,

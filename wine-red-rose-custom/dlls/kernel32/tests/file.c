@@ -81,6 +81,7 @@ struct test_list {
     const LONG err2;            /* Win 9x & ME error code  or -1 */
     const DWORD options;        /* option flag to use for open */
     const BOOL todo_flag;       /* todo_wine indicator */
+    const BOOL needs_volume_access; /* If true, could fail without admin rights */
 } ;
 
 static void InitFunctionPointers(void)
@@ -1498,19 +1499,20 @@ static void test_CreateFileA(void)
     DWORD i, ret, len;
     static const struct test_list p[] =
     {
-        {"", ERROR_PATH_NOT_FOUND, -1, FILE_ATTRIBUTE_NORMAL, TRUE }, /* dir as file w \ */
+        {"", ERROR_PATH_NOT_FOUND, -1, FILE_ATTRIBUTE_NORMAL, FALSE }, /* dir as file w \ */
         {"", ERROR_SUCCESS, ERROR_PATH_NOT_FOUND, FILE_FLAG_BACKUP_SEMANTICS, FALSE }, /* dir as dir w \ */
         {"a", ERROR_FILE_NOT_FOUND, -1, FILE_ATTRIBUTE_NORMAL, FALSE }, /* non-exist file */
         {"a\\", ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND, FILE_ATTRIBUTE_NORMAL, FALSE }, /* non-exist dir */
         {"removeme", ERROR_ACCESS_DENIED, -1, FILE_ATTRIBUTE_NORMAL, FALSE }, /* exist dir w/o \ */
-        {"removeme\\", ERROR_PATH_NOT_FOUND, -1, FILE_ATTRIBUTE_NORMAL, TRUE }, /* exst dir w \ */
-        {"c:", ERROR_ACCESS_DENIED, ERROR_PATH_NOT_FOUND, FILE_ATTRIBUTE_NORMAL, FALSE }, /* device in file namespace */
-        {"c:", ERROR_SUCCESS, ERROR_PATH_NOT_FOUND, FILE_FLAG_BACKUP_SEMANTICS, FALSE }, /* device in file namespace as dir */
-        {"c:\\", ERROR_PATH_NOT_FOUND, ERROR_ACCESS_DENIED, FILE_ATTRIBUTE_NORMAL, TRUE }, /* root dir w \ */
-        {"c:\\", ERROR_SUCCESS, ERROR_ACCESS_DENIED, FILE_FLAG_BACKUP_SEMANTICS, FALSE }, /* root dir w \ as dir */
+        {"removeme\\", ERROR_PATH_NOT_FOUND, -1, FILE_ATTRIBUTE_NORMAL, FALSE }, /* exist dir w \ */
+        {"removeme/", ERROR_ACCESS_DENIED, -1, FILE_ATTRIBUTE_NORMAL, FALSE }, /* exist dir w / */
+        {"c:", ERROR_ACCESS_DENIED, ERROR_PATH_NOT_FOUND, FILE_ATTRIBUTE_NORMAL, FALSE, TRUE }, /* device in file namespace */
+        {"c:", ERROR_SUCCESS, ERROR_PATH_NOT_FOUND, FILE_FLAG_BACKUP_SEMANTICS, FALSE, TRUE }, /* device in file namespace as dir */
+        {"c:\\", ERROR_PATH_NOT_FOUND, ERROR_ACCESS_DENIED, FILE_ATTRIBUTE_NORMAL, FALSE, TRUE }, /* root dir w \ */
+        {"c:\\", ERROR_SUCCESS, ERROR_ACCESS_DENIED, FILE_FLAG_BACKUP_SEMANTICS, FALSE, TRUE }, /* root dir w \ as dir */
         {"c:c:\\windows", ERROR_INVALID_NAME, -1, FILE_ATTRIBUTE_NORMAL, TRUE }, /* invalid path */
-        {"\\\\?\\c:", ERROR_SUCCESS, ERROR_BAD_NETPATH, FILE_ATTRIBUTE_NORMAL,FALSE }, /* dev namespace drive */
-        {"\\\\?\\c:\\", ERROR_PATH_NOT_FOUND, ERROR_BAD_NETPATH, FILE_ATTRIBUTE_NORMAL, TRUE }, /* dev namespace drive w \ */
+        {"\\\\?\\c:", ERROR_SUCCESS, ERROR_BAD_NETPATH, FILE_ATTRIBUTE_NORMAL, FALSE, TRUE }, /* dev namespace drive */
+        {"\\\\?\\c:\\", ERROR_PATH_NOT_FOUND, ERROR_BAD_NETPATH, FILE_ATTRIBUTE_NORMAL, FALSE, TRUE }, /* dev namespace drive w \ */
         {NULL, 0, -1, 0, FALSE}
     };
     BY_HANDLE_FILE_INFORMATION  Finfo;
@@ -1609,14 +1611,12 @@ static void test_CreateFileA(void)
         /* if we get ACCESS_DENIED when we do not expect it, assume
          * no access to the volume
          */
-        if (hFile == INVALID_HANDLE_VALUE &&
+        if (!strcmp(winetest_platform, "windows") && p[i].needs_volume_access &&
+            hFile == INVALID_HANDLE_VALUE &&
             GetLastError() == ERROR_ACCESS_DENIED &&
             p[i].err != ERROR_ACCESS_DENIED)
         {
-            if (p[i].todo_flag)
-                skip("Either no authority to volume, or is todo_wine for %s err=%ld should be %ld\n", filename, GetLastError(), p[i].err);
-            else
-                skip("Do not have authority to access volumes. Test for %s skipped\n", filename);
+            skip("Do not have authority to access volumes. Test for %s skipped\n", filename);
         }
         /* otherwise validate results with expectations */
         else
@@ -1706,7 +1706,6 @@ static void test_CreateFileA(void)
                         FILE_SHARE_READ | FILE_SHARE_WRITE,
                         NULL, OPEN_EXISTING,
                         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING, NULL );
-        todo_wine
         ok(hFile == INVALID_HANDLE_VALUE && GetLastError() == ERROR_PATH_NOT_FOUND,
             "CreateFileA should have returned ERROR_PATH_NOT_FOUND on %s, but got %lu\n",
             filename, GetLastError());
@@ -2215,9 +2214,8 @@ static void test_MoveFileA(void)
     char tempdir[MAX_PATH];
     char source[MAX_PATH], dest[MAX_PATH];
     static const char prefix[] = "pfx";
+    HANDLE hfile, hfind, hmapfile;
     WIN32_FIND_DATAA find_data;
-    HANDLE hfile;
-    HANDLE hmapfile;
     DWORD ret;
     BOOL retok;
 
@@ -2297,14 +2295,14 @@ static void test_MoveFileA(void)
     ret = MoveFileA(source, tempdir);
     ok(ret, "MoveFileA: failed, error %ld\n", GetLastError());
 
-    hfile = FindFirstFileA(tempdir, &find_data);
-    ok(hfile != INVALID_HANDLE_VALUE, "FindFirstFileA: failed, error %ld\n", GetLastError());
-    if (hfile != INVALID_HANDLE_VALUE)
+    hfind = FindFirstFileA(tempdir, &find_data);
+    ok(hfind != INVALID_HANDLE_VALUE, "FindFirstFileA: failed, error %ld\n", GetLastError());
+    if (hfind != INVALID_HANDLE_VALUE)
     {
         todo_wine ok(!lstrcmpA(strrchr(tempdir, '\\') + 1, find_data.cFileName),
            "MoveFile failed to change casing on same file: got %s\n", find_data.cFileName);
     }
-    CloseHandle(hfile);
+    FindClose(hfind);
 
     /* test renaming another file "Remove Be" to "Remove Me", which replaces the existing "Remove me" */
     tempdir[lstrlenA(tempdir) - 2] = 'B';
@@ -2321,14 +2319,14 @@ static void test_MoveFileA(void)
 
     tempdir[lstrlenA(tempdir) - 2] = 'm';
 
-    hfile = FindFirstFileA(tempdir, &find_data);
-    ok(hfile != INVALID_HANDLE_VALUE, "FindFirstFileA: failed, error %ld\n", GetLastError());
-    if (hfile != INVALID_HANDLE_VALUE)
+    hfind = FindFirstFileA(tempdir, &find_data);
+    ok(hfind != INVALID_HANDLE_VALUE, "FindFirstFileA: failed, error %ld\n", GetLastError());
+    if (hfind != INVALID_HANDLE_VALUE)
     {
         ok(!lstrcmpA(strrchr(source, '\\') + 1, find_data.cFileName),
            "MoveFile failed to change casing on existing target file: got %s\n", find_data.cFileName);
     }
-    CloseHandle(hfile);
+    FindClose(hfind);
 
     ret = DeleteFileA(tempdir);
     ok(ret, "DeleteFileA: error %ld\n", GetLastError());
@@ -2342,14 +2340,14 @@ static void test_MoveFileA(void)
     ret = MoveFileA(source, tempdir);
     ok(ret, "MoveFileA: failed, error %ld\n", GetLastError());
 
-    hfile = FindFirstFileA(tempdir, &find_data);
-    ok(hfile != INVALID_HANDLE_VALUE, "FindFirstFileA: failed, error %ld\n", GetLastError());
-    if (hfile != INVALID_HANDLE_VALUE)
+    hfind = FindFirstFileA(tempdir, &find_data);
+    ok(hfind != INVALID_HANDLE_VALUE, "FindFirstFileA: failed, error %ld\n", GetLastError());
+    if (hfind != INVALID_HANDLE_VALUE)
     {
         todo_wine ok(!lstrcmpA(strrchr(tempdir, '\\') + 1, find_data.cFileName),
            "MoveFile failed to change casing on same directory: got %s\n", find_data.cFileName);
     }
-    CloseHandle(hfile);
+    FindClose(hfind);
 
     lstrcpyA(source, dest);
     lstrcpyA(dest, tempdir);
@@ -2364,12 +2362,11 @@ static void test_MoveFileA(void)
     {
         WIN32_FIND_DATAA fd;
         char temppath[MAX_PATH];
-        HANDLE hFind;
 
         lstrcpyA(temppath, tempdir);
         lstrcatA(temppath, "\\*.*");
-        hFind = FindFirstFileA(temppath, &fd);
-        if (INVALID_HANDLE_VALUE != hFind)
+        hfind = FindFirstFileA(temppath, &fd);
+        if (INVALID_HANDLE_VALUE != hfind)
         {
           LPSTR lpName;
           do
@@ -2379,14 +2376,54 @@ static void test_MoveFileA(void)
               lpName = fd.cFileName;
             ok(IsDotDir(lpName), "MoveFileA: wildcards file created!\n");
           }
-          while (FindNextFileA(hFind, &fd));
-          FindClose(hFind);
+          while (FindNextFileA(hfind, &fd));
+          FindClose(hfind);
         }
     }
-    ret = DeleteFileA(source);
-    ok(ret, "DeleteFileA: error %ld\n", GetLastError());
     ret = DeleteFileA(dest);
     ok(!ret, "DeleteFileA: error %ld\n", GetLastError());
+
+    /* test renaming file to hardlink of itself with different case */
+    lstrcpyA(dest, tempdir);
+    lstrcatA(dest, "\\hardlink");
+    ret = CreateHardLinkA(dest, source, NULL);
+    ok(ret, "CreateHardLinkA: error %ld\n", GetLastError());
+    *strrchr(dest, 'l') = 'L';
+    ret = MoveFileA(source, dest);
+    ok(ret, "MoveFileA: error %ld\n", GetLastError());
+
+    hfind = FindFirstFileA(dest, &find_data);
+    ok(hfind != INVALID_HANDLE_VALUE, "FindFirstFileA: failed, error %ld\n", GetLastError());
+    if (hfind != INVALID_HANDLE_VALUE)
+    {
+        todo_wine
+        ok(!lstrcmpA(strrchr(dest, '\\') + 1, find_data.cFileName),
+           "MoveFile failed to change casing on hardlink of itself: got %s\n", find_data.cFileName);
+    }
+    FindClose(hfind);
+    ret = GetFileAttributesA(source);
+    ok(ret == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND, "GetFileAttributesA: error %ld\n", GetLastError());
+
+    /* test renaming a regular file to a name with trailing slash */
+    lstrcpyA(source, dest);
+    lstrcpyA(strrchr(dest, '\\') + 1, "dir\\");
+    ret = MoveFileA(source, dest);
+    ok(ret, "MoveFileA: error %ld\n", GetLastError());
+    *strrchr(dest, '\\') = '\0';
+
+    hfind = FindFirstFileA(dest, &find_data);
+    ok(hfind != INVALID_HANDLE_VALUE, "FindFirstFileA: failed, error %ld\n", GetLastError());
+    if (hfind != INVALID_HANDLE_VALUE)
+    {
+        ok(!lstrcmpA(find_data.cFileName, "dir"),
+           "MoveFile failed to rename regular file to name with trailing slash: got %s\n", find_data.cFileName);
+    }
+    FindClose(hfind);
+    ret = GetFileAttributesA(source);
+    ok(ret == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND, "GetFileAttributesA: error %ld\n", GetLastError());
+    ret = DeleteFileA(dest);
+    ok(ret, "DeleteFileA: error %ld\n", GetLastError());
+
     ret = RemoveDirectoryA(tempdir);
     ok(ret, "DeleteDirectoryA: error %ld\n", GetLastError());
 }
@@ -3114,7 +3151,7 @@ static void test_FindFirstFileA(void)
     if (handle == INVALID_HANDLE_VALUE)
         ok( err == ERROR_PATH_NOT_FOUND, "Bad Error number %d\n", err );
     else
-        CloseHandle( handle );
+        FindClose( handle );
 
     /* try FindFirstFileA on "c:\foo\nul\bar" */
     SetLastError( 0xdeadbeaf );
@@ -3572,6 +3609,10 @@ static void test_async_file_errors(void)
     }
     ok(completion_count == 0, "completion routine should only be called when ReadFileEx succeeds (this rule was violated %d times)\n", completion_count);
     /*printf("Error = %ld\n", GetLastError());*/
+
+    SleepEx(0, TRUE); /* Flush pending APCs */
+    ok(CloseHandle(hFile), "CloseHandle: error %ld\n", GetLastError());
+    ok(CloseHandle(hSem), "CloseHandle: error %ld\n", GetLastError());
     HeapFree(GetProcessHeap(), 0, lpBuffer);
 }
 

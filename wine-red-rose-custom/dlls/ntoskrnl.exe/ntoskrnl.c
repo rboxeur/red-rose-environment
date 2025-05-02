@@ -2132,7 +2132,7 @@ BOOLEAN WINAPI IoCancelIrp( IRP *irp )
     irp->Cancel = TRUE;
     if (!(cancel_routine = IoSetCancelRoutine( irp, NULL )))
     {
-        IoReleaseCancelSpinLock( irp->CancelIrql );
+        IoReleaseCancelSpinLock( irql );
         return FALSE;
     }
 

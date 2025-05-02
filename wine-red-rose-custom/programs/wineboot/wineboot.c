@@ -865,6 +865,7 @@ static void create_hardware_registry_keys(void)
         set_reg_value( system_key, L"Identifier", L"AT compatible" );
         break;
     }
+    set_reg_value( system_key, L"SystemBiosDate", L"01/01/70" );
 
     if (sci.ProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM ||
         sci.ProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64 ||

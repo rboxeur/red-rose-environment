@@ -561,14 +561,13 @@ NTSTATUS WINAPI IoGetDeviceProperty( DEVICE_OBJECT *device, DEVICE_REGISTRY_PROP
         {
             WCHAR *id, *ptr;
 
-            status = get_device_id( device, BusQueryInstanceID, &id );
+            status = get_device_id( device, BusQueryDeviceID, &id );
             if (status != STATUS_SUCCESS)
             {
                 ERR("Failed to get instance ID, status %#lx.\n", status);
                 break;
             }
 
-            wcsupr( id );
             ptr = wcschr( id, '\\' );
             if (ptr) *ptr = 0;
 
@@ -1067,6 +1066,17 @@ NTSTATUS WINAPI IoOpenDeviceRegistryKey( DEVICE_OBJECT *device, ULONG type, ACCE
     if (*key == INVALID_HANDLE_VALUE)
         return GetLastError();
     return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *           PoRequestPowerIrp   (NTOSKRNL.EXE.@)
+ */
+NTSTATUS WINAPI PoRequestPowerIrp( DEVICE_OBJECT *device, UCHAR minor,
+        POWER_STATE state, PREQUEST_POWER_COMPLETE complete_cb, void *ctx, IRP **irp )
+{
+    FIXME("device %p, minor %#x, state %u, complete_cb %p, ctx %p, irp %p, stub!\n",
+            device, minor, state.DeviceState, complete_cb, ctx, irp);
+    return STATUS_NOT_IMPLEMENTED;
 }
 
 /***********************************************************************

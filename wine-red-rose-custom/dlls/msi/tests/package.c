@@ -5759,12 +5759,37 @@ static void test_installprops(void)
     r = MsiGetPropertyA(hpkg, "MsiNetAssemblySupport", buf, &size);
     if (r == ERROR_SUCCESS) trace( "MsiNetAssemblySupport \"%s\"\n", buf );
 
+    buf[0] = 0;
+    size = MAX_PATH;
+    r = MsiGetPropertyA(hpkg, "AdminUser", buf, &size);
+    ok( r == ERROR_SUCCESS, "failed to get property: %d\n", r);
+    trace("AdminUser = %s\n", buf);
+
+    buf[0] = 0;
+    size = MAX_PATH;
+    r = MsiGetPropertyA(hpkg, "Privileged", buf, &size);
+    ok( r == ERROR_SUCCESS, "failed to get property: %d\n", r);
+    trace("Privileged = %s\n", buf);
+
+    buf[0] = 0;
+    size = MAX_PATH;
+    r = MsiGetPropertyA(hpkg, "MsiTrueAdminUser", buf, &size);
+    ok( r == ERROR_SUCCESS, "failed to get property: %d\n", r);
+    trace("MsiTrueAdminUser = %s\n", buf);
+
+    buf[0] = 0;
+    size = MAX_PATH;
+    r = MsiGetPropertyA(hpkg, "MsiRunningElevated", buf, &size);
+    ok( r == ERROR_SUCCESS, "failed to get property: %d\n", r);
+    trace("MsiRunningElevated = %s\n", buf);
+
     GetNativeSystemInfo(&si);
 
     sprintf(buf, "%d", LOBYTE(LOWORD(GetVersion())) * 100 + HIBYTE(LOWORD(GetVersion())));
     check_prop(hpkg, "VersionNT", buf, 1, 1);
 
-    if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
+    if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ||
+        si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64)
     {
         sprintf(buf, "%d", si.wProcessorLevel);
         check_prop(hpkg, "Intel", buf, 1, 0);

@@ -30,12 +30,138 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(dplay);
 
+#define DPWS_PORT           47624
+#define DPWS_START_TCP_PORT 2300
+#define DPWS_END_TCP_PORT   2350
+
+static HRESULT DPWS_BindToFreePort( SOCKET sock, SOCKADDR_IN *addr, int startPort, int endPort )
+{
+    int port;
+
+    memset( addr, 0, sizeof( *addr ) );
+    addr->sin_family = AF_INET;
+    addr->sin_addr.s_addr = htonl( INADDR_ANY );
+
+    for ( port = startPort; port < endPort; ++port )
+    {
+        addr->sin_port = htons( port );
+
+        if ( SOCKET_ERROR != bind( sock, (SOCKADDR *) addr, sizeof( *addr ) ) )
+            return DP_OK;
+
+        if ( WSAGetLastError() == WSAEADDRINUSE )
+            continue;
+
+        ERR( "bind() failed\n" );
+        return DPERR_UNAVAILABLE;
+    }
+
+    ERR( "no free ports\n" );
+    return DPERR_UNAVAILABLE;
+}
+
+static HRESULT DPWS_Start( DPWS_DATA *dpwsData )
+{
+    HRESULT hr;
+
+    if ( dpwsData->started )
+        return S_OK;
+
+    dpwsData->tcpSock = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+    if ( dpwsData->tcpSock == INVALID_SOCKET )
+    {
+        ERR( "socket() failed\n" );
+        return DPERR_UNAVAILABLE;
+    }
+
+    hr = DPWS_BindToFreePort( dpwsData->tcpSock, &dpwsData->tcpAddr, DPWS_START_TCP_PORT,
+                              DPWS_END_TCP_PORT );
+    if ( FAILED( hr ) )
+    {
+        closesocket( dpwsData->tcpSock );
+        return hr;
+    }
+
+    if ( SOCKET_ERROR == listen( dpwsData->tcpSock, SOMAXCONN ) )
+    {
+        ERR( "listen() failed\n" );
+        closesocket( dpwsData->tcpSock );
+        return DPERR_UNAVAILABLE;
+    }
+
+    dpwsData->started = TRUE;
+
+    return S_OK;
+}
+
+static void DPWS_Stop( DPWS_DATA *dpwsData )
+{
+    if ( !dpwsData->started )
+        return;
+
+    dpwsData->started = FALSE;
+
+    closesocket( dpwsData->tcpSock );
+}
+
 static HRESULT WINAPI DPWSCB_EnumSessions( LPDPSP_ENUMSESSIONSDATA data )
 {
-    FIXME( "(%p,%ld,%p,%u) stub\n",
+    DPSP_MSG_HEADER *header = (DPSP_MSG_HEADER *) data->lpMessage;
+    DPWS_DATA *dpwsData;
+    DWORD dpwsDataSize;
+    SOCKADDR_IN addr;
+    BOOL true = TRUE;
+    SOCKET sock;
+    HRESULT hr;
+
+    TRACE( "(%p,%ld,%p,%u)\n",
            data->lpMessage, data->dwMessageSize,
            data->lpISP, data->bReturnStatus );
-    return DPERR_UNSUPPORTED;
+
+    hr = IDirectPlaySP_GetSPData( data->lpISP, (void **) &dpwsData, &dpwsDataSize, DPSET_LOCAL );
+    if ( FAILED( hr ) )
+        return hr;
+
+    hr = DPWS_Start( dpwsData );
+    if ( FAILED (hr) )
+        return hr;
+
+    sock = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
+    if ( sock == INVALID_SOCKET )
+    {
+        ERR( "socket() failed\n" );
+        return DPERR_UNAVAILABLE;
+    }
+
+    if ( SOCKET_ERROR == setsockopt( sock, SOL_SOCKET, SO_BROADCAST, (const char *) &true,
+                                     sizeof( true ) ) )
+    {
+        ERR( "setsockopt() failed\n" );
+        closesocket( sock );
+        return DPERR_UNAVAILABLE;
+    }
+
+    memset( header, 0, sizeof( DPSP_MSG_HEADER ) );
+    header->mixed = DPSP_MSG_MAKE_MIXED( data->dwMessageSize, DPSP_MSG_TOKEN_REMOTE );
+    header->SockAddr.sin_family = AF_INET;
+    header->SockAddr.sin_port = dpwsData->tcpAddr.sin_port;
+
+    memset( &addr, 0, sizeof( addr ) );
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl( INADDR_BROADCAST );
+    addr.sin_port = htons( DPWS_PORT );
+
+    if ( SOCKET_ERROR == sendto( sock, data->lpMessage, data->dwMessageSize, 0, (SOCKADDR *) &addr,
+                                 sizeof( addr ) ) )
+    {
+        ERR( "sendto() failed\n" );
+        closesocket( sock );
+        return DPERR_UNAVAILABLE;
+    }
+
+    closesocket( sock );
+
+    return DP_OK;
 }
 
 static HRESULT WINAPI DPWSCB_Reply( LPDPSP_REPLYDATA data )
@@ -118,14 +244,38 @@ static HRESULT WINAPI DPWSCB_Open( LPDPSP_OPENDATA data )
 
 static HRESULT WINAPI DPWSCB_CloseEx( LPDPSP_CLOSEDATA data )
 {
-    FIXME( "(%p) stub\n", data->lpISP );
-    return DPERR_UNSUPPORTED;
+    DPWS_DATA *dpwsData;
+    DWORD dpwsDataSize;
+    HRESULT hr;
+
+    TRACE( "(%p)\n", data->lpISP );
+
+    hr = IDirectPlaySP_GetSPData( data->lpISP, (void **) &dpwsData, &dpwsDataSize, DPSET_LOCAL );
+    if ( FAILED( hr ) )
+        return hr;
+
+    DPWS_Stop( dpwsData );
+
+    return DP_OK;
 }
 
 static HRESULT WINAPI DPWSCB_ShutdownEx( LPDPSP_SHUTDOWNDATA data )
 {
-    FIXME( "(%p) stub\n", data->lpISP );
-    return DPERR_UNSUPPORTED;
+    DPWS_DATA *dpwsData;
+    DWORD dpwsDataSize;
+    HRESULT hr;
+
+    TRACE( "(%p)\n", data->lpISP );
+
+    hr = IDirectPlaySP_GetSPData( data->lpISP, (void **) &dpwsData, &dpwsDataSize, DPSET_LOCAL );
+    if ( FAILED( hr ) )
+        return hr;
+
+    DPWS_Stop( dpwsData );
+
+    WSACleanup();
+
+    return DP_OK;
 }
 
 static HRESULT WINAPI DPWSCB_GetAddressChoices( LPDPSP_GETADDRESSCHOICESDATA data )

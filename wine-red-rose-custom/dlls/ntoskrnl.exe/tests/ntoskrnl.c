@@ -54,14 +54,8 @@ static HANDLE device;
 
 static struct test_data *test_data;
 
-static BOOL (WINAPI *pRtlDosPathNameToNtPathName_U)(const WCHAR *, UNICODE_STRING *, WCHAR **, CURDIR *);
-static BOOL (WINAPI *pRtlFreeUnicodeString)(UNICODE_STRING *);
 static BOOL (WINAPI *pCancelIoEx)(HANDLE, OVERLAPPED *);
-static BOOL (WINAPI *pIsWow64Process)(HANDLE, BOOL *);
 static BOOL (WINAPI *pSetFileCompletionNotificationModes)(HANDLE, UCHAR);
-static HRESULT (WINAPI *pSignerSign)(SIGNER_SUBJECT_INFO *subject, SIGNER_CERT *cert,
-        SIGNER_SIGNATURE_INFO *signature, SIGNER_PROVIDER_INFO *provider,
-        const WCHAR *timestamp, CRYPT_ATTRIBUTES *attr, void *sip_data);
 
 static void load_resource(const WCHAR *name, WCHAR *filename)
 {
@@ -249,6 +243,10 @@ static void testsign_cleanup(struct testsign_context *ctx)
 
 static void testsign_sign(struct testsign_context *ctx, const WCHAR *filename)
 {
+    static HRESULT (WINAPI *pSignerSign)(SIGNER_SUBJECT_INFO *subject, SIGNER_CERT *cert,
+            SIGNER_SIGNATURE_INFO *signature, SIGNER_PROVIDER_INFO *provider,
+            const WCHAR *timestamp, CRYPT_ATTRIBUTES *attr, void *sip_data);
+
     SIGNER_ATTR_AUTHCODE authcode = {sizeof(authcode)};
     SIGNER_SIGNATURE_INFO signature = {sizeof(signature)};
     SIGNER_SUBJECT_INFO subject = {sizeof(subject)};
@@ -257,6 +255,9 @@ static void testsign_sign(struct testsign_context *ctx, const WCHAR *filename)
     SIGNER_FILE_INFO file = {sizeof(file)};
     DWORD index = 0;
     HRESULT hr;
+
+    if (!pSignerSign)
+        pSignerSign = (void *)GetProcAddress(LoadLibraryA("mssign32"), "SignerSign");
 
     subject.dwSubjectChoice = 1;
     subject.pdwIndex = &index;
@@ -1315,7 +1316,6 @@ static void add_file_to_catalog(HANDLE catalog, const WCHAR *file)
 {
     SIP_SUBJECTINFO subject_info = {sizeof(SIP_SUBJECTINFO)};
     SIP_INDIRECT_DATA *indirect_data;
-    const WCHAR *filepart = file;
     CRYPTCATMEMBER *member;
     WCHAR hash_buffer[100];
     GUID subject_guid;
@@ -1330,7 +1330,6 @@ static void add_file_to_catalog(HANDLE catalog, const WCHAR *file)
     subject_info.pgSubjectType = &subject_guid;
     subject_info.pwsFileName = file;
     subject_info.DigestAlgorithm.pszObjId = (char *)szOID_OIWSEC_sha1;
-    subject_info.dwFlags = SPC_INC_PE_RESOURCES_FLAG | SPC_INC_PE_IMPORT_ADDR_TABLE_FLAG | SPC_EXC_PE_PAGE_HASHES_FLAG | 0x10000;
     ret = CryptSIPCreateIndirectData(&subject_info, &size, NULL);
     todo_wine ok(ret, "Failed to get indirect data size, error %lu\n", GetLastError());
 
@@ -1346,19 +1345,6 @@ static void add_file_to_catalog(HANDLE catalog, const WCHAR *file)
         member = CryptCATPutMemberInfo(catalog, (WCHAR *)file,
                 hash_buffer, &subject_guid, 0, size, (BYTE *)indirect_data);
         ok(!!member, "Failed to write member, error %lu\n", GetLastError());
-
-        if (wcsrchr(file, '\\'))
-            filepart = wcsrchr(file, '\\') + 1;
-
-        ret = !!CryptCATPutAttrInfo(catalog, member, (WCHAR *)L"File",
-                CRYPTCAT_ATTR_NAMEASCII | CRYPTCAT_ATTR_DATAASCII | CRYPTCAT_ATTR_AUTHENTICATED,
-                (wcslen(filepart) + 1) * 2, (BYTE *)filepart);
-        ok(ret, "Failed to write attr, error %lu\n", GetLastError());
-
-        ret = !!CryptCATPutAttrInfo(catalog, member, (WCHAR *)L"OSAttr",
-                CRYPTCAT_ATTR_NAMEASCII | CRYPTCAT_ATTR_DATAASCII | CRYPTCAT_ATTR_AUTHENTICATED,
-                sizeof(L"2:6.0"), (BYTE *)L"2:6.0");
-        ok(ret, "Failed to write attr, error %lu\n", GetLastError());
     }
 
     free(indirect_data);
@@ -1527,6 +1513,9 @@ static void test_pnp_devices(void)
     static const char expect_hardware_id[] = "winetest_hardware\0winetest_hardware_1\0";
     static const char expect_compat_id[] = "winetest_compat\0winetest_compat_1\0";
     static const WCHAR expect_container_id_w[] = L"{12345678-1234-1234-1234-123456789123}";
+    static const char foobar[] = "foobar";
+    static const char foo[] = "foo";
+    static const char bar[] = "bar";
 
     char buffer[200];
     WCHAR buffer_w[200];
@@ -1557,6 +1546,8 @@ static void test_pnp_devices(void)
     IO_STATUS_BLOCK io;
     HDEVINFO set;
     HWND window;
+    LSTATUS status;
+    HKEY key;
     BOOL ret;
     int id;
     INT i;
@@ -1590,6 +1581,13 @@ static void test_pnp_devices(void)
     ok(ret, "failed to get interface path, error %#lx\n", GetLastError());
     ok(!strcmp(iface_detail->DevicePath, "\\\\?\\root#winetest#0#{deadbeef-29ef-4538-a5fd-b69573a362c0}"),
             "wrong path %s\n", debugstr_a(iface_detail->DevicePath));
+
+    /* Create a device parameter for testing IoOpenDeviceRegistryKey */
+    key = SetupDiCreateDevRegKeyA(set, &device, DICS_FLAG_GLOBAL, 0, DIREG_DEV, NULL, NULL);
+    ok(key != INVALID_HANDLE_VALUE, "failed to create a hardware parameters key, got error %#lx\n", GetLastError());
+    status = RegSetValueExA(key, foobar, 0, REG_SZ, (const BYTE *)foo, sizeof(foo));
+    ok(status == ERROR_SUCCESS, "failed to save a device parameter, got error %lu\n", status);
+    RegCloseKey(key);
 
     SetupDiDestroyDeviceInfoList(set);
 
@@ -1772,6 +1770,13 @@ static void test_pnp_devices(void)
     ok(!strcmp(iface_detail->DevicePath, "\\\\?\\wine#test#1#{deadbeef-29ef-4538-a5fd-b69573a362c2}"),
             "wrong path %s\n", debugstr_a(iface_detail->DevicePath));
 
+    /* Create a device parameter for testing IoOpenDeviceRegistryKey */
+    key = SetupDiCreateDevRegKeyA(set, &device, DICS_FLAG_GLOBAL, 0, DIREG_DEV, NULL, NULL);
+    ok(key != INVALID_HANDLE_VALUE, "failed to create a hardware parameters key, got error %#lx\n", GetLastError());
+    status = RegSetValueExA(key, foobar, 0, REG_SZ, (const BYTE *)bar, sizeof(bar));
+    ok(status == ERROR_SUCCESS, "failed to save a device parameter, got error %lu\n", status);
+    RegCloseKey(key);
+
     SetupDiDestroyDeviceInfoList(set);
 
     RtlInitUnicodeString(&string, L"\\Device\\winetest_pnp_1");
@@ -1784,6 +1789,9 @@ static void test_pnp_devices(void)
     ok(ret, "got error %lu\n", GetLastError());
     ok(id == 1, "got id %d\n", id);
     ok(size == sizeof(id), "got size %lu\n", size);
+
+    ret = DeviceIoControl(child, IOCTL_WINETEST_CHILD_MAIN, NULL, 0, NULL, 0, &size, NULL);
+    ok(ret, "got error %lu\n", GetLastError());
 
     CloseHandle(child);
 
@@ -1981,13 +1989,9 @@ START_TEST(ntoskrnl)
     HANDLE mapping;
     DWORD written;
 
-    pRtlDosPathNameToNtPathName_U = (void *)GetProcAddress(GetModuleHandleA("ntdll"), "RtlDosPathNameToNtPathName_U");
-    pRtlFreeUnicodeString = (void *)GetProcAddress(GetModuleHandleA("ntdll"), "RtlFreeUnicodeString");
     pCancelIoEx = (void *)GetProcAddress(GetModuleHandleA("kernel32.dll"), "CancelIoEx");
-    pIsWow64Process = (void *)GetProcAddress(GetModuleHandleA("kernel32.dll"), "IsWow64Process");
     pSetFileCompletionNotificationModes = (void *)GetProcAddress(GetModuleHandleA("kernel32.dll"),
                                                                  "SetFileCompletionNotificationModes");
-    pSignerSign = (void *)GetProcAddress(LoadLibraryA("mssign32"), "SignerSign");
 
     if (IsWow64Process(GetCurrentProcess(), &is_wow64) && is_wow64)
     {

@@ -362,9 +362,6 @@ static ULONG WINAPI IDirectPlayImpl_AddRef( IDirectPlay *iface )
 
     TRACE( "(%p) ref=%ld\n", This, ref );
 
-    if ( ref == 1 )
-        InterlockedIncrement( &This->numIfaces );
-
     return ref;
 }
 
@@ -375,7 +372,7 @@ static ULONG WINAPI IDirectPlayImpl_Release( IDirectPlay *iface )
 
     TRACE( "(%p) ref=%ld\n", This, ref );
 
-    if ( !ref && !InterlockedDecrement( &This->numIfaces ) )
+    if ( !ref )
         dplay_destroy( This );
 
     return ref;
@@ -676,12 +673,9 @@ static HRESULT WINAPI IDirectPlay4Impl_QueryInterface( IDirectPlay4 *iface, REFI
 static ULONG WINAPI IDirectPlay2AImpl_AddRef( IDirectPlay2A *iface )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay2A( iface );
-    ULONG ref = InterlockedIncrement( &This->ref2A );
+    ULONG ref = InterlockedIncrement( &This->ref );
 
-    TRACE( "(%p) ref2A=%ld\n", This, ref );
-
-    if ( ref == 1 )
-        InterlockedIncrement( &This->numIfaces );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
     return ref;
 }
@@ -689,12 +683,9 @@ static ULONG WINAPI IDirectPlay2AImpl_AddRef( IDirectPlay2A *iface )
 static ULONG WINAPI IDirectPlay2Impl_AddRef( IDirectPlay2 *iface )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay2( iface );
-    ULONG ref = InterlockedIncrement( &This->ref2 );
+    ULONG ref = InterlockedIncrement( &This->ref );
 
-    TRACE( "(%p) ref2=%ld\n", This, ref );
-
-    if ( ref == 1 )
-        InterlockedIncrement( &This->numIfaces );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
     return ref;
 }
@@ -702,12 +693,9 @@ static ULONG WINAPI IDirectPlay2Impl_AddRef( IDirectPlay2 *iface )
 static ULONG WINAPI IDirectPlay3AImpl_AddRef( IDirectPlay3A *iface )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay3A( iface );
-    ULONG ref = InterlockedIncrement( &This->ref3A );
+    ULONG ref = InterlockedIncrement( &This->ref );
 
-    TRACE( "(%p) ref3A=%ld\n", This, ref );
-
-    if ( ref == 1 )
-        InterlockedIncrement( &This->numIfaces );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
     return ref;
 }
@@ -715,12 +703,9 @@ static ULONG WINAPI IDirectPlay3AImpl_AddRef( IDirectPlay3A *iface )
 static ULONG WINAPI IDirectPlay3Impl_AddRef( IDirectPlay3 *iface )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay3( iface );
-    ULONG ref = InterlockedIncrement( &This->ref3 );
+    ULONG ref = InterlockedIncrement( &This->ref );
 
-    TRACE( "(%p) ref3=%ld\n", This, ref );
-
-    if ( ref == 1 )
-        InterlockedIncrement( &This->numIfaces );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
     return ref;
 }
@@ -728,12 +713,9 @@ static ULONG WINAPI IDirectPlay3Impl_AddRef( IDirectPlay3 *iface )
 static ULONG WINAPI IDirectPlay4AImpl_AddRef(IDirectPlay4A *iface)
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay4A( iface );
-    ULONG ref = InterlockedIncrement( &This->ref4A );
+    ULONG ref = InterlockedIncrement( &This->ref );
 
-    TRACE( "(%p) ref4A=%ld\n", This, ref );
-
-    if ( ref == 1 )
-        InterlockedIncrement( &This->numIfaces );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
     return ref;
 }
@@ -741,12 +723,9 @@ static ULONG WINAPI IDirectPlay4AImpl_AddRef(IDirectPlay4A *iface)
 static ULONG WINAPI IDirectPlay4Impl_AddRef(IDirectPlay4 *iface)
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay4( iface );
-    ULONG ref = InterlockedIncrement( &This->ref4 );
+    ULONG ref = InterlockedIncrement( &This->ref );
 
-    TRACE( "(%p) ref4=%ld\n", This, ref );
-
-    if ( ref == 1 )
-        InterlockedIncrement( &This->numIfaces );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
     return ref;
 }
@@ -754,11 +733,11 @@ static ULONG WINAPI IDirectPlay4Impl_AddRef(IDirectPlay4 *iface)
 static ULONG WINAPI IDirectPlay2AImpl_Release( IDirectPlay2A *iface )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay2A( iface );
-    ULONG ref = InterlockedDecrement( &This->ref2A );
+    ULONG ref = InterlockedDecrement( &This->ref );
 
-    TRACE( "(%p) ref2A=%ld\n", This, ref );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
-    if ( !ref && !InterlockedDecrement( &This->numIfaces ) )
+    if ( !ref )
         dplay_destroy( This );
 
     return ref;
@@ -767,11 +746,11 @@ static ULONG WINAPI IDirectPlay2AImpl_Release( IDirectPlay2A *iface )
 static ULONG WINAPI IDirectPlay2Impl_Release( IDirectPlay2 *iface )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay2( iface );
-    ULONG ref = InterlockedDecrement( &This->ref2 );
+    ULONG ref = InterlockedDecrement( &This->ref );
 
-    TRACE( "(%p) ref2=%ld\n", This, ref );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
-    if ( !ref && !InterlockedDecrement( &This->numIfaces ) )
+    if ( !ref  )
         dplay_destroy( This );
 
     return ref;
@@ -780,11 +759,11 @@ static ULONG WINAPI IDirectPlay2Impl_Release( IDirectPlay2 *iface )
 static ULONG WINAPI IDirectPlay3AImpl_Release( IDirectPlay3A *iface )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay3A( iface );
-    ULONG ref = InterlockedDecrement( &This->ref3A );
+    ULONG ref = InterlockedDecrement( &This->ref );
 
-    TRACE( "(%p) ref3A=%ld\n", This, ref );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
-    if ( !ref && !InterlockedDecrement( &This->numIfaces ) )
+    if ( !ref )
         dplay_destroy( This );
 
     return ref;
@@ -793,11 +772,11 @@ static ULONG WINAPI IDirectPlay3AImpl_Release( IDirectPlay3A *iface )
 static ULONG WINAPI IDirectPlay3Impl_Release( IDirectPlay3 *iface )
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay3( iface );
-    ULONG ref = InterlockedDecrement( &This->ref3 );
+    ULONG ref = InterlockedDecrement( &This->ref );
 
-    TRACE( "(%p) ref3=%ld\n", This, ref );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
-    if ( !ref && !InterlockedDecrement( &This->numIfaces ) )
+    if ( !ref )
         dplay_destroy( This );
 
     return ref;
@@ -806,11 +785,11 @@ static ULONG WINAPI IDirectPlay3Impl_Release( IDirectPlay3 *iface )
 static ULONG WINAPI IDirectPlay4AImpl_Release(IDirectPlay4A *iface)
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay4A( iface );
-    ULONG ref = InterlockedDecrement( &This->ref4A );
+    ULONG ref = InterlockedDecrement( &This->ref );
 
-    TRACE( "(%p) ref4A=%ld\n", This, ref );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
-    if ( !ref && !InterlockedDecrement( &This->numIfaces ) )
+    if ( !ref )
         dplay_destroy( This );
 
     return ref;
@@ -819,11 +798,11 @@ static ULONG WINAPI IDirectPlay4AImpl_Release(IDirectPlay4A *iface)
 static ULONG WINAPI IDirectPlay4Impl_Release(IDirectPlay4 *iface)
 {
     IDirectPlayImpl *This = impl_from_IDirectPlay4( iface );
-    ULONG ref = InterlockedDecrement( &This->ref4 );
+    ULONG ref = InterlockedDecrement( &This->ref );
 
-    TRACE( "(%p) ref4=%ld\n", This, ref );
+    TRACE( "(%p) ref=%ld\n", This, ref );
 
-    if ( !ref && !InterlockedDecrement( &This->numIfaces ) )
+    if ( !ref )
         dplay_destroy( This );
 
     return ref;
@@ -2416,6 +2395,9 @@ static HRESULT WINAPI IDirectPlay4Impl_EnumSessions( IDirectPlay4 *iface, DPSESS
         return DPERR_UNINITIALIZED;
 
     if ( !sdesc )
+        return DPERR_INVALIDPARAM;
+
+    if ( sdesc->dwSize != sizeof( DPSESSIONDESC2 ) )
         return DPERR_INVALIDPARAM;
 
     /* Can't enumerate if the interface is already open */
@@ -5678,14 +5660,7 @@ HRESULT dplay_create( REFIID riid, void **ppv )
     obj->IDirectPlay3_iface.lpVtbl = &dp3_vt;
     obj->IDirectPlay4A_iface.lpVtbl = &dp4A_vt;
     obj->IDirectPlay4_iface.lpVtbl = &dp4_vt;
-    obj->numIfaces = 1;
-    obj->ref = 0;
-    obj->ref2A = 0;
-    obj->ref2 = 0;
-    obj->ref3A = 0;
-    obj->ref3 = 0;
-    obj->ref4A = 0;
-    obj->ref4 = 1;
+    obj->ref = 1;
 
     InitializeCriticalSection( &obj->lock );
     obj->lock.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": IDirectPlayImpl.lock");

@@ -40,6 +40,7 @@ extern int preprocess_only;
 extern int no_preprocess;
 extern int utf8_input;
 extern int check_utf8;
+extern int compress_data;
 
 extern const char *input_name;
 extern const char *nlsdirs[];

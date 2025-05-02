@@ -2069,7 +2069,7 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
         {
             if (is_old_wow64())
             {
-                if (is_process_wow64( &info.ClientId ))
+                if (info.TebBaseAddress && is_process_wow64( &info.ClientId ))
                     info.TebBaseAddress = (char *)info.TebBaseAddress + teb_offset;
                 else
                     info.TebBaseAddress = NULL;
@@ -2301,6 +2301,17 @@ NTSTATUS WINAPI NtQueryInformationThread( HANDLE handle, THREADINFOCLASS class,
         if (length != sizeof(ULONG)) return STATUS_INFO_LENGTH_MISMATCH;
         if (ret_len) *ret_len = sizeof(ULONG);
         *value = 0;
+        return STATUS_SUCCESS;
+    }
+
+    case ThreadIdealProcessorEx:
+    {
+        PROCESSOR_NUMBER *number = data;
+
+        FIXME( "ThreadIdealProcessorEx info class - stub\n" );
+        if (length != sizeof(*number)) return STATUS_INFO_LENGTH_MISMATCH;
+        memset( number, 0, sizeof(*number) );
+        if (ret_len) *ret_len = sizeof(*number);
         return STATUS_SUCCESS;
     }
 

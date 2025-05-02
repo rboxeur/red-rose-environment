@@ -672,7 +672,7 @@ NTSTATUS WINAPI wow64_NtQueryInformationThread( UINT *args )
         if (!status)
         {
             info32.ExitStatus = info.ExitStatus;
-            info32.TebBaseAddress = is_process_id_wow64( &info.ClientId ) ?
+            info32.TebBaseAddress = is_process_id_wow64( &info.ClientId ) && info.TebBaseAddress ?
                                     PtrToUlong(info.TebBaseAddress) + 0x2000 : 0;
             info32.ClientId.UniqueProcess = HandleToULong( info.ClientId.UniqueProcess );
             info32.ClientId.UniqueThread = HandleToULong( info.ClientId.UniqueThread );
@@ -878,7 +878,7 @@ NTSTATUS WINAPI wow64_NtSetInformationProcess( UINT *args )
     }
 
     case ProcessInstrumentationCallback:   /* PROCESS_INSTRUMENTATION_CALLBACK_INFORMATION */
-        if (len >= sizeof(void *))
+        if (len >= sizeof(ULONG))
         {
             FIXME( "ProcessInstrumentationCallback stub\n" );
             return STATUS_SUCCESS;

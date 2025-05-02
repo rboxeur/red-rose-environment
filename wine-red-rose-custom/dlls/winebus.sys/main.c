@@ -169,15 +169,25 @@ static void unix_device_set_feature_report(DEVICE_OBJECT *device, HID_XFER_PACKE
     winebus_call(device_set_feature_report, &params);
 }
 
-static DWORD get_device_index(struct device_desc *desc)
+static DWORD get_device_index(struct device_desc *desc, struct list **before)
 {
     struct device_extension *ext;
     DWORD index = 0;
 
+    *before = NULL;
+
+    /* The device list is sorted, so just increment the index until it doesn't match an index already in the list */
     LIST_FOR_EACH_ENTRY(ext, &device_list, struct device_extension, entry)
     {
         if (ext->desc.vid == desc->vid && ext->desc.pid == desc->pid && ext->desc.input == desc->input)
-            index = max(ext->index + 1, index);
+        {
+            if (ext->index != index)
+            {
+                *before = &ext->entry;
+                break;
+            }
+            index++;
+        }
     }
 
     return index;
@@ -305,6 +315,7 @@ static DEVICE_OBJECT *bus_create_hid_device(const WCHAR *bus_name, struct device
     DEVICE_OBJECT *device;
     UNICODE_STRING nameW;
     WCHAR dev_name[256];
+    struct list *before;
     NTSTATUS status;
 
     TRACE("desc %s, unix_device %#I64x\n", debugstr_device_desc(desc), unix_device);
@@ -325,7 +336,7 @@ static DEVICE_OBJECT *bus_create_hid_device(const WCHAR *bus_name, struct device
     ext->bus_name           = bus_name;
     ext->device             = device;
     ext->desc               = *desc;
-    ext->index              = get_device_index(desc);
+    ext->index              = get_device_index(desc, &before);
     ext->unix_device        = unix_device;
     list_init(&ext->reports);
 
@@ -337,7 +348,10 @@ static DEVICE_OBJECT *bus_create_hid_device(const WCHAR *bus_name, struct device
     make_unique_serial(ext);
 
     /* add to list of pnp devices */
-    list_add_tail(&device_list, &ext->entry);
+    if (before)
+        list_add_before(before, &ext->entry);
+    else
+        list_add_tail(&device_list, &ext->entry);
 
     RtlLeaveCriticalSection(&device_list_cs);
 
@@ -468,6 +482,17 @@ static void process_hid_report(DEVICE_OBJECT *device, BYTE *report_buf, DWORD re
     struct hid_report *report, *last_report;
     IRP *irp;
 
+    TRACE("device %p report_buf %p (%#x), report_len %#lx\n", device, report_buf, *report_buf, report_len);
+
+    if (!ext->collection_desc.ReportIDs[0].ReportID) last_report = ext->last_reports[0];
+    else last_report = ext->last_reports[report_buf[0]];
+
+    if (!last_report)
+    {
+        WARN("Ingoring report with unexpected id %#x\n", *report_buf);
+        return;
+    }
+
     if (!(report = RtlAllocateHeap(GetProcessHeap(), 0, size))) return;
     memcpy(report->buffer, report_buf, report_len);
     report->length = report_len;
@@ -475,8 +500,6 @@ static void process_hid_report(DEVICE_OBJECT *device, BYTE *report_buf, DWORD re
     RtlEnterCriticalSection(&ext->cs);
     list_add_tail(&ext->reports, &report->entry);
 
-    if (!ext->collection_desc.ReportIDs[0].ReportID) last_report = ext->last_reports[0];
-    else last_report = ext->last_reports[report_buf[0]];
     memcpy(last_report->buffer, report_buf, report_len);
 
     if ((irp = pop_pending_read(ext)))

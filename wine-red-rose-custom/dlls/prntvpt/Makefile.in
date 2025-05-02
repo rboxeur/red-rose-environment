@@ -2,8 +2,7 @@ MODULE    = prntvpt.dll
 IMPORTLIB = prntvpt
 IMPORTS   = gdi32 winspool ole32 oleaut32
 
-EXTRADLLFLAGS = -Wb,--prefer-native
-
 SOURCES = \
 	main.c \
+	prntvpt.rc \
 	ticket.c

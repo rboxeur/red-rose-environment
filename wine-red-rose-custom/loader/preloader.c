@@ -185,6 +185,7 @@ void __bb_init_func(void) { return; }
 
 static int thread_data[256];
 
+__attribute__((used))
 struct
 {
     /* this is the kernel modify_ldt struct */
@@ -337,7 +338,7 @@ static inline int wld_prctl( int code, long arg )
 
 #elif defined(__x86_64__)
 
-void *thread_data[256];
+void __attribute__((used)) *thread_data[256];
 
 /*
  * The _start function is the entry and exit point of this program
@@ -426,7 +427,7 @@ SYSCALL_NOERR( wld_getegid, 108 /* SYS_getegid */ );
 
 #elif defined(__aarch64__)
 
-void *thread_data[256];
+void __attribute__((used)) *thread_data[256];
 
 /*
  * The _start function is the entry and exit point of this program
@@ -533,7 +534,7 @@ SYSCALL_NOERR( wld_getegid, 177 /* SYS_getegid */ );
 
 #elif defined(__arm__)
 
-void *thread_data[256];
+void __attribute__((used)) *thread_data[256];
 
 /*
  * The _start function is the entry and exit point of this program
@@ -1432,7 +1433,7 @@ static void init_r_debug( struct wld_auxv *av )
  *  Load the binary and then its ELF interpreter.
  *  Note, we assume that the binary is a dynamically linked ELF shared object.
  */
-void* wld_start( void **stack )
+void* __attribute__((used)) wld_start( void **stack )
 {
     long i, *pargc;
     char **argv, **p;

@@ -111,7 +111,7 @@ NameList: Adobe Glyph List
 DisplaySize: -36
 AntiAlias: 1
 FitToEm: 1
-WinInfo: 1008 14 8
+WinInfo: 910 14 8
 BeginPrivate: 10
 BlueValues 27 [-30 0 1120 1177 1522 1522]
 OtherBlues 11 [-426 -426]
@@ -126,7 +126,7 @@ ExpansionFactor 4 0.06
 EndPrivate
 TeXData: 1 0 0 327680 163840 109226 571904 -1048576 109226 783286 444596 497025 792723 393216 433062 380633 303038 157286 324010 404750 52429 2506097 1059062 262144
 AnchorClass2: "Anchor-10" "'mark' Mark Positioning lookup 9 subtable" "Anchor-9" "'mark' Mark Positioning lookup 8 subtable" "Anchor-7" "'mark' Mark Positioning lookup 6 subtable" "Anchor-6" "'mark' Mark Positioning lookup 5 subtable" "Anchor-1" "'mkmk' Mark to Mark in Arabic lookup 1 subtable" "Anchor-0" "'mkmk' Mark to Mark in Arabic lookup 0 subtable"
-BeginChars: 65677 977
+BeginChars: 65677 978
 
 StartChar: .notdef
 Encoding: 65536 -1 0
@@ -19584,6 +19584,42 @@ SplineSet
  435.849 1314.62 292.256 1167.62 257.219 905 c 1
 EndSplineSet
 EndChar
+
+StartChar: Omega
+Encoding: 937 937 977
+Width: 1576
+Flags: W
+HStem: 0 178<43 362 1132 1452> 1339 172<551.133 945.467>
+VStem: 59 207<634.8 1008.33> 1227 208<636.533 1010.07>
+LayerCount: 2
+Fore
+SplineSet
+1452 178 m 1
+ 1452 0 l 1
+ 852 0 l 1
+ 852 178 l 1
+ 971.333 243.333 1063.33 330.667 1128 440 c 0
+ 1194 551 1227 674 1227 809 c 0
+ 1227 963.667 1186.33 1089.33 1105 1186 c 0
+ 1019 1288 899.667 1339 747 1339 c 0
+ 596.333 1339 477.333 1287.33 390 1184 c 0
+ 307.333 1087.33 266 962.333 266 809 c 0
+ 266 675 299 552.333 365 441 c 0
+ 431.667 330.333 524.333 242.667 643 178 c 1
+ 643 0 l 1
+ 43 0 l 1
+ 43 178 l 1
+ 362 178 l 1
+ 160 356 59 563 59 799 c 0
+ 59 1010.33 120.333 1181.33 243 1312 c 0
+ 369 1444.67 537 1511 747 1511 c 0
+ 954.333 1511 1121.33 1445.67 1248 1315 c 0
+ 1372.67 1186.33 1435 1017.67 1435 809 c 0
+ 1435 676.333 1409.67 559.333 1359 458 c 0
+ 1311.67 363.333 1236 270 1132 178 c 1
+ 1452 178 l 1
+EndSplineSet
+EndChar
 EndChars
 BitmapFont: 9 978 7 2 1
 BDFChar: 0 65536 9 1 7 0 6
@@ -20462,6 +20498,8 @@ BDFChar: 975 1108 5 0 4 0 4
 GeigaGQ7^D
 BDFChar: 976 1028 7 0 5 0 6
 Gg*tu^s%$'
+BDFChar: 977 937 7 0 5 0 6
+Gg(hoKLl"@
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -21344,6 +21382,8 @@ BDFChar: 975 1108 6 0 4 0 4
 GeigaGQ7^D
 BDFChar: 976 1028 7 0 5 0 6
 Gg*tu^s%$'
+BDFChar: 977 937 8 0 6 0 6
+3(ALOJjf#,
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -22261,6 +22301,8 @@ BDFChar: 975 1108 6 0 4 0 5
 Geiga^j#hZ
 BDFChar: 976 1028 7 0 5 0 7
 I)*Pm^qda5
+BDFChar: 977 937 9 0 6 0 7
+3(/@MJq?DY
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -22980,6 +23022,8 @@ BDFChar: 975 1108 6 0 5 0 6
 Gf7De^r1Ht
 BDFChar: 976 1028 8 0 6 0 8
 I)<\7pqX\^HiO-H
+BDFChar: 977 937 9 1 7 0 8
+&FRPiK#391mJm4e
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -23695,6 +23739,8 @@ BDFChar: 975 1108 7 0 5 0 6
 Gf7Dm^r1Ht
 BDFChar: 976 1028 9 0 7 0 8
 5%27Br4p*V4obQ_
+BDFChar: 977 937 10 1 9 0 9
+&-2/!_Z57<JUi<%JH.t9pON!g
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -24410,6 +24456,8 @@ BDFChar: 975 1108 8 0 5 0 7
 3(/;dJ:L$I
 BDFChar: 976 1028 10 0 7 0 10
 5!a^LJGaqJJ3c@!
+BDFChar: 977 937 12 0 10 0 10
+"9<eaE597s^gOrc?sk+m0Ym5:n_aBI
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -25125,6 +25173,8 @@ BDFChar: 975 1108 8 0 5 0 8
 3(/:Ipjdl_2uipY
 BDFChar: 976 1028 11 0 8 0 11
 *rmF65QH<7J,oQKJ,k*"J,hh7+FkO6
+BDFChar: 977 937 12 0 10 0 11
+"9:[%?smAM^gOrc^gLPX+CK0(qr%A0
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N

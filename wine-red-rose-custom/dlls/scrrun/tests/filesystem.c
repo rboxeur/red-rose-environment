@@ -1471,7 +1471,7 @@ static void test_DriveCollection(void)
     while (IEnumVARIANT_Next(enumvar, 1, &var, &fetched) == S_OK) {
         IDrive *drive = (IDrive*)V_DISPATCH(&var);
         DriveTypeConst type;
-        BSTR str;
+        BSTR str, path;
 
         hr = IDrive_get_DriveType(drive, &type);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -1482,7 +1482,17 @@ static void test_DriveCollection(void)
         hr = IDrive_get_DriveLetter(drive, &str);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
         ok(SysStringLen(str) == 1, "got string %s\n", wine_dbgstr_w(str));
+
+        hr = IDrive_get_Path(drive, NULL);
+        ok(hr == E_POINTER, "Unexpected hr %#lx.\n", hr);
+
+        hr = IDrive_get_Path(drive, &path);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok(SysStringLen(path) == 2 && path[0] == str[0] && path[1] == ':',
+             "got string %s\n", wine_dbgstr_w(path));
+
         SysFreeString(str);
+        SysFreeString(path);
 
         hr = IDrive_get_IsReady(drive, NULL);
         ok(hr == E_POINTER, "Unexpected hr %#lx.\n", hr);
@@ -2799,6 +2809,68 @@ static void test_DoOpenPipeStream(void)
         ITextStream_Release(stream_write);
 }
 
+static void test_DriveGetPath(void)
+{
+    HRESULT hr;
+    IDrive *drive;
+    BSTR path, drive_letter;
+
+    drive = get_fixed_drive();
+    if (!drive) {
+        skip("No fixed drive found, skipping test.\n");
+        return;
+    }
+    /*Gets the letter of the drive for comparison later*/
+    drive_letter = NULL;
+    hr = IDrive_get_DriveLetter(drive, &drive_letter);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+
+    hr = IDrive_get_Path(drive, NULL);
+    ok(hr == E_POINTER, "Unexpected hr %#lx.\n", hr);
+
+
+    /*Get the path*/
+    path = NULL;
+    hr = IDrive_get_Path(drive, &path);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(path != NULL, "got %p\n", path);
+
+
+    IDrive_Release(drive);
+
+    /*If the path can be used to get the drive, it works.*/
+    if(path != NULL && drive_letter != NULL){
+        IDrive *drive_result;
+        BSTR result;
+        
+        hr = IFileSystem3_GetDrive(fs3, path, &drive_result);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        
+        /*Get the letter of the returned drive*/
+        if(SUCCEEDED(hr)){ 
+          result = NULL;
+          hr = IDrive_get_DriveLetter(drive, &result);
+          ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+          ok(result != NULL, "got %p\n", result);
+        }
+
+        if (SUCCEEDED(hr) && result != NULL) {
+            /*The path was successfuly returned*/
+            ok(!lstrcmpW(drive_letter, result), "got %s, expected %s for drive spec %s\n",
+                    wine_dbgstr_w(result), 
+                    wine_dbgstr_w(drive_letter),
+                    wine_dbgstr_w(path));      
+                    
+            SysFreeString(result);  
+        }
+
+        IDrive_Release(drive_result);
+    }
+
+    SysFreeString(path);
+    SysFreeString(drive_letter);
+}
 START_TEST(filesystem)
 {
     HRESULT hr;
@@ -2844,7 +2916,8 @@ START_TEST(filesystem)
     test_GetSpecialFolder();
     test_MoveFile();
     test_DoOpenPipeStream();
-
+    test_DriveGetPath();
+    
     IFileSystem3_Release(fs3);
 
     CoUninitialize();

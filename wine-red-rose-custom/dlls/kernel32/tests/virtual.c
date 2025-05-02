@@ -4494,7 +4494,7 @@ static void test_PrefetchVirtualMemory(void)
 
     if (!pPrefetchVirtualMemory)
     {
-        skip("no PrefetchVirtualMemory in kernelbase\n");
+        win_skip("no PrefetchVirtualMemory in kernelbase\n");
         return;
     }
 
@@ -4877,6 +4877,11 @@ static LONG store_buffer_litmus_test( void (*WINAPI barrier0)(void), void (*WINA
     ret = WaitForMultipleObjects( ARRAY_SIZE(threads), threads, TRUE, INFINITE );
     ok( ret == WAIT_OBJECT_0, "WaitForMultipleObjects failed: %lu\n", GetLastError() );
 
+    for (i = 0; i < ARRAY_SIZE(threads); i++)
+    {
+        CloseHandle( threads[i] );
+    }
+
     ret = VirtualFree( shared.read, 0, MEM_RELEASE );
     ok( ret, "VirtualFree failed: %lu\n", GetLastError() );
 
@@ -4926,13 +4931,15 @@ static void test_FlushProcessWriteBuffers(void)
 
 static void test_ReadProcessMemory(void)
 {
-    BYTE buf[0x2000];
+    BYTE *buf;
     DWORD old_prot;
     SIZE_T copied;
     HANDLE hproc;
     void *ptr;
     BOOL ret;
 
+    buf = malloc(2 * si.dwPageSize);
+    ok(buf != NULL, "OOM\n");
     ret = DuplicateHandle(GetCurrentProcess(), GetCurrentProcess(), GetCurrentProcess(),
             &hproc, 0, FALSE, DUPLICATE_SAME_ACCESS);
     ok(ret, "DuplicateHandle failed %lu\n", GetLastError());
@@ -4961,6 +4968,7 @@ static void test_ReadProcessMemory(void)
     ret = VirtualFree(ptr, 0, MEM_RELEASE);
     ok(ret, "VirtualFree failed %lu\n", GetLastError());
     CloseHandle(hproc);
+    free(buf);
 }
 
 START_TEST(virtual)

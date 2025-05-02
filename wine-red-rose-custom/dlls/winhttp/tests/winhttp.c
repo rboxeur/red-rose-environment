@@ -4596,7 +4596,7 @@ static void test_IWinHttpRequest(int port)
     IWinHttpRequest *req;
     BSTR method, url, username, password, response = NULL, status_text = NULL, headers = NULL;
     BSTR date, today, connection, value = NULL;
-    VARIANT async, empty, timeout, body, body2, proxy_server, bypass_list, data, cp;
+    VARIANT async, empty, timeout, body, body2, proxy_server, bypass_list, data, cp, flags;
     VARIANT_BOOL succeeded;
     LONG status;
     WCHAR todayW[WINHTTP_TIME_FORMAT_BUFSIZE];
@@ -4672,6 +4672,24 @@ static void test_IWinHttpRequest(int port)
     hr = IWinHttpRequest_Open( req, method, url, async );
     ok( hr == HRESULT_FROM_WIN32( ERROR_WINHTTP_UNRECOGNIZED_SCHEME ), "got %#lx\n", hr );
 
+    V_VT( &flags ) = VT_ERROR;
+    V_ERROR( &flags ) = 0xdeadbeef;
+    hr = IWinHttpRequest_get_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, &flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+    ok( V_VT( &flags ) == VT_I4, "got %#x\n", V_VT( &flags ) );
+    ok( V_I4( &flags ) == 0, "got %lx\n", V_I4( &flags ) );
+
+    V_VT( &flags ) = VT_I4;
+    V_I4( &flags ) = SECURITY_FLAG_IGNORE_UNKNOWN_CA;
+    hr = IWinHttpRequest_put_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+
+    V_VT( &flags ) = VT_ERROR;
+    V_ERROR( &flags ) = 0xdeadbeef;
+    hr = IWinHttpRequest_get_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, &flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+    ok( V_I4( &flags ) == SECURITY_FLAG_IGNORE_UNKNOWN_CA, "got %lx\n", V_I4( &flags ) );
+
     SysFreeString( method );
     method = SysAllocString( L"GET" );
     SysFreeString( url );
@@ -4713,6 +4731,44 @@ static void test_IWinHttpRequest(int port)
     ok( hr == S_OK, "got %#lx\n", hr );
     ok( V_VT( &cp ) == VT_I4, "got %#x\n", V_VT( &cp ) );
     ok( V_I4( &cp ) == CP_UTF8, "got %ld\n", V_I4( &cp ) );
+
+    V_VT( &flags ) = VT_ERROR;
+    V_ERROR( &flags ) = 0xdeadbeef;
+    hr = IWinHttpRequest_get_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, &flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+    ok( V_I4( &flags ) == SECURITY_FLAG_IGNORE_UNKNOWN_CA, "got %lx\n", V_I4( &flags ) );
+
+    V_VT( &flags ) = VT_I4;
+    V_I4( &flags ) = 0x321;
+    hr = IWinHttpRequest_put_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, flags );
+    ok( hr == E_INVALIDARG, "got %#lx\n", hr );
+
+    V_VT( &flags ) = VT_UI4;
+    V_UI4( &flags ) = 0x123;
+    hr = IWinHttpRequest_put_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, flags );
+    ok( hr == E_INVALIDARG, "got %#lx\n", hr );
+
+    V_VT( &flags ) = VT_UI4;
+    V_UI4( &flags ) = SECURITY_FLAG_IGNORE_CERT_DATE_INVALID;
+    hr = IWinHttpRequest_put_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, flags);
+    ok( hr == S_OK, "got %#lx\n", hr );
+
+    V_VT( &flags ) = VT_ERROR;
+    V_ERROR( &flags ) = 0xdeadbeef;
+    hr = IWinHttpRequest_get_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, &flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+    ok( V_I4( &flags ) == SECURITY_FLAG_IGNORE_CERT_DATE_INVALID, "got %lx\n", V_I4( &flags ) );
+
+    V_VT( &flags ) = VT_I4;
+    V_I4( &flags ) = SECURITY_FLAG_IGNORE_UNKNOWN_CA|SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE;
+    hr = IWinHttpRequest_put_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+
+    V_VT( &flags ) = VT_ERROR;
+    V_ERROR( &flags ) = 0xdeadbeef;
+    hr = IWinHttpRequest_get_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, &flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+    ok( V_I4( &flags ) == (SECURITY_FLAG_IGNORE_UNKNOWN_CA|SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE), "got %lx\n", V_I4( &flags ) );
 
     hr = IWinHttpRequest_Abort( req );
     ok( hr == S_OK, "got %#lx\n", hr );
@@ -4846,6 +4902,11 @@ static void test_IWinHttpRequest(int port)
     hr = IWinHttpRequest_SetCredentials( req, username, password, HTTPREQUEST_SETCREDENTIALS_FOR_SERVER );
     ok( hr == S_OK, "got %#lx\n", hr );
 
+    V_VT( &flags ) = VT_I4;
+    V_I4( &flags ) = SECURITY_FLAG_IGNORE_UNKNOWN_CA|SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE;
+    hr = IWinHttpRequest_put_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+
     V_VT( &proxy_server ) = VT_BSTR;
     V_BSTR( &proxy_server ) = SysAllocString( L"proxyserver" );
     V_VT( &bypass_list ) = VT_BSTR;
@@ -4879,6 +4940,12 @@ static void test_IWinHttpRequest(int port)
 
     hr = IWinHttpRequest_Send( req, empty );
     ok( hr == S_OK, "got %#lx\n", hr );
+
+    V_VT( &flags ) = VT_ERROR;
+    V_ERROR( &flags ) = 0xdeadbeef;
+    hr = IWinHttpRequest_get_Option( req, WinHttpRequestOption_SslErrorIgnoreFlags, &flags );
+    ok( hr == S_OK, "got %#lx\n", hr );
+    ok( V_I4( &flags ) == (SECURITY_FLAG_IGNORE_UNKNOWN_CA|SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE), "got %lx\n", V_I4( &flags ) );
 
     hr = IWinHttpRequest_get_ResponseText( req, NULL );
     ok( hr == E_INVALIDARG, "got %#lx\n", hr );
@@ -5100,8 +5167,9 @@ static void test_IWinHttpRequest(int port)
     SysFreeString( url );
 
     hr = IWinHttpRequest_Send( req, empty );
-    ok( hr == S_OK || hr == HRESULT_FROM_WIN32( ERROR_WINHTTP_INVALID_SERVER_RESPONSE ) ||
-        hr == SEC_E_ILLEGAL_MESSAGE /* winxp */, "got %#lx\n", hr );
+    ok( hr == S_OK ||
+        hr == HRESULT_FROM_WIN32( ERROR_WINHTTP_INVALID_SERVER_RESPONSE ) ||
+        hr == HRESULT_FROM_WIN32( ERROR_WINHTTP_SECURE_CHANNEL_ERROR ) /* win7 */, "got %#lx\n", hr );
     if (hr != S_OK) goto done;
 
     hr = IWinHttpRequest_get_ResponseText( req, &response );
@@ -5991,7 +6059,9 @@ static void test_client_cert_authentication(void)
     ok( req != NULL, "failed to open a request %lu\n", GetLastError() );
 
     ret = WinHttpSendRequest( req, NULL, 0, NULL, 0, 0, 0 );
-    ok( ret, "failed to send request %lu\n", GetLastError() );
+    ok( ret || broken(!ret && GetLastError() == ERROR_WINHTTP_SECURE_FAILURE) /* win7 */,
+        "failed to send request %lu\n", GetLastError() );
+    if (!ret) goto done;
 
     SetLastError( 0xdeadbeef );
     ret = WinHttpReceiveResponse( req, NULL );
@@ -6016,11 +6086,13 @@ static void test_client_cert_authentication(void)
     ret = WinHttpReceiveResponse( req, NULL );
     todo_wine {
     ok( !ret, "unexpected success\n" );
-    ok( GetLastError() == ERROR_WINHTTP_SECURE_FAILURE, "got %lu\n", GetLastError() );
+    ok( GetLastError() == ERROR_WINHTTP_SECURE_FAILURE || GetLastError() == SEC_E_CERT_EXPIRED, /* win8 */
+        "got %lu\n", GetLastError() );
     }
 
     CertFreeCertificateContext( cert );
     CertCloseStore( store, 0 );
+done:
     WinHttpCloseHandle( req );
     WinHttpCloseHandle( con );
     WinHttpCloseHandle( ses );

@@ -657,13 +657,14 @@ static void ticket_to_devmode(const struct ticket *ticket, DEVMODEW *dm)
 
     dm->dmSize = sizeof(*dm);
     dm->dmFields = DM_ORIENTATION | DM_PAPERSIZE | DM_PAPERLENGTH | DM_PAPERWIDTH | DM_SCALE |
-                   DM_COPIES | DM_COLOR | DM_PRINTQUALITY | DM_YRESOLUTION | DM_COLLATE;
+                   DM_COPIES | DM_DEFAULTSOURCE | DM_COLOR | DM_PRINTQUALITY | DM_YRESOLUTION | DM_COLLATE;
     dm->dmOrientation = ticket->page.orientation;
     dm->dmPaperSize = ticket->page.media.paper;
     dm->dmPaperWidth = ticket->page.media.size.width / 100;
     dm->dmPaperLength = ticket->page.media.size.height / 100;
     dm->dmScale = ticket->page.scaling;
     dm->dmCopies = ticket->job.copies;
+    dm->dmDefaultSource = ticket->job.input_bin;
     dm->dmColor = ticket->page.color;
     dm->dmPrintQuality = ticket->page.resolution.x;
     dm->dmYResolution = ticket->page.resolution.y;
@@ -684,6 +685,8 @@ static void devmode_to_ticket(const DEVMODEW *dm, struct ticket *ticket)
         ticket->page.scaling = dm->dmScale;
     if (dm->dmFields & DM_COPIES)
         ticket->job.copies = dm->dmCopies;
+    if (dm->dmFields & DM_DEFAULTSOURCE)
+        ticket->job.input_bin = dm->dmDefaultSource;
     if (dm->dmFields & DM_COLOR)
         ticket->page.color = dm->dmColor;
     if (dm->dmFields & DM_PRINTQUALITY)
@@ -749,6 +752,31 @@ HRESULT WINAPI PTConvertPrintTicketToDevMode(HPTPROVIDER provider, IStream *stre
     *size = sizeof(**dm);
 
     return S_OK;
+}
+
+HRESULT WINAPI ConvertPrintTicketToDevModeThunk2(HPTPROVIDER provider, BYTE *ticket, ULONG ticket_size, EDefaultDevmodeType type,
+                                                 EPrintTicketScope scope, BYTE **dm, ULONG *size, BSTR *error)
+{
+    static const LARGE_INTEGER zero;
+    HRESULT hr;
+    IStream *stream;
+
+    TRACE("%p,%p,%lu,%d,%d,%p,%p,%p\n", provider, ticket, ticket_size, type, scope, dm, size, error);
+
+    hr = CreateStreamOnHGlobal(0, TRUE, &stream);
+    if (hr != S_OK) return hr;
+
+    hr = IStream_Write(stream, ticket, ticket_size, NULL);
+    if (hr == S_OK)
+    {
+        IStream_Seek(stream, zero, STREAM_SEEK_SET, NULL);
+
+        hr = PTConvertPrintTicketToDevMode(provider, stream, type, scope, size, (PDEVMODEW *)dm, error);
+    }
+
+    IStream_Release(stream);
+
+    return hr;
 }
 
 static HRESULT add_attribute(IXMLDOMElement *element, const WCHAR *attr, const WCHAR *value)
@@ -1295,6 +1323,47 @@ HRESULT WINAPI PTConvertDevModeToPrintTicket(HPTPROVIDER provider, ULONG size, P
     return write_ticket(stream, &ticket, scope);
 }
 
+HRESULT WINAPI ConvertDevModeToPrintTicketThunk2(HPTPROVIDER provider, BYTE *dm, ULONG size,
+                                                 EPrintTicketScope scope, BYTE **ticket, INT *length)
+{
+    HRESULT hr;
+    IStream *stream;
+
+    TRACE("%p,%p,%lu,%d,%p,%p\n", provider, dm, size, scope, ticket, length);
+
+    if (!is_valid_provider(provider) || !dm || !ticket || !length)
+        return E_INVALIDARG;
+
+    hr = CreateStreamOnHGlobal(0, TRUE, &stream);
+    if (hr != S_OK) return hr;
+
+    hr = PTConvertDevModeToPrintTicket(provider, size, (DEVMODEW *)dm, scope, stream);
+    if (hr == S_OK)
+    {
+        HGLOBAL hmem;
+        DWORD mem_size;
+
+        hr = GetHGlobalFromStream(stream, &hmem);
+        if (hr == S_OK)
+        {
+            mem_size = GlobalSize(hmem);
+            *ticket = CoTaskMemAlloc(mem_size);
+            if (*ticket)
+            {
+                BYTE *p = GlobalLock(hmem);
+                memcpy(*ticket, p, mem_size);
+                GlobalUnlock(hmem);
+                *length = mem_size;
+            }
+            else
+                hr = E_OUTOFMEMORY;
+        }
+    }
+
+    IStream_Release(stream);
+    return hr;
+}
+
 HRESULT WINAPI PTMergeAndValidatePrintTicket(HPTPROVIDER provider, IStream *base, IStream *delta,
                                              EPrintTicketScope scope, IStream *result, BSTR *error)
 {
@@ -1442,7 +1511,7 @@ static HRESULT write_PageImageableSize_caps(const WCHAR *device, IXMLDOMElement 
     IXMLDOMElement *page, *area, *property;
 
     hdc = CreateDCW(NULL, device, NULL, NULL);
-    if (!hdc) HRESULT_FROM_WIN32(GetLastError());
+    if (!hdc) return HRESULT_FROM_WIN32(GetLastError());
 
     res_x = GetDeviceCaps(hdc, LOGPIXELSX);
     res_y = GetDeviceCaps(hdc, LOGPIXELSY);
@@ -1731,4 +1800,55 @@ HRESULT WINAPI PTGetPrintCapabilities(HPTPROVIDER provider, IStream *stream, ISt
     if (hr != S_OK) return hr;
 
     return write_print_capabilities(prov->name, caps, ticket.page.orientation);
+}
+
+HRESULT WINAPI GetPrintCapabilitiesThunk2(HPTPROVIDER provider, BYTE *ticket, INT ticket_size,
+                                          BYTE **print_caps, INT *print_caps_length, BSTR *error)
+{
+    static const LARGE_INTEGER zero;
+    HRESULT hr;
+    IStream *stream, *caps = NULL;
+    HGLOBAL hmem;
+    DWORD mem_size;
+
+    TRACE("%p,%p,%d,%p,%p,%p\n", provider, ticket, ticket_size, print_caps, print_caps_length, error);
+
+    if (!is_valid_provider(provider) || !ticket || !print_caps || !print_caps_length)
+        return E_INVALIDARG;
+
+    hr = CreateStreamOnHGlobal(0, TRUE, &stream);
+    if (hr != S_OK) return hr;
+
+    hr = IStream_Write(stream, ticket, ticket_size, NULL);
+    if (hr != S_OK) goto fail;
+
+    IStream_Seek(stream, zero, STREAM_SEEK_SET, NULL);
+
+    hr = CreateStreamOnHGlobal(0, TRUE, &caps);
+    if (hr != S_OK) goto fail;
+
+    hr = PTGetPrintCapabilities(provider, stream, caps, error);
+    if (hr != S_OK) goto fail;
+
+    hr = GetHGlobalFromStream(caps, &hmem);
+    if (hr == S_OK)
+    {
+        mem_size = GlobalSize(hmem);
+        *print_caps = CoTaskMemAlloc(mem_size);
+        if (*print_caps)
+        {
+            BYTE *p = GlobalLock(hmem);
+            memcpy(*print_caps, p, mem_size);
+            GlobalUnlock(hmem);
+            *print_caps_length = mem_size;
+        }
+        else
+            hr = E_OUTOFMEMORY;
+    }
+
+fail:
+    IStream_Release(stream);
+    if (caps) IStream_Release(caps);
+
+    return hr;
 }

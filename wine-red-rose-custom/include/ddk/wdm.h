@@ -1684,6 +1684,8 @@ typedef enum _MODE
 #define SYMBOLIC_LINK_QUERY             0x0001
 #define SYMBOLIC_LINK_ALL_ACCESS        (STANDARD_RIGHTS_REQUIRED | 0x1)
 
+typedef void (WINAPI *PREQUEST_POWER_COMPLETE)(DEVICE_OBJECT *device, UCHAR minor, POWER_STATE state, void *ctx, IO_STATUS_BLOCK *iosb);
+
 #ifndef WINE_UNIX_LIB
 
 NTSTATUS  WINAPI DbgQueryDebugFilterState(ULONG, ULONG);
@@ -1721,6 +1723,10 @@ void    FASTCALL ExReleaseFastMutexUnsafe(PFAST_MUTEX);
 void      WINAPI ExReleaseResourceForThreadLite(ERESOURCE*,ERESOURCE_THREAD);
 ULONG     WINAPI ExSetTimerResolution(ULONG,BOOLEAN);
 void      WINAPI ExUnregisterCallback(void*);
+
+#define PLUGPLAY_REGKEY_DEVICE            1
+#define PLUGPLAY_REGKEY_DRIVER            2
+#define PLUGPLAY_REGKEY_CURRENT_HWPROFILE 4
 
 #define PLUGPLAY_PROPERTY_PERSISTENT 0x0001
 
@@ -1854,6 +1860,7 @@ NTSTATUS  WINAPI ObOpenObjectByPointer(void *,ULONG,ACCESS_STATE*,ACCESS_MASK,PO
 void      WINAPI ObUnRegisterCallbacks(void*);
 
 NTSTATUS  WINAPI PoCallDriver(DEVICE_OBJECT*,IRP*);
+NTSTATUS  WINAPI PoRequestPowerIrp(DEVICE_OBJECT *device, UCHAR minor, POWER_STATE state, PREQUEST_POWER_COMPLETE complete_cb, void *ctx, IRP **irp);
 POWER_STATE WINAPI PoSetPowerState(PDEVICE_OBJECT,POWER_STATE_TYPE,POWER_STATE);
 void      WINAPI PoStartNextPowerIrp(IRP*);
 

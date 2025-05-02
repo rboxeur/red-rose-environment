@@ -3973,7 +3973,7 @@ msgstr "العنصر لا يدعم هذه الآلية"
 msgid "Object doesn't support this action"
 msgstr "العنصر لا يدعم هذه الحركة"
 
-#: dlls/jscript/jscript.rc:36
+#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:54
 msgid "Argument not optional"
 msgstr "المتغير ليس اختياريًا"
 
@@ -13643,7 +13643,7 @@ msgstr "العنصر لا يدعم هذه الحركة"
 msgid "Object doesn't support current locale setting"
 msgstr "العنصر لا يدعم هذه الحركة"
 
-#: dlls/vbscript/vbscript.rc:53 dlls/vbscript/vbscript.rc:54
+#: dlls/vbscript/vbscript.rc:53
 #, fuzzy
 #| msgid "Element not found.\n"
 msgid "Named argument not found"
@@ -19481,6 +19481,40 @@ msgstr "قيد التشغيل"
 #: programs/taskmgr/taskmgr.rc:325
 msgid "Task"
 msgstr "المهمة"
+
+#: programs/timeout/timeout.rc:28
+msgid "Usage: timeout /T <timeout> [</NOBREAK>]\n"
+msgstr ""
+
+#: programs/timeout/timeout.rc:29
+#, fuzzy
+#| msgid "Invalid command line.\n"
+msgid "TIMEOUT: Bad command line\n"
+msgstr "سطر الاوامر غير سليم.\n"
+
+#: programs/timeout/timeout.rc:30
+msgid "waiting since %d sec. "
+msgstr ""
+
+#: programs/timeout/timeout.rc:31
+msgid "press CTRL+C..."
+msgstr ""
+
+#: programs/timeout/timeout.rc:32
+#, fuzzy
+#| msgid "Press any key to continue... "
+msgid "press a key to continue..."
+msgstr "اضغط أي مفتاح للاستمرار... "
+
+#: programs/timeout/timeout.rc:33
+msgid "ERROR: not possible to redirect input\n"
+msgstr ""
+
+#: programs/timeout/timeout.rc:34
+msgid ""
+"ERROR: Timeout value out of range or invalid number. Valid range is -1 to "
+"99999.\n"
+msgstr ""
 
 #: programs/uninstaller/uninstaller.rc:29
 msgid "Wine Application Uninstaller"

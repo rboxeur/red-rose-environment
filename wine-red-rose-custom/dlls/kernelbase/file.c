@@ -896,6 +896,11 @@ HANDLE WINAPI DECLSPEC_HOTPATCH CreateFileW( LPCWSTR filename, DWORD access, DWO
          */
         if (status == STATUS_OBJECT_NAME_COLLISION)
             SetLastError( ERROR_FILE_EXISTS );
+        else if (status == STATUS_FILE_IS_A_DIRECTORY)
+        {
+            WCHAR last = filename[wcslen(filename) - 1];
+            SetLastError(last == '\\' ? ERROR_PATH_NOT_FOUND : ERROR_ACCESS_DENIED);
+        }
         else
             SetLastError( RtlNtStatusToDosError(status) );
     }
@@ -1377,6 +1382,15 @@ HANDLE WINAPI DECLSPEC_HOTPATCH FindFirstFileW( const WCHAR *filename, WIN32_FIN
     return FindFirstFileExW( filename, FindExInfoStandard, data, FindExSearchNameMatch, NULL, 0 );
 }
 
+/******************************************************************************
+ *     FindFirstFileNameW   (kernelbase.@)
+ */
+HANDLE WINAPI FindFirstFileNameW( const WCHAR *file_name, DWORD flags, DWORD *len, WCHAR *link_name )
+{
+    FIXME( "(%s, %lu, %p, %p): stub!\n", debugstr_w(file_name), flags, len, link_name );
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+    return INVALID_HANDLE_VALUE;
+}
 
 /**************************************************************************
  *	FindFirstStreamW   (kernelbase.@)
@@ -2581,7 +2595,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetTempPathW( DWORD count, LPWSTR path )
 DWORD WINAPI DECLSPEC_HOTPATCH GetTempPath2A(DWORD count, LPSTR path)
 {
     /* TODO: Set temp path to C:\Windows\SystemTemp\ when a SYSTEM process calls this function */
-    FIXME("(%lu, %s) semi-stub\n", count, path);
+    FIXME("(%lu, %p) semi-stub\n", count, path);
     return GetTempPathA(count, path);
 }
 
@@ -2592,7 +2606,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetTempPath2A(DWORD count, LPSTR path)
 DWORD WINAPI DECLSPEC_HOTPATCH GetTempPath2W(DWORD count, LPWSTR path)
 {
     /* TODO: Set temp path to C:\Windows\SystemTemp\ when a SYSTEM process calls this function */
-    FIXME("(%lu, %s) semi-stub\n", count, debugstr_w(path));
+    FIXME("(%lu, %p) semi-stub\n", count, path);
     return GetTempPathW(count, path);
 }
 

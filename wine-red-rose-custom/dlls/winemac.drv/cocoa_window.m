@@ -35,13 +35,6 @@
 
 #pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
 
-#if !defined(MAC_OS_X_VERSION_10_12) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
-/* Additional Mac virtual keycode, to complement those in Carbon's <HIToolbox/Events.h>. */
-enum {
-    kVK_RightCommand              = 0x36, /* Invented for Wine; was unused */
-};
-#endif
-
 
 @interface NSWindow (PrivatePreventsActivation)
 
@@ -2266,10 +2259,8 @@ static CVReturn WineDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTi
         NSScreen* screen = self.screen;
         if (![self isVisible] || ![self isOnActiveSpace] || [self isMiniaturized] || [self isEmptyShaped])
             screen = nil;
-#if defined(MAC_OS_X_VERSION_10_9) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_9
-        if ([self respondsToSelector:@selector(occlusionState)] && !(self.occlusionState & NSWindowOcclusionStateVisible))
+        if (!(self.occlusionState & NSWindowOcclusionStateVisible))
             screen = nil;
-#endif
 
         NSNumber* displayIDNumber = screen.deviceDescription[@"NSScreenNumber"];
         CGDirectDisplayID displayID = [displayIDNumber unsignedIntValue];
@@ -2301,6 +2292,20 @@ static CVReturn WineDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTi
     {
         CAShapeLayer* mask = (CAShapeLayer*)[[self contentView] layer].mask;
         return ([mask isEmptyShaped]);
+    }
+
+    - (BOOL) presentsVisibleContent
+    {
+        if (NSWidth(self.frame) > 0 && NSHeight(self.frame) > 0 && ![self isEmptyShaped])
+            return YES;
+
+        for (WineWindow *child in self.childWindows)
+        {
+            if ([child isKindOfClass:[WineWindow class]] && [child presentsVisibleContent])
+                return YES;
+        }
+
+        return NO;
     }
 
     - (BOOL) canProvideSnapshot
@@ -3784,10 +3789,6 @@ void macdrv_set_view_superview(macdrv_view v, macdrv_view s, macdrv_window w, ma
         WineWindow* oldWindow = (WineWindow*)[view window];
         WineWindow* newWindow = (WineWindow*)[superview window];
 
-#if !defined(MAC_OS_X_VERSION_10_10) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10
-        if (floor(NSAppKitVersionNumber) <= 1265 /*NSAppKitVersionNumber10_9*/)
-            [view removeFromSuperview];
-#endif
         if (prev)
             [superview addSubview:view positioned:NSWindowBelow relativeTo:prev];
         else
@@ -3858,15 +3859,7 @@ macdrv_metal_device macdrv_create_metal_device(void)
 {
 @autoreleasepool
 {
-    macdrv_metal_device ret;
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_11
-    if (MTLCreateSystemDefaultDevice == NULL)
-        return NULL;
-#endif
-
-    ret = (macdrv_metal_device)MTLCreateSystemDefaultDevice();
-    return ret;
+    return (macdrv_metal_device)MTLCreateSystemDefaultDevice();
 }
 }
 
@@ -3974,9 +3967,13 @@ uint32_t macdrv_window_background_color(void)
 }
 
 /***********************************************************************
- *              macdrv_send_text_input_event
+ *              macdrv_send_keydown_to_input_source
+ *
+ * Sends a key down event to the active window's inputContext so that it can be
+ * processed by input sources (AKA IMEs). This is only called when there is an
+ * active non-keyboard input source.
  */
-void macdrv_send_text_input_event(int pressed, unsigned int flags, int repeat, int keyc, void* himc, int* done)
+void macdrv_send_keydown_to_input_source(unsigned int flags, int repeat, int keyc, void* himc, int* done)
 {
     OnMainThreadAsync(^{
         BOOL ret;
@@ -4001,7 +3998,7 @@ void macdrv_send_text_input_event(int pressed, unsigned int flags, int repeat, i
             // An NSEvent created with +keyEventWithType:... is internally marked
             // as synthetic and doesn't get sent through input methods.  But one
             // created from a CGEvent doesn't have that problem.
-            c = CGEventCreateKeyboardEvent(NULL, keyc, pressed);
+            c = CGEventCreateKeyboardEvent(NULL, keyc, true);
             CGEventSetFlags(c, localFlags);
             CGEventSetIntegerValueField(c, kCGKeyboardEventAutorepeat, repeat);
             event = [NSEvent eventWithCGEvent:c];

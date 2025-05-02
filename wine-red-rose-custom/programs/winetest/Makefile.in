@@ -1,5 +1,6 @@
 MODULE    = winetest.exe
-IMPORTS   = uuid comctl32 version user32 gdi32 advapi32 wsock32 msvcrt
+IMPORTS   = uuid comctl32 version user32 gdi32 advapi32 wsock32 msvcrt $(ZLIB_PE_LIBS)
+EXTRAINCL = $(ZLIB_PE_CFLAGS)
 DELAYIMPORTS = ole32
 
 EXTRADLLFLAGS = -mconsole

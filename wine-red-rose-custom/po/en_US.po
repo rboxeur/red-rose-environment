@@ -3919,7 +3919,7 @@ msgstr "Object doesn't support this property or method"
 msgid "Object doesn't support this action"
 msgstr "Object doesn't support this action"
 
-#: dlls/jscript/jscript.rc:36
+#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:54
 msgid "Argument not optional"
 msgstr "Argument not optional"
 
@@ -12573,7 +12573,7 @@ msgstr "Object doesn't support named arguments"
 msgid "Object doesn't support current locale setting"
 msgstr "Object doesn't support current locale setting"
 
-#: dlls/vbscript/vbscript.rc:53 dlls/vbscript/vbscript.rc:54
+#: dlls/vbscript/vbscript.rc:53
 msgid "Named argument not found"
 msgstr "Named argument not found"
 
@@ -18209,6 +18209,38 @@ msgstr "Running"
 #: programs/taskmgr/taskmgr.rc:325
 msgid "Task"
 msgstr "Task"
+
+#: programs/timeout/timeout.rc:28
+msgid "Usage: timeout /T <timeout> [</NOBREAK>]\n"
+msgstr "Usage: timeout /T <timeout> [</NOBREAK>]\n"
+
+#: programs/timeout/timeout.rc:29
+msgid "TIMEOUT: Bad command line\n"
+msgstr "TIMEOUT: Bad command line\n"
+
+#: programs/timeout/timeout.rc:30
+msgid "waiting since %d sec. "
+msgstr "waiting since %d sec. "
+
+#: programs/timeout/timeout.rc:31
+msgid "press CTRL+C..."
+msgstr "press CTRL+C..."
+
+#: programs/timeout/timeout.rc:32
+msgid "press a key to continue..."
+msgstr "press a key to continue..."
+
+#: programs/timeout/timeout.rc:33
+msgid "ERROR: not possible to redirect input\n"
+msgstr "ERROR: not possible to redirect input\n"
+
+#: programs/timeout/timeout.rc:34
+msgid ""
+"ERROR: Timeout value out of range or invalid number. Valid range is -1 to "
+"99999.\n"
+msgstr ""
+"ERROR: Timeout value out of range or invalid number. Valid range is -1 to "
+"99999.\n"
 
 #: programs/uninstaller/uninstaller.rc:29
 msgid "Wine Application Uninstaller"

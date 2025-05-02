@@ -646,7 +646,8 @@ static HRESULT on_default_action(FileDialogImpl *This)
         /* Add the proper extension */
         if(open_action == ONOPEN_OPEN)
         {
-            WCHAR extbuf[MAX_PATH], *newext = NULL;
+            WCHAR *extbuf, *newext = NULL;
+            extbuf = malloc(sizeof(WCHAR) * MAX_PATH);
 
             if(This->current_filter)
             {
@@ -691,6 +692,8 @@ static HRESULT on_default_action(FileDialogImpl *This)
                     }
                 }
             }
+
+            free(extbuf);
         } else if (open_action == ONOPEN_SEARCH) {
             filter = fn_iter;
         }
@@ -2561,6 +2564,8 @@ static HRESULT WINAPI IFileDialog2_fnSetFileTypeIndex(IFileDialog2 *iface, UINT 
     iFileType = max(iFileType, 1);
     iFileType = min(iFileType, This->filterspec_count);
     This->filetypeindex = iFileType-1;
+
+    set_current_filter(This, This->filterspecs[This->filetypeindex].pszSpec);
 
     return S_OK;
 }
