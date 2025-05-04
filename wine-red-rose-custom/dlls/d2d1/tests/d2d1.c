@@ -14480,6 +14480,150 @@ static void test_dc_target_is_supported(BOOL d3d11)
     release_test_context(&ctx);
 }
 
+static void test_no_target(BOOL d3d11)
+{
+    D2D1_BITMAP_PROPERTIES bitmap_desc;
+    IDWriteFactory *dwrite_factory;
+    IDWriteTextFormat *text_format;
+    struct d2d1_test_context ctx;
+    ID2D1SolidColorBrush *brush;
+    ID2D1DeviceContext *context;
+    D2D1_MATRIX_3X2_F matrix;
+    ID2D1RenderTarget *rt;
+    ID2D1Bitmap *bitmap;
+    ID2D1Device *device;
+    D2D1_COLOR_F color;
+    D2D1_SIZE_U size;
+    D2D1_RECT_F rect;
+    D2D1_TAG t1, t2;
+    HRESULT hr;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    if (!ctx.factory1)
+    {
+        win_skip("ID2D1Factory1 is not supported.\n");
+        release_test_context(&ctx);
+        return;
+    }
+
+    hr = ID2D1Factory1_CreateDevice(ctx.factory1, ctx.device, &device);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    hr = ID2D1Device_CreateDeviceContext(device, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &context);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    ID2D1DeviceContext_SetTarget(context, NULL);
+
+    hr = ID2D1DeviceContext_QueryInterface(context, &IID_ID2D1RenderTarget, (void **)&rt);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    /* Clear method */
+    ID2D1RenderTarget_BeginDraw(rt);
+
+    set_matrix_identity(&matrix);
+    ID2D1RenderTarget_SetTags(rt, 0x10, 0x10);
+    ID2D1RenderTarget_SetTransform(rt, &matrix);
+
+    ID2D1RenderTarget_SetTags(rt, 0x10, 0x20);
+    ID2D1RenderTarget_Clear(rt, 0);
+
+    ID2D1RenderTarget_SetTags(rt, 0x10, 0x30);
+    ID2D1RenderTarget_Clear(rt, 0);
+
+    hr = ID2D1RenderTarget_EndDraw(rt, &t1, &t2);
+    ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
+    ok(t1 == 0x10 && t2 == 0x20, "Unexpected tags %s:%s.\n", wine_dbgstr_longlong(t1), wine_dbgstr_longlong(t2));
+
+    /* DrawBitmap method */
+    set_size_u(&size, 4, 4);
+    bitmap_desc.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    bitmap_desc.pixelFormat.alphaMode = D2D1_ALPHA_MODE_IGNORE;
+    bitmap_desc.dpiX = 96.0f;
+    bitmap_desc.dpiY = 96.0f;
+    hr = ID2D1RenderTarget_CreateBitmap(rt, size, NULL, 0, &bitmap_desc, &bitmap);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    ID2D1RenderTarget_BeginDraw(rt);
+
+    ID2D1DeviceContext_SetTags(context, 0x20, 0x10);
+    ID2D1DeviceContext_SetPrimitiveBlend(context, D2D1_PRIMITIVE_BLEND_SOURCE_OVER);
+
+    ID2D1RenderTarget_SetTags(rt, 0x20, 0x20);
+    ID2D1RenderTarget_DrawBitmap(rt, bitmap, NULL, 1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, NULL);
+
+    ID2D1RenderTarget_SetTags(rt, 0x20, 0x30);
+    ID2D1RenderTarget_DrawBitmap(rt, bitmap, NULL, 1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, NULL);
+
+    hr = ID2D1RenderTarget_EndDraw(rt, &t1, &t2);
+    ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
+    ok(t1 == 0x20 && t2 == 0x20, "Unexpected tags %s:%s.\n", wine_dbgstr_longlong(t1), wine_dbgstr_longlong(t2));
+
+    ID2D1Bitmap_Release(bitmap);
+
+    /* DrawRectagnle method */
+    set_color(&color, 0.0f, 0.0f, 0.0f, 0.0f);
+    hr = ID2D1RenderTarget_CreateSolidColorBrush(rt, &color, NULL, &brush);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    set_rect(&rect, 0.0f, 0.0f, 1.0f, 1.0f);
+
+    ID2D1RenderTarget_BeginDraw(rt);
+
+    ID2D1RenderTarget_SetTags(rt, 0x30, 0x10);
+    ID2D1RenderTarget_DrawRectangle(rt, &rect, (ID2D1Brush *)brush, 1.0f, NULL);
+
+    ID2D1RenderTarget_SetTags(rt, 0x30, 0x20);
+    ID2D1RenderTarget_DrawRectangle(rt, &rect, (ID2D1Brush *)brush, 1.0f, NULL);
+
+    hr = ID2D1RenderTarget_EndDraw(rt, &t1, &t2);
+    ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
+    ok(t1 == 0x30 && t2 == 0x10, "Unexpected tags %s:%s.\n", wine_dbgstr_longlong(t1), wine_dbgstr_longlong(t2));
+
+    /* FillRectangle method */
+    ID2D1RenderTarget_BeginDraw(rt);
+
+    ID2D1RenderTarget_SetTags(rt, 0x40, 0x10);
+    ID2D1RenderTarget_FillRectangle(rt, &rect, (ID2D1Brush *)brush);
+
+    ID2D1RenderTarget_SetTags(rt, 0x40, 0x20);
+    ID2D1RenderTarget_FillRectangle(rt, &rect, (ID2D1Brush *)brush);
+
+    hr = ID2D1RenderTarget_EndDraw(rt, &t1, &t2);
+    ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
+    ok(t1 == 0x40 && t2 == 0x10, "Unexpected tags %s:%s.\n", wine_dbgstr_longlong(t1), wine_dbgstr_longlong(t2));
+
+    /* DrawText method */
+    hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, &IID_IDWriteFactory, (IUnknown **)&dwrite_factory);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = IDWriteFactory_CreateTextFormat(dwrite_factory, L"Tahoma", NULL, DWRITE_FONT_WEIGHT_NORMAL,
+            DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 10.0f, L"", &text_format);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    ID2D1RenderTarget_BeginDraw(rt);
+
+    ID2D1RenderTarget_SetTags(rt, 0x50, 0x10);
+    ID2D1RenderTarget_DrawText(rt, L"Wine", 4, text_format, &rect, (ID2D1Brush *)brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
+
+    ID2D1RenderTarget_SetTags(rt, 0x50, 0x20);
+    ID2D1RenderTarget_DrawText(rt, L"Wine", 4, text_format, &rect, (ID2D1Brush *)brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
+
+    hr = ID2D1RenderTarget_EndDraw(rt, &t1, &t2);
+    ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
+    ok(t1 == 0x50 && t2 == 0x10, "Unexpected tags %s:%s.\n", wine_dbgstr_longlong(t1), wine_dbgstr_longlong(t2));
+
+    IDWriteTextFormat_Release(text_format);
+    IDWriteFactory_Release(dwrite_factory);
+
+    ID2D1SolidColorBrush_Release(brush);
+
+    ID2D1RenderTarget_Release(rt);
+    ID2D1DeviceContext_Release(context);
+    ID2D1Device_Release(device);
+    release_test_context(&ctx);
+}
+
 START_TEST(d2d1)
 {
     HMODULE d2d1_dll = GetModuleHandleA("d2d1.dll");
