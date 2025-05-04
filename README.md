@@ -4,7 +4,7 @@
     <img src='red-rose.png' align='center'/>
 </p>
 
-##About
+## About
 
 This repository provides my Wine build to play native Windows games on Linux.
 
