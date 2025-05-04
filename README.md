@@ -11,6 +11,10 @@ All my Wine builds followed all commits before the switch from Proton 9 to Proto
 
 Wine is built using a customized/enhanced environment based on the one provided by default by [Kron4ek](https://github.com/Kron4ek/Wine-Builds)
 
+## Be carefull!!!
+
+This Wine repository is purely experimental. I am doing all of this just for fun. I am not responsible if if could break your Linux system
+
 ### Used repositories. Backporting Wine merge requests and bug fixed from Wine 9 and 10
 
 To keep it up-to-date then a few patches were applied from repositories listed below. (chosen patches are re-written -- if needed)
