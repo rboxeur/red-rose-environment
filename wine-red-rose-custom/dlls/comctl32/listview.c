@@ -1023,34 +1023,6 @@ static BOOL notify_dispinfoT(const LISTVIEW_INFO *infoPtr, UINT code, LPNMLVDISP
     return ret;
 }
 
-static int notify_odfinditem(const LISTVIEW_INFO *infoPtr, NMLVFINDITEMW *nmlv)
-{
-    NMLVFINDITEMA nmlva;
-    char *str = NULL;
-    int len, ret;
-
-    if (infoPtr->notifyFormat == NFR_UNICODE)
-        return notify_hdr(infoPtr, LVN_ODFINDITEMW, &nmlv->hdr);
-
-    /* A/W layout is the same, the only difference is string encoding. */
-    memcpy(&nmlva, nmlv, sizeof(nmlva));
-    nmlva.lvfi.psz = NULL;
-
-    if (nmlv->lvfi.psz)
-    {
-        len = WideCharToMultiByte(CP_ACP, 0, nmlv->lvfi.psz, -1, NULL, 0, NULL, NULL);
-        str = Alloc(len);
-        if (!str) return 0;
-        WideCharToMultiByte(CP_ACP, 0, nmlv->lvfi.psz, -1, str, len, NULL, NULL);
-        nmlva.lvfi.psz = str;
-    }
-
-    ret = notify_hdr(infoPtr, LVN_ODFINDITEMA, &nmlva.hdr);
-    Free(str);
-
-    return ret;
-}
-
 static void customdraw_fill(NMLVCUSTOMDRAW *lpnmlvcd, const LISTVIEW_INFO *infoPtr, HDC hdc,
 			    const RECT *rcBounds, const LVITEMW *lplvItem)
 {
@@ -1945,7 +1917,7 @@ static INT LISTVIEW_ProcessLetterKeys(LISTVIEW_INFO *infoPtr, WPARAM charCode, L
 
         infoPtr->szSearchParam[infoPtr->nSearchParamLength] = 0;
 
-        nItem = notify_odfinditem(infoPtr, &nmlv);
+        nItem = notify_hdr(infoPtr, LVN_ODFINDITEMW, (LPNMHDR)&nmlv.hdr);
     }
     else
     {
@@ -2310,30 +2282,7 @@ static void LISTVIEW_GetItemOrigin(const LISTVIEW_INFO *infoPtr, INT nItem, LPPO
 	lpptPosition->y = nItem * infoPtr->nItemHeight;
     }
 }
-
-/* wrapper for DrawTextW, so that we remove the characters that native doesn't display (Win10) */
-static INT LISTVIEW_draw_text(HDC hdc, WCHAR *text, RECT *rect, unsigned format)
-{
-    static const WCHAR *totrim = L"\r\n";
-    WCHAR *buffer;
-    WCHAR *src, *dst;
-    INT ret;
-
-    if (!wcspbrk(text, totrim))
-        return DrawTextW(hdc, text, -1, rect, format);
-
-    buffer = wcsdup(text);
-    if (!buffer) return 0;
-    for (src = text, dst = buffer; *src; src++)
-    {
-        if (!wcschr(totrim, *src))
-            *dst++ = *src;
-    }
-    ret = DrawTextW(hdc, buffer, dst - buffer, rect, format);
-    free(buffer);
-    return ret;
-}
-
+    
 /***
  * DESCRIPTION:            [INTERNAL]
  * Compute the rectangles of an item.  This is to localize all
@@ -2525,8 +2474,8 @@ static void LISTVIEW_GetItemMetrics(const LISTVIEW_INFO *infoPtr, const LVITEMW 
 		uFormat = oversizedBox ? LV_FL_DT_FLAGS : LV_ML_DT_FLAGS;
 	    else
 		uFormat = LV_SL_DT_FLAGS;
-
-	    LISTVIEW_draw_text(hdc, lpLVItem->pszText, &rcText, uFormat | DT_CALCRECT);
+	    
+    	    DrawTextW (hdc, lpLVItem->pszText, -1, &rcText, uFormat | DT_CALCRECT);
 
 	    if (rcText.right != rcText.left)
 	        labelSize.cx = min(rcText.right - rcText.left + TRAILING_LABEL_PADDING, infoPtr->nItemWidth);
@@ -4793,7 +4742,7 @@ static void LISTVIEW_DrawItemPart(LISTVIEW_INFO *infoPtr, LVITEMW *item, const N
     if (infoPtr->uView == LV_VIEW_DETAILS && infoPtr->dwLvExStyle & LVS_EX_GRIDLINES)
         rcLabel.bottom--;
 
-    LISTVIEW_draw_text(nmlvcd->nmcd.hdc, item->pszText, &rcLabel, format);
+    DrawTextW(nmlvcd->nmcd.hdc, item->pszText, -1, &rcLabel, format);
 }
 
 /***
@@ -6351,7 +6300,7 @@ static INT LISTVIEW_FindItemW(const LISTVIEW_INFO *infoPtr, INT nStart,
 
         nmlv.iStart = nStart;
         nmlv.lvfi = *lpFindInfo;
-        return notify_odfinditem(infoPtr, &nmlv);
+        return notify_hdr(infoPtr, LVN_ODFINDITEMW, (LPNMHDR)&nmlv.hdr);
     }
 
     if (!lpFindInfo || nItem < 0) return -1;
@@ -10779,22 +10728,14 @@ static LRESULT LISTVIEW_NCPaint(const LISTVIEW_INFO *infoPtr, HRGN region)
     if (!theme || !(exstyle & WS_EX_CLIENTEDGE))
        return DefWindowProcW (infoPtr->hwndSelf, WM_NCPAINT, (WPARAM)region, 0);
 
-    GetClientRect(infoPtr->hwndSelf, &r);
-    cliprgn = CreateRectRgn(r.left, r.top, r.right, r.bottom);
-    if (region > (HRGN)1)
-    {
-        CombineRgn(cliprgn, region, cliprgn, RGN_DIFF);
-        dc = GetDCEx(infoPtr->hwndSelf, cliprgn, DCX_USESTYLE | DCX_WINDOW | DCX_INTERSECTRGN);
-    }
-    else
-        dc = GetDCEx(infoPtr->hwndSelf, cliprgn, DCX_USESTYLE | DCX_WINDOW | DCX_EXCLUDERGN);
-
     GetWindowRect(infoPtr->hwndSelf, &r);
+
     cliprgn = CreateRectRgn (r.left + cxEdge, r.top + cyEdge,
         r.right - cxEdge, r.bottom - cyEdge);
     if (region != (HRGN)1)
         CombineRgn (cliprgn, cliprgn, region, RGN_AND);
 
+    dc = GetDCEx(infoPtr->hwndSelf, region, DCX_WINDOW | DCX_INTERSECTRGN);
     if (infoPtr->hwndHeader && LISTVIEW_IsHeaderEnabled(infoPtr))
     {
         GetWindowRect(infoPtr->hwndHeader, &window_rect);

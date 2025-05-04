@@ -1378,12 +1378,10 @@ static void test_items(void)
 {
     const LPARAM lparamTest = 0x42;
     static CHAR text[] = "Text";
-    static CHAR textnl[] = "T\re\nxt";
     char buffA[5];
-    char buffB[7];
     HWND hwnd;
     LVITEMA item;
-    DWORD r, r2;
+    DWORD r;
 
     hwnd = CreateWindowExA(0, WC_LISTVIEWA, "foo", LVS_REPORT,
                 10, 10, 100, 200, hwndparent, NULL, NULL, NULL);
@@ -1501,29 +1499,6 @@ static void test_items(void)
     r = SendMessageA(hwnd, LVM_GETITEMA, 0, (LPARAM) &item);
     expect(1, r);
     ok(!memcmp(item.pszText, text, sizeof(text)), "got text %s, expected %s\n", item.pszText, text);
-
-    /* Set up a subitem with special characters */
-    memset (&item, 0xcc, sizeof (item));
-    item.mask = LVIF_TEXT;
-    item.iItem = 0;
-    item.iSubItem = 1;
-    item.pszText = textnl;
-    r = SendMessageA(hwnd, LVM_SETITEMA, 0, (LPARAM) &item);
-    expect(1, r);
-
-    item.mask = LVIF_TEXT;
-    item.iItem = 0;
-    item.iSubItem = 1;
-    item.pszText = buffB;
-    item.cchTextMax = sizeof(buffB);
-    r = SendMessageA(hwnd, LVM_GETITEMA, 0, (LPARAM) &item);
-    expect(1, r);
-    ok(!memcmp(item.pszText, textnl, sizeof(textnl)), "got text %s, expected %s\n", item.pszText, textnl);
-
-    r = SendMessageA(hwnd, LVM_GETSTRINGWIDTHA, 0, (LPARAM) text);
-    ok(r > 0, "Expected non null width\n");
-    r2 = SendMessageA(hwnd, LVM_GETSTRINGWIDTHA, 0, (LPARAM) textnl);
-    ok(r2 > r, "Expected a greater width\n");
 
     /* set up with extra flag */
     /* 1. reset subitem text */
@@ -5586,24 +5561,10 @@ todo_wine {
 
 }
 
-static const struct message finditem_ownerdata_parent_seq[] =
+static void test_finditem(void)
 {
-    { WM_NOTIFY, sent|id|wparam, 0, 0, LVN_ODFINDITEMA },
-    { 0 }
-};
-
-static const struct message finditem_ownerdata_parent_seq2[] =
-{
-    { WM_NOTIFY, sent|id|wparam, 0, 0, LVN_ODFINDITEMW },
-    { 0 }
-};
-
-static void test_LVM_FINDITEM(void)
-{
-    LVFINDINFOW fiW;
     LVFINDINFOA fi;
     static char f[5];
-    WCHAR strW[5];
     HWND hwnd;
     INT r;
 
@@ -5611,7 +5572,6 @@ static void test_LVM_FINDITEM(void)
     insert_item(hwnd, 0);
 
     memset(&fi, 0, sizeof(fi));
-    memset(&fiW, 0, sizeof(fiW));
 
     /* full string search, inserted text was "foo" */
     strcpy(f, "foo");
@@ -5695,51 +5655,6 @@ static void test_LVM_FINDITEM(void)
     fi.psz = f;
     r = SendMessageA(hwnd, LVM_FINDITEMA, -1, (LPARAM)&fi);
     ok(!r, "Unexpected item index %d.\n", r);
-
-    DestroyWindow(hwnd);
-
-    /* LVS_OWNERDATA */
-    hwnd = create_listview_control(LVS_REPORT | LVS_OWNERDATA);
-    ok(!!hwnd, "Failed to create alistview window.\n");
-
-    flush_sequences(sequences, NUM_MSG_SEQUENCES);
-    strcpy(f, "foo");
-    fi.flags = LVFI_STRING;
-    fi.psz = f;
-    r = SendMessageA(hwnd, LVM_FINDITEMA, -1, (LPARAM)&fi);
-    ok(!r, "Unexpected return value %d.\n", r);
-    ok_sequence(sequences, PARENT_SEQ_INDEX, finditem_ownerdata_parent_seq, "LVM_FINDITEMA owner data test", FALSE);
-
-    flush_sequences(sequences, NUM_MSG_SEQUENCES);
-    wcscpy(strW, L"foo");
-    fiW.flags = LVFI_STRING;
-    fiW.psz = strW;
-    r = SendMessageA(hwnd, LVM_FINDITEMW, -1, (LPARAM)&fiW);
-    ok(!r, "Unexpected return value %d.\n", r);
-    ok_sequence(sequences, PARENT_SEQ_INDEX, finditem_ownerdata_parent_seq, "LVM_FINDITEMW owner data test", FALSE);
-
-    /* Force Unicode notifications */
-    notifyFormat = NFR_UNICODE;
-    r = SendMessageA(hwnd, WM_NOTIFYFORMAT, 0, NF_REQUERY);
-    ok(r == NFR_UNICODE, "Unexpected return value %d.\n", r);
-
-    flush_sequences(sequences, NUM_MSG_SEQUENCES);
-    strcpy(f, "foo");
-    fi.flags = LVFI_STRING;
-    fi.psz = f;
-    r = SendMessageA(hwnd, LVM_FINDITEMA, -1, (LPARAM)&fi);
-    ok(!r, "Unexpected return value %d.\n", r);
-    ok_sequence(sequences, PARENT_SEQ_INDEX, finditem_ownerdata_parent_seq2, "LVM_FINDITEMA(W) owner data test", FALSE);
-
-    flush_sequences(sequences, NUM_MSG_SEQUENCES);
-    wcscpy(strW, L"foo");
-    fiW.flags = LVFI_STRING;
-    fiW.psz = strW;
-    r = SendMessageA(hwnd, LVM_FINDITEMW, -1, (LPARAM)&fiW);
-    ok(!r, "Unexpected return value %d.\n", r);
-    ok_sequence(sequences, PARENT_SEQ_INDEX, finditem_ownerdata_parent_seq2, "LVM_FINDITEMW(W) owner data test", FALSE);
-
-    notifyFormat = -1;
 
     DestroyWindow(hwnd);
 }
@@ -7456,7 +7371,7 @@ START_TEST(listview)
     test_getitemspacing();
     test_getcolumnwidth();
     test_approximate_viewrect();
-    test_LVM_FINDITEM();
+    test_finditem();
     test_hover();
     test_destroynotify();
     test_createdragimage();
@@ -7510,7 +7425,7 @@ START_TEST(listview)
     test_norecompute();
     test_nosortheader();
     test_indentation();
-    test_LVM_FINDITEM();
+    test_finditem();
     test_hover();
     test_destroynotify();
     test_createdragimage();

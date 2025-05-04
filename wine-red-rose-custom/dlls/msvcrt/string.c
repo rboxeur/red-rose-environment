@@ -480,9 +480,9 @@ int fpnum_ldouble(struct fpnum *fp, MSVCRT__LDOUBLE *d)
     {
         d->x80[0] = 0;
         d->x80[1] = 0x80000000;
-        d->x80_2 = (1 << LDBL_EXP_BITS) - 1;
+        d->x80[2] = (1 << LDBL_EXP_BITS) - 1;
         if (fp->sign == -1)
-            d->x80_2 |= 1 << LDBL_EXP_BITS;
+            d->x80[2] |= 1 << LDBL_EXP_BITS;
         return 0;
     }
 
@@ -490,9 +490,9 @@ int fpnum_ldouble(struct fpnum *fp, MSVCRT__LDOUBLE *d)
     {
         d->x80[0] = ~0;
         d->x80[1] = ~0;
-        d->x80_2 = (1 << LDBL_EXP_BITS) - 1;
+        d->x80[2] = (1 << LDBL_EXP_BITS) - 1;
         if (fp->sign == -1)
-            d->x80_2 |= 1 << LDBL_EXP_BITS;
+            d->x80[2] |= 1 << LDBL_EXP_BITS;
         return 0;
     }
 
@@ -502,9 +502,9 @@ int fpnum_ldouble(struct fpnum *fp, MSVCRT__LDOUBLE *d)
     {
         d->x80[0] = 0;
         d->x80[1] = 0;
-        d->x80_2 = 0;
+        d->x80[2] = 0;
         if (fp->sign == -1)
-            d->x80_2 |= 1 << LDBL_EXP_BITS;
+            d->x80[2] |= 1 << LDBL_EXP_BITS;
         return 0;
     }
 
@@ -513,18 +513,18 @@ int fpnum_ldouble(struct fpnum *fp, MSVCRT__LDOUBLE *d)
     {
         d->x80[0] = 0;
         d->x80[1] = 0x80000000;
-        d->x80_2 = (1 << LDBL_EXP_BITS) - 1;
+        d->x80[2] = (1 << LDBL_EXP_BITS) - 1;
         if (fp->sign == -1)
-            d->x80_2 |= 1 << LDBL_EXP_BITS;
+            d->x80[2] |= 1 << LDBL_EXP_BITS;
         return ERANGE;
     }
     if (fp->exp < -(1<<LDBL_EXP_BITS))
     {
         d->x80[0] = 0;
         d->x80[1] = 0;
-        d->x80_2 = 0;
+        d->x80[2] = 0;
         if (fp->sign == -1)
-            d->x80_2 |= 1 << LDBL_EXP_BITS;
+            d->x80[2] |= 1 << LDBL_EXP_BITS;
         return ERANGE;
     }
     fp->exp += LDBL_MANT_BITS - 1;
@@ -575,26 +575,26 @@ int fpnum_ldouble(struct fpnum *fp, MSVCRT__LDOUBLE *d)
     {
         d->x80[0] = 0;
         d->x80[1] = 0x80000000;
-        d->x80_2 = (1 << LDBL_EXP_BITS) - 1;
+        d->x80[2] = (1 << LDBL_EXP_BITS) - 1;
         if (fp->sign == -1)
-            d->x80_2 |= 1 << LDBL_EXP_BITS;
+            d->x80[2] |= 1 << LDBL_EXP_BITS;
         return ERANGE;
     }
     if (!fp->m || fp->exp < 0)
     {
         d->x80[0] = 0;
         d->x80[1] = 0;
-        d->x80_2 = 0;
+        d->x80[2] = 0;
         if (fp->sign == -1)
-            d->x80_2 |= 1 << LDBL_EXP_BITS;
+            d->x80[2] |= 1 << LDBL_EXP_BITS;
         return ERANGE;
     }
 
     d->x80[0] = fp->m;
     d->x80[1] = fp->m >> 32;
-    d->x80_2 = fp->exp;
+    d->x80[2] = fp->exp;
     if (fp->sign == -1)
-        d->x80_2 |= 1 << LDBL_EXP_BITS;
+        d->x80[2] |= 1 << LDBL_EXP_BITS;
     return 0;
 }
 
@@ -1525,7 +1525,7 @@ int CDECL __STRINGTOLD_L( MSVCRT__LDOUBLE *value, char **endptr,
     if (p == beg) ret = 4;
 
     err = fpnum_ldouble(&fp, value);
-    if (err) ret = (value->x80_2 & 0x7fff ? 2 : 1);
+    if (err) ret = (value->x80[2] & 0x7fff ? 2 : 1);
     return ret;
 }
 
@@ -2665,20 +2665,20 @@ int CDECL I10_OUTPUT(MSVCRT__LDOUBLE ld80, int prec, int flag, struct _I10_OUTPU
     char buf[I10_OUTPUT_MAX_PREC+9]; /* 9 = strlen("0.e+0000") + '\0' */
     char *p;
 
-    if ((ld80.x80_2 & 0x7fff) == 0x7fff)
+    if ((ld80.x80[2] & 0x7fff) == 0x7fff)
     {
         if (ld80.x80[0] == 0 && ld80.x80[1] == 0x80000000)
             strcpy( data->str, "1#INF" );
         else
             strcpy( data->str, (ld80.x80[1] & 0x40000000) ? "1#QNAN" : "1#SNAN" );
         data->pos = 1;
-        data->sign = (ld80.x80_2 & 0x8000) ? '-' : ' ';
+        data->sign = (ld80.x80[2] & 0x8000) ? '-' : ' ';
         data->len = strlen(data->str);
         return 0;
     }
 
-    num.sign = (ld80.x80_2 & 0x8000) ? -1 : 1;
-    num.exp  = (ld80.x80_2 & 0x7fff) - 0x3fff - 63;
+    num.sign = (ld80.x80[2] & 0x8000) ? -1 : 1;
+    num.exp  = (ld80.x80[2] & 0x7fff) - 0x3fff - 63;
     num.m    = ld80.x80[0] | ((ULONGLONG)ld80.x80[1] << 32);
     num.mod  = FP_ROUND_EVEN;
     fpnum_double( &num, &d );
