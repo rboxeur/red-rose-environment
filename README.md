@@ -1,5 +1,7 @@
 # Red Rose: Wine from GE-Proton 9 with chaotic stuffs
 
+![redrose](red-rose.png)
+
 This repository provides my Wine build to play native Windows games on Linux.
 
 It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom). It is based on  
