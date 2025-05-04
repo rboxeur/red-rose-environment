@@ -1,6 +1,10 @@
 # Red Rose: Wine from GE-Proton 9 with chaotic stuffs
 
-![redrose](red-rose.png)
+<p align="center" width="100%">
+    <img src='red-rose.png' align='center'/>
+</p>
+
+##About
 
 This repository provides my Wine build to play native Windows games on Linux.
 
