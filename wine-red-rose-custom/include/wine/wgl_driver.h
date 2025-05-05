@@ -7,7 +7,7 @@
 #define WINE_GLAPI
 #endif
 
-#define WINE_WGL_DRIVER_VERSION 36
+#define WINE_WGL_DRIVER_VERSION 37
 
 struct wgl_context;
 struct wgl_pbuffer;

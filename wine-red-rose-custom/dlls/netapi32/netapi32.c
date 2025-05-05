@@ -179,6 +179,7 @@ NET_API_STATUS WINAPI NetServerGetInfo(LMSTR servername, DWORD level, LPBYTE* bu
 
     TRACE("%s %ld %p\n", debugstr_w( servername ), level, bufptr );
 
+    if (!bufptr) return ERROR_INVALID_PARAMETER;
     if (!local)
     {
         if (samba_init())
@@ -188,17 +189,16 @@ NET_API_STATUS WINAPI NetServerGetInfo(LMSTR servername, DWORD level, LPBYTE* bu
 
             for (;;)
             {
-                if (!(params.buffer = malloc( size ))) return ERROR_OUTOFMEMORY;
+                if ((ret = NetApiBufferAllocate( size, &params.buffer ))) return ret;
                 ret = SAMBA_CALL( server_getinfo, &params );
                 if (!ret) *bufptr = params.buffer;
-                else free( params.buffer );
+                else NetApiBufferFree( params.buffer );
                 if (ret != ERROR_INSUFFICIENT_BUFFER) return ret;
             }
         }
         FIXME( "remote computers not supported\n" );
         return ERROR_INVALID_LEVEL;
     }
-    if (!bufptr) return ERROR_INVALID_PARAMETER;
 
     switch (level)
     {
@@ -913,6 +913,7 @@ NET_API_STATUS WINAPI NetWkstaGetInfo( LMSTR servername, DWORD level,
 
     TRACE("%s %ld %p\n", debugstr_w( servername ), level, bufptr );
 
+    if (!bufptr) return ERROR_INVALID_PARAMETER;
     if (!local)
     {
         if (samba_init())
@@ -922,17 +923,16 @@ NET_API_STATUS WINAPI NetWkstaGetInfo( LMSTR servername, DWORD level,
 
             for (;;)
             {
-                if (!(params.buffer = malloc( size ))) return ERROR_OUTOFMEMORY;
+                if ((ret = NetApiBufferAllocate( size, &params.buffer ))) return ret;
                 ret = SAMBA_CALL( wksta_getinfo, &params );
                 if (!ret) *bufptr = params.buffer;
-                else free( params.buffer );
+                else NetApiBufferFree( params.buffer );
                 if (ret != ERROR_INSUFFICIENT_BUFFER) return ret;
             }
         }
         FIXME( "remote computers not supported\n" );
         return ERROR_INVALID_LEVEL;
     }
-    if (!bufptr) return ERROR_INVALID_PARAMETER;
 
     switch (level)
     {
