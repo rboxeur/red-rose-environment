@@ -17849,6 +17849,283 @@ done:
     DestroyWindow(window);
 }
 
+static void test_swapchain_buffer_swapping(void) {
+    D3DPRESENT_PARAMETERS present_parameters = {0};
+    IDirect3DSurface9 *readback = NULL;
+    IDirect3DDevice9 *device = NULL;
+    IDirect3DSwapChain9 *swapchain;
+    IDirect3DSurface9 *backbuffer;
+    unsigned int expected_color;
+    struct surface_readback rb;
+    unsigned int color;
+    unsigned int i, j;
+    IDirect3D9 *d3d;
+    HWND window;
+    HRESULT hr;
+
+    static const D3DCOLOR test_colors[] = {
+        D3DCOLOR_RGBA(255, 0, 0, 128),
+        D3DCOLOR_RGBA(0, 255, 0, 128),
+        D3DCOLOR_RGBA(0, 0, 255, 128),
+        D3DCOLOR_RGBA(0, 255, 255, 128),
+        D3DCOLOR_RGBA(255, 255, 0, 128),
+        D3DCOLOR_RGBA(255, 0, 255, 128),
+        D3DCOLOR_RGBA(128, 128, 128, 128),
+    };
+
+    static const struct {
+        D3DSWAPEFFECT swap_effect;
+        unsigned int back_buffer_count;
+        bool fullscreen;
+        bool reset_succeeds;
+        unsigned int expected_backbuffer_color_index;
+    } test_data[] = {
+        { D3DSWAPEFFECT_DISCARD, 0, false, true, 6 },
+        { D3DSWAPEFFECT_DISCARD, 1, false, true, 6 },
+        { D3DSWAPEFFECT_DISCARD, 2, false, true, 4 },
+        { D3DSWAPEFFECT_DISCARD, 3, false, true, 3 },
+        { D3DSWAPEFFECT_FLIP, 0, false, true, 5 },
+        { D3DSWAPEFFECT_FLIP, 1, false, true, 5 },
+        { D3DSWAPEFFECT_FLIP, 2, false, true, 4 },
+        { D3DSWAPEFFECT_FLIP, 3, false, true, 3 },
+        { D3DSWAPEFFECT_COPY, 0, false, true, 6 },
+        { D3DSWAPEFFECT_COPY, 1, false, true, 6 },
+        { D3DSWAPEFFECT_COPY, 2, false, false, 5 },
+        { D3DSWAPEFFECT_COPY, 3, false, false, 4 },
+        { D3DSWAPEFFECT_DISCARD, 0, true, true, 5 },
+        { D3DSWAPEFFECT_DISCARD, 1, true, true, 5 },
+        { D3DSWAPEFFECT_DISCARD, 2, true, true, 4 },
+        { D3DSWAPEFFECT_DISCARD, 3, true, true, 3 },
+        { D3DSWAPEFFECT_FLIP, 0, true, true, 5 },
+        { D3DSWAPEFFECT_FLIP, 1, true, true, 5 },
+        { D3DSWAPEFFECT_FLIP, 2, true, true, 4 },
+        { D3DSWAPEFFECT_FLIP, 3, true, true, 3 },
+        { D3DSWAPEFFECT_COPY, 0, true, true, 6 },
+        { D3DSWAPEFFECT_COPY, 1, true, true, 6 },
+        { D3DSWAPEFFECT_COPY, 2, true, false, 5 },
+        { D3DSWAPEFFECT_COPY, 3, true, false, 4 },
+    };
+
+    d3d = Direct3DCreate9(D3D_SDK_VERSION);
+    ok(!!d3d, "Failed to create D3D object.\n");
+    window = create_window();
+    if (!(device = create_device(d3d, window, window, TRUE)))
+    {
+        skip("Failed to create a D3D device, skipping tests.\n");
+        goto done;
+    }
+
+    hr = IDirect3DDevice9_GetSwapChain(device, 0, &swapchain);
+    ok(hr == D3D_OK, "Failed to get the implicit swapchain, hr %#lx.\n", hr);
+    hr = IDirect3DSwapChain9_GetPresentParameters(swapchain, &present_parameters);
+    ok(hr == D3D_OK, "Failed to get present parameters, hr %#lx.\n", hr);
+    IDirect3DSwapChain9_Release(swapchain);
+
+    hr = IDirect3D9_CreateDevice(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
+            D3DCREATE_HARDWARE_VERTEXPROCESSING, &present_parameters, &device);
+    if (!SUCCEEDED(hr))
+    {
+        skip("Failed to create D3D device.\n");
+        goto done;
+    }
+
+    hr = IDirect3DDevice9_CreateOffscreenPlainSurface(device, 4096, 4096, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &readback, NULL);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+
+    for (i = 0; i < ARRAY_SIZE(test_data); i++) {
+        present_parameters.BackBufferCount = test_data[i].back_buffer_count;
+        present_parameters.SwapEffect = test_data[i].swap_effect;
+        present_parameters.Windowed = !test_data[i].fullscreen;
+        hr = IDirect3DDevice9_Reset(device, &present_parameters);
+
+        if (!SUCCEEDED(hr) || !test_data[i].reset_succeeds)
+        {
+            ok(SUCCEEDED(hr) || !test_data[i].reset_succeeds, "Reset failed where it was expected to succeed, case %u.\n", i);
+            ok(!SUCCEEDED(hr) || test_data[i].reset_succeeds, "Reset succeeded where it was expected to fail, case %u.\n", i);
+            continue;
+        }
+
+        for (j = 0; j < ARRAY_SIZE(test_colors); j++) {
+            hr = IDirect3DDevice9_Clear(device, 0, NULL, D3DCLEAR_TARGET, test_colors[j], 0, 0);
+            ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+            hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+            ok(hr == D3D_OK, "Got unexpected hr %#lx. case %u, color: %u\n", hr, i, j);
+        }
+        hr = IDirect3DDevice9_GetBackBuffer(device, 0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer);
+        ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+
+        get_rt_readback(backbuffer, &rb);
+        color = get_readback_color(&rb, 0, 0);
+        expected_color = test_colors[test_data[i].expected_backbuffer_color_index];
+        ok(color_match(color, expected_color, 1),
+                "Expected colour 0x%08x, got 0x%08x, case %u.\n", expected_color, color, i);
+        release_surface_readback(&rb);
+        IDirect3DSurface9_Release(backbuffer);
+
+        hr = IDirect3DDevice9_Clear(device, 0, NULL, D3DCLEAR_TARGET, test_colors[0], 0, 0);
+        ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+        hr = IDirect3DDevice9_GetFrontBufferData(device, 0, readback);
+        ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+        /* Pick a pixel at an offset to avoid hitting the window border in windowed mode */
+        color = getPixelColorFromSurface(readback, 64, 64) & 0x00FFFFFF;
+        expected_color = test_colors[ARRAY_SIZE(test_colors) - 1] & 0x00FFFFFF;
+        ok(color_match(color, expected_color, 1),
+                "Expected colour 0x%08x, got 0x%08x, frontbuffer case %u.\n", expected_color, color, i);
+    }
+
+done:
+    if (readback)
+        IDirect3DSurface9_Release(readback);
+    if (device)
+        IDirect3DDevice9_Release(device);
+    DestroyWindow(window);
+    IDirect3D9_Release(d3d);
+}
+
+static void test_get_front_buffer_data_alpha(void)
+{
+    D3DPRESENT_PARAMETERS present_parameters = {0};
+    IDirect3DSurface9 *readback = NULL;
+    IDirect3DDevice9 *device = NULL;
+    IDirect3DSwapChain9 *swapchain;
+    unsigned int color;
+    IDirect3D9 *d3d;
+    HWND window;
+    HRESULT hr;
+
+    d3d = Direct3DCreate9(D3D_SDK_VERSION);
+    ok(!!d3d, "Failed to create D3D object.\n");
+    window = create_window();
+    if (!(device = create_device(d3d, window, window, TRUE)))
+    {
+        skip("Failed to create a D3D device, skipping tests.\n");
+        goto done;
+    }
+
+    hr = IDirect3DDevice9_GetSwapChain(device, 0, &swapchain);
+    ok(hr == D3D_OK, "Failed to get the implicit swapchain, hr %#lx.\n", hr);
+    hr = IDirect3DSwapChain9_GetPresentParameters(swapchain, &present_parameters);
+    ok(hr == D3D_OK, "Failed to get present parameters, hr %#lx.\n", hr);
+    IDirect3DSwapChain9_Release(swapchain);
+
+    hr = IDirect3D9_CreateDevice(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
+            D3DCREATE_HARDWARE_VERTEXPROCESSING, &present_parameters, &device);
+    if (!SUCCEEDED(hr))
+    {
+        skip("Failed to create D3D device.\n");
+        goto done;
+    }
+
+    hr = IDirect3DDevice9_CreateOffscreenPlainSurface(device, 4096, 4096, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &readback, NULL);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+
+    hr = IDirect3DDevice9_Clear(device, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(128, 128, 128, 128), 0, 0);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_GetFrontBufferData(device, 0, readback);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+    /* Pick a pixel at an offset to avoid hitting the window border in windowed mode */
+    color = getPixelColorFromSurface(readback, 64, 64);
+    todo_wine ok((color & 0xFF000000) == 0xFF000000, "Alpha of GetFrontBufferData is supposed to always be 255 in windowed mode.\n");
+
+    present_parameters.Windowed = false;
+    hr = IDirect3DDevice9_Reset(device, &present_parameters);
+    if (!SUCCEEDED(hr))
+    {
+        skip("Failed to switch to fullscreen.\n");
+        goto done;
+    }
+
+    hr = IDirect3DDevice9_Clear(device, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(128, 128, 128, 128), 0, 0);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_GetFrontBufferData(device, 0, readback);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+    /* Pick a pixel at an offset to avoid hitting the window border in windowed mode */
+    color = getPixelColorFromSurface(readback, 64, 64);
+    todo_wine ok((color & 0xFF000000) == 0, "Alpha of GetFrontBufferData is supposed to always be 0 in fullscreen mode.\n");
+
+done:
+    if (readback)
+        IDirect3DSurface9_Release(readback);
+    if (device)
+        IDirect3DDevice9_Release(device);
+    DestroyWindow(window);
+    IDirect3D9_Release(d3d);
+}
+
+static void test_get_front_buffer_data_windowed_positioning(void)
+{
+    IDirect3DSurface9 *readback = NULL;
+    IDirect3DDevice9 *device = NULL;
+    D3DRECT rect_to_clear;
+    unsigned int color;
+    IDirect3D9 *d3d;
+    POINT point;
+    HWND window;
+    RECT rect;
+    HRESULT hr;
+
+    d3d = Direct3DCreate9(D3D_SDK_VERSION);
+    ok(!!d3d, "Failed to create D3D object.\n");
+
+    SetRect(&rect, 64, 64, 640 + 64, 480 + 64);
+    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW | WS_VISIBLE, FALSE);
+    window = CreateWindowA("static", "d3d9_test", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+            rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0, 0, 0, 0);
+
+    if (!(device = create_device(d3d, window, window, TRUE)))
+    {
+        skip("Failed to create a D3D device, skipping tests.\n");
+        goto done;
+    }
+
+    hr = IDirect3DDevice9_CreateOffscreenPlainSurface(device, 4096, 4096, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &readback, NULL);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+
+    hr = IDirect3DDevice9_Clear(device, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 255), 0, 0);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+    rect_to_clear.x1 = 16;
+    rect_to_clear.x2 = 24;
+    rect_to_clear.y1 = 16;
+    rect_to_clear.y2 = 24;
+    hr = IDirect3DDevice9_Clear(device, 1, &rect_to_clear, D3DCLEAR_TARGET, D3DCOLOR_RGBA(128, 128, 128, 128), 0, 0);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+
+    /* This appears necessary because of the initial window animations. */
+    Sleep(250);
+
+    point.x = 16;
+    point.y = 16;
+    ClientToScreen(window, &point);
+    hr = IDirect3DDevice9_GetFrontBufferData(device, 0, readback);
+    ok(hr == D3D_OK, "Got unexpected hr %#lx.\n", hr);
+
+    color = getPixelColorFromSurface(readback, point.x, point.y);
+    ok(color_match(color, D3DCOLOR_RGBA(128, 128, 128, 255), 1),
+        "Application window is not correctly positioned in GetFrontBufferData result. Expected colour 0x%08lx, got 0x%08x.\n", D3DCOLOR_RGBA(128, 128, 128, 255), color);
+
+    color = getPixelColorFromSurface(readback, point.x + 16, point.y + 16);
+    ok(color_match(color, D3DCOLOR_RGBA(0, 0, 0, 255), 1),
+        "Application window is not correctly positioned in GetFrontBufferData result. Expected colour 0x%08lx, got 0x%08x.\n", D3DCOLOR_RGBA(0, 0, 0, 255), color);
+
+    color = getPixelColorFromSurface(readback, 0, 0);
+    ok(!color_match(color, D3DCOLOR_RGBA(128, 128, 128, 255), 1),
+        "Application window is not correctly positioned in GetFrontBufferData result. Expected colour other than 0x%08x\n", color);
+
+done:
+    if (readback)
+        IDirect3DSurface9_Release(readback);
+    if (device)
+        IDirect3DDevice9_Release(device);
+    DestroyWindow(window);
+    IDirect3D9_Release(d3d);
+}
+
 static void multisampled_depth_buffer_test(void)
 {
     IDirect3DDevice9 *device = 0;
@@ -28248,4 +28525,7 @@ START_TEST(visual)
     test_managed_reset();
     test_managed_generate_mipmap();
     test_mipmap_upload();
+    test_swapchain_buffer_swapping();
+    test_get_front_buffer_data_alpha();
+    test_get_front_buffer_data_windowed_positioning();
 }
