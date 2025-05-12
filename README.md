@@ -8,20 +8,26 @@
 
 This repository provides my Wine build to play native Windows games on Linux.
 
-It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom). It is based on  
+### wine-red-rose-base
 
-- a Wine version taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version 9-22.
-- a patch was applied to remove any Steam dependancy on this Wine version.
+It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom). 
+It is based on latest Wine taken from Proton 9 (wine-bleeding-edge) from 04/25/2025. Then
 
-All my Wine builds followed all commits before the switch from Proton 9 to Proton 10.
+- changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version 9-22 were applied
+- a [patch was applied to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-90-be.mypatch) on this Wine version. Patch was taken from [Wine-TkG](https://github.com/Frogging-Family/wine-tkg-git.git).
+- [Josh' theme patch](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/misc/josh-flat-theme/josh-flat-theme.patch) was applied.
+- My minor changes were applied.
 
-Wine is built using a customized/enhanced environment based on the one provided by default by [Kron4ek](https://github.com/Kron4ek/Wine-Builds)
+I keep these Wine source as-it-is as a reference
 
-## Be carefull!!!
+### wine-red-rose-custom 
 
-This Wine repository is purely experimental. I am doing all of this just for fun. I am not responsible if if could break your Linux system
+This is the working Wine folder. Chosen cumulative MR (Merge Request) or BF (Bug Fixed) are applied
 
-### Used repositories. Backporting Wine merge requests and bug fixed from Wine 9 and 10
+- Wine is built using a customized/enhanced environment based on the one provided by default by [Kron4ek](https://github.com/Kron4ek/Wine-Builds)
+- This Wine repository is purely experimental. I am doing all of this just for fun. I am not responsible if if could break your Linux system
+
+Used repositories. Backporting Wine merge requests and bug fixed from Wine 9 and 10
 
 To keep it up-to-date then a few patches were applied from repositories listed below. (chosen patches are re-written -- if needed)
 
@@ -35,4 +41,5 @@ To keep it up-to-date then a few patches were applied from repositories listed b
 
 - for wine-bleeding-edge Valve switched from Proton 9 to Proton 10 on Wednesday April 30, 2025.
 - wine-bleeding-edge went into Proton 10 beta on Wednesday April 30, 2025.
+
 
