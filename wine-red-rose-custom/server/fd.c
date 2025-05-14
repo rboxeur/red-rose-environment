@@ -1982,11 +1982,11 @@ struct fd *open_fd( struct fd *root, const char *name, struct unicode_str nt_nam
 
     if ((fd->unix_fd = open( name, rw_mode | (flags & ~O_TRUNC), *mode )) == -1)
     {
-        /* if we tried to open a directory for write access, retry read-only */
-        if (errno == EISDIR)
+        /* if we tried to open a read-only file or a directory for write access, retry read-only */
+        if (((errno == EACCES) && ((access & FILE_READ_ATTRIBUTES) && !(options & FILE_DIRECTORY_FILE))) ||
+            ((errno == EISDIR) && ((access & FILE_UNIX_WRITE_ACCESS) || (flags & O_CREAT))))
         {
-            if ((access & FILE_UNIX_WRITE_ACCESS) || (flags & O_CREAT))
-                fd->unix_fd = open( name, O_RDONLY | (flags & ~(O_TRUNC | O_CREAT | O_EXCL)), *mode );
+            fd->unix_fd = open( name, O_RDONLY | (flags & ~(O_TRUNC | O_CREAT | O_EXCL)), *mode );
         }
         else if (errno == EACCES)
         {

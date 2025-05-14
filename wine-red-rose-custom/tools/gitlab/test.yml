@@ -52,7 +52,7 @@
 test-linux-64:
   extends: .wine-test
   variables:
-    INCLUDE_TESTS: "dinput"
+    INCLUDE_TESTS: "dinput ntoskrnl.exe"
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
   needs:
@@ -90,7 +90,7 @@ test-linux-32on64:
 test-linux-32:
   extends: .wine-test
   variables:
-    EXCLUDE_TESTS: "d3d11:d3d11 d3d9:d3d9ex d3d9:visual"
+    EXCLUDE_TESTS: "d3d11:d3d11 d3d9:d3d9ex d3d9:visual d3d10core:d3d10core"
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
   needs:

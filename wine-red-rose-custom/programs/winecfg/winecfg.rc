@@ -146,11 +146,11 @@ STYLE WS_CHILD
 FONT 8, "MS Shell Dlg"
 BEGIN
     CONTROL         "", IDC_ABT_PANEL, "STATIC", SS_OWNERDRAW, 0, 0, 260, 140
-    LTEXT           "Wine",IDC_ABT_TITLE_TEXT,105,30,55,30
-    LTEXT           "",IDC_ABT_PANEL_TEXT,160,43,140,8
-    CONTROL         "#msgctxt#do not translate#<a href=\"https://www.winehq.org\">https://www.winehq.org</a>",IDC_ABT_WEB_LINK,"SysLink", LWS_TRANSPARENT, 105,53,106,8
+    LTEXT           "Red Rose",IDC_ABT_TITLE_TEXT,125,10,95,30
+    LTEXT           "",IDC_ABT_PANEL_TEXT,225,23,140,8
+    CONTROL         "#msgctxt#do not translate#<a href=\"http://techer.pascal.free.fr/GamingOnLinux_Red-Rose/\">Red Rose Web Page</a> <b>Experimental</b>",IDC_ABT_WEB_LINK,"SysLink", LWS_TRANSPARENT, 125,33,106,8
     LTEXT           "This program is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation; either version 2.1 of the License, or (at your option) any later version.",
-                    IDC_ABT_LICENSE_TEXT,105,64,145,66
+                    IDC_ABT_LICENSE_TEXT,125,44,145,66
     GROUPBOX        "Windows registration information", IDC_STATIC, 15, 155, 230, 55
     LTEXT           "&Owner:", IDC_STATIC, 22, 171, 40, 20
     EDITTEXT        IDC_ABT_OWNER, 75, 171, 160, 13, ES_AUTOHSCROLL | WS_TABSTOP

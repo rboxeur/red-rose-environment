@@ -19,6 +19,7 @@
 #include <stdarg.h>
 #include <limits.h>
 #include <errno.h>
+#include <process.h>
 
 #include "msvcp90.h"
 
@@ -1289,7 +1290,8 @@ int __cdecl _Thrd_join(_Thrd_t thr, int *code)
 int __cdecl _Thrd_start(_Thrd_t *thr, LPTHREAD_START_ROUTINE proc, void *arg)
 {
     TRACE("(%p %p %p)\n", thr, proc, arg);
-    thr->hnd = CreateThread(NULL, 0, proc, arg, 0, &thr->id);
+
+    thr->hnd = (HANDLE)_beginthreadex(NULL, 0, (_beginthreadex_start_routine_t)proc, arg, 0, (unsigned int *)&thr->id);
     return thr->hnd ? 0 : _THRD_ERROR;
 }
 
