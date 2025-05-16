@@ -1,6 +1,7 @@
-MODULE = dxcore.dll
+MODULE  = dxcore.dll
+IMPORTS = dxgi
 
 EXTRADLLFLAGS = -Wb,--prefer-native
 
 SOURCES = \
-	main.c
+	dxcore.c

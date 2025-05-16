@@ -201,6 +201,7 @@ extern void user_check_not_lock(void);
 
 /* winstation.c */
 extern BOOL is_virtual_desktop(void);
+extern BOOL is_service_process(void);
 
 /* window.c */
 struct tagWND;

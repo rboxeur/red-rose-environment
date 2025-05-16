@@ -2951,6 +2951,9 @@ C_ASSERT( sizeof(struct process_info) <= sizeof(SYSTEM_PROCESS_INFORMATION) );
 
         proc_len = sizeof(*nt_process) + server_process->thread_count * thread_info_size
                      + (name_len + 1) * sizeof(WCHAR);
+#define ALIGN(n, align) (((n) + (align) - 1) & ~((align) - 1))
+        proc_len = ALIGN(proc_len, 8);
+#undef ALIGN
         *len += proc_len;
 
         if (*len <= size)

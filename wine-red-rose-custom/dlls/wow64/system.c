@@ -176,7 +176,9 @@ static NTSTATUS put_system_proc_info( SYSTEM_PROCESS_INFORMATION32 *info32,
             if (prev) prev->NextEntryOffset = (char *)proc32 - (char *)prev;
             prev = proc32;
         }
-        outpos += proc_len + proc->ProcessName.MaximumLength;
+#define ALIGN(n, align) (((n) + (align) - 1) & ~((align) - 1))
+        outpos += ALIGN(proc_len + proc->ProcessName.MaximumLength, 8);
+#undef ALIGN
         inpos += proc->NextEntryOffset;
         if (!proc->NextEntryOffset) break;
     }

@@ -115,6 +115,7 @@ struct video_decoder
     wg_transform_t wg_transform;
     struct wg_transform_attrs wg_transform_attrs;
     struct wg_sample_queue *wg_sample_queue;
+    struct wg_format wg_output_format; /* for calculating sample size */
 
     IMFVideoSampleAllocatorEx *allocator;
     BOOL allocator_initialized;
@@ -773,6 +774,13 @@ static HRESULT WINAPI transform_SetOutputType(IMFTransform *iface, DWORD id, IMF
     else
         hr = try_create_wg_transform(decoder, output_type);
 
+    mf_media_type_to_wg_format(output_type, &decoder->wg_output_format);
+    if (!decoder->wg_output_format.major_type)
+    {
+        FIXME("Failed to get output wg format.\n");
+        hr = MF_E_INVALIDMEDIATYPE;
+    }
+
     IMFMediaType_Release(output_type);
 
     if (FAILED(hr))
@@ -962,8 +970,7 @@ static HRESULT WINAPI transform_ProcessOutput(IMFTransform *iface, DWORD flags, 
     UINT32 sample_size;
     LONGLONG duration;
     IMFSample *sample;
-    UINT64 frame_size, frame_rate;
-    GUID subtype;
+    UINT64 frame_rate;
     DWORD size;
     HRESULT hr;
 
@@ -979,12 +986,10 @@ static HRESULT WINAPI transform_ProcessOutput(IMFTransform *iface, DWORD flags, 
     if (!(sample = samples->pSample) && !(decoder->output_info.dwFlags & MFT_OUTPUT_STREAM_PROVIDES_SAMPLES))
         return E_INVALIDARG;
 
-    if (FAILED(hr = IMFMediaType_GetGUID(decoder->output_type, &MF_MT_SUBTYPE, &subtype)))
-        return hr;
-    if (FAILED(hr = IMFMediaType_GetUINT64(decoder->output_type, &MF_MT_FRAME_SIZE, &frame_size)))
-        return hr;
-    if (FAILED(hr = MFCalculateImageSize(&subtype, frame_size >> 32, (UINT32)frame_size, &sample_size)))
-        return hr;
+    /* GetOutputStreamInfo() is bugged for some games, and MFCalculateImageSize()
+     * for some formats uses a smaller stride alignment than gstreamer does */
+    if (!(sample_size = wg_format_get_max_size(&decoder->wg_output_format)))
+        return E_INVALIDARG;
 
     if (decoder->output_info.dwFlags & MFT_OUTPUT_STREAM_PROVIDES_SAMPLES)
     {

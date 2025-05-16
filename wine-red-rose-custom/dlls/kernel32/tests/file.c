@@ -1636,6 +1636,42 @@ static void test_CreateFileA(void)
     ok(ret, "RemoveDirectoryA: error %ld\n", GetLastError());
     SetCurrentDirectoryW(curdir);
 
+    /* test creating directory as a directory */
+    hFile = CreateFileA( dirname, 0,
+                        FILE_SHARE_READ | FILE_SHARE_WRITE,
+                        NULL,
+                        CREATE_NEW,
+                        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_POSIX_SEMANTICS | FILE_ATTRIBUTE_DIRECTORY,
+                        NULL );
+    ok(hFile != INVALID_HANDLE_VALUE, "CreateFileA did not work, last error %lu on dir <%s>\n", GetLastError(), dirname );
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        ret = GetFileInformationByHandle( hFile, &Finfo );
+        CloseHandle( hFile );
+        ok(ret, "GetFileInformationByHandle error %ld\n", GetLastError());
+        if (ret)
+        {
+            ok(Finfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY,
+                "CreateFileA probably did not create directory %s correctly\n   file information does not include FILE_ATTRIBUTE_DIRECTORY, actual=0x%08lx\n",
+            dirname, Finfo.dwFileAttributes);
+            if (Finfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            {
+                ret = RemoveDirectoryA(dirname);
+                ok(ret, "RemoveDirectoryA: error %ld\n", GetLastError());
+            }
+            else
+            {
+                ret = DeleteFileA(dirname);
+                ok(ret, "DeleteFile error %ld\n", GetLastError());
+            }
+        }
+        else
+        {
+            DeleteFileA(dirname);
+            RemoveDirectoryA(dirname);
+        }
+    }
+
     /* test opening directory as a directory */
     hFile = CreateFileA( temp_path, GENERIC_READ,
                         FILE_SHARE_READ,
@@ -1662,7 +1698,6 @@ static void test_CreateFileA(void)
     }
     else
         skip("Probable Win9x, got ERROR_PATH_NOT_FOUND w/ FILE_FLAG_BACKUP_SEMANTICS or %s\n", temp_path);
-
 
     /* ***  Test opening volumes/devices using drive letter  ***         */
 
