@@ -623,6 +623,88 @@ HRESULT WINAPI SHRevokeDragDrop(HWND hWnd)
     return RevokeDragDrop(hWnd);
 }
 
+
+typedef struct IDummySource{
+    IDropSource       IDropSource_iface;
+    LONG Ref;
+} IDummySource;
+
+static inline IDummySource *impl_from_IDropSource(IDropSource *iface)
+{
+    return CONTAINING_RECORD(iface, IDummySource, IDropSource_iface);
+}
+
+static HRESULT WINAPI IDummyDropSource_QueryInterface(IDropSource *iface, REFIID riid, void **ppvObj)
+{
+    IDummySource *This = impl_from_IDropSource(iface);
+    TRACE("(%p)->(%s, %p)\n", This, debugstr_guid(riid), ppvObj);
+
+    *ppvObj = NULL;
+
+    if(IsEqualIID(riid, &IID_IDropSource))
+    {
+        *ppvObj = &This->IDropSource_iface;
+        TRACE("-- Interface: (%p)->(%p)\n",ppvObj,*ppvObj);
+        return S_OK;
+    }
+
+    TRACE("-- Interface: E_NOINTERFACE\n");
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI IDummyDropSource_AddRef(IDropSource *iface)
+{
+    IDummySource *This = impl_from_IDropSource(iface);
+    TRACE("(%p)->(%lu)\n", This, This->Ref);
+    return InterlockedIncrement(&This->Ref);
+}
+
+static ULONG WINAPI IDummyDropSource_Release(IDropSource *iface)
+{
+    ULONG refcount;
+    IDummySource *This = impl_from_IDropSource(iface);
+    TRACE("(%p)->(%lu)\n", This, This->Ref);
+    refcount =   InterlockedDecrement(&This->Ref);
+    if(refcount == 0){
+        free(This);
+    }
+    return refcount;
+}
+
+static HRESULT WINAPI IDummyDropSource_QueryContinueDrag(
+    IDropSource *iface,
+    BOOL fEscapePressed,
+    DWORD grfKeyState)
+{
+    IDummySource *This = impl_from_IDropSource(iface);
+    TRACE("(%p)\n",This);
+
+    if (fEscapePressed)
+        return DRAGDROP_S_CANCEL;
+    else if (!(grfKeyState & MK_LBUTTON) && !(grfKeyState & MK_RBUTTON))
+        return DRAGDROP_S_DROP;
+    else
+        return S_OK;
+}
+
+static HRESULT WINAPI IDummyDropSource_GiveFeedback(
+    IDropSource *iface,
+    DWORD dwEffect)
+{
+    IDummySource *This = impl_from_IDropSource(iface);
+    TRACE("(%p)\n",This);
+
+    return DRAGDROP_S_USEDEFAULTCURSORS;
+}
+
+static const IDropSourceVtbl dropsourcevtbl =
+{
+    IDummyDropSource_QueryInterface,
+    IDummyDropSource_AddRef,
+    IDummyDropSource_Release,
+    IDummyDropSource_QueryContinueDrag,
+    IDummyDropSource_GiveFeedback
+};
 /*************************************************************************
  * SHDoDragDrop					[SHELL32.88]
  *
@@ -644,8 +726,18 @@ HRESULT WINAPI SHDoDragDrop(
 	LPDWORD pdwEffect)
 {
     FIXME("(%p %p %p 0x%08lx %p):stub.\n",
-    hWnd, lpDataObject, lpDropSource, dwOKEffect, pdwEffect);
-	return DoDragDrop(lpDataObject, lpDropSource, dwOKEffect, pdwEffect);
+          hWnd, lpDataObject, lpDropSource, dwOKEffect, pdwEffect);
+    if(lpDropSource == NULL)
+    {
+        /*Windows Vista or Above expect this function  to create a  IDropSource object if none was provided. Delphi  Windows Vista drag and drop routines actually expect this  to work */
+       IDummySource*  dummy = calloc(1, sizeof(IDummySource));
+       if(dummy){
+            dummy->IDropSource_iface.lpVtbl = &dropsourcevtbl;
+            dummy->Ref = 1;
+            lpDropSource = &dummy->IDropSource_iface;
+       }
+    }
+    return DoDragDrop(lpDataObject, lpDropSource, dwOKEffect, pdwEffect);
 }
 
 /*************************************************************************

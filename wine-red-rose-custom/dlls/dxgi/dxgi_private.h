@@ -197,8 +197,8 @@ BOOL dxgi_validate_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 *desc);
 /* IDXGISurface/IDXGIResource */
 struct dxgi_resource
 {
-    IDXGISurface1 IDXGISurface1_iface;
-    IDXGIResource IDXGIResource_iface;
+    IDXGISurface2 IDXGISurface2_iface;
+    IDXGIResource1 IDXGIResource1_iface;
     IUnknown IUnknown_iface;
     IUnknown *outer_unknown;
     LONG refcount;
@@ -206,9 +206,14 @@ struct dxgi_resource
     IDXGIDevice *device;
     struct wined3d_resource *wined3d_resource;
     HDC dc;
+    IDXGIResource1 *parent_resource;
+    unsigned int subresource_idx;
+    BOOL is_subresource:1;
+    BOOL is_buffer:1;
 };
 
 HRESULT dxgi_resource_init(struct dxgi_resource *resource, IDXGIDevice *device,
-        IUnknown *outer, BOOL needs_surface, struct wined3d_resource *wined3d_resource);
+        IUnknown *outer, BOOL needs_surface, struct wined3d_resource *wined3d_resource,
+        IDXGIResource1 *parent_resource, unsigned int subresource_index);
 
 #endif /* __WINE_DXGI_PRIVATE_H */
