@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#undef USE_COMPILER_EXCEPTIONS
 #include <stdarg.h>
 #include "winternl.h"
 #include "wine/exception.h"

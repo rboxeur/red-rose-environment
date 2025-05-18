@@ -29,6 +29,8 @@
 #include "wine/test.h"
 
 static NTSTATUS (WINAPI *pBCryptHash)(BCRYPT_ALG_HANDLE, UCHAR *, ULONG, UCHAR *, ULONG, UCHAR *, ULONG);
+static NTSTATUS (WINAPI *pBCryptKeyDerivation)(BCRYPT_KEY_HANDLE,
+        BCryptBufferDesc *, UCHAR *, ULONG, ULONG *, ULONG);
 
 static void test_BCryptGenRandom(void)
 {
@@ -486,6 +488,7 @@ static UCHAR dk3[] = "4b007901b765489abead49d926f721d065a429c1";
 static UCHAR dk4[] = "364dd6bc200ec7d197f1b85f4a61769010717124";
 static UCHAR dk5[] = "3d2eec4fe41c849b80c8d83662c0e44a8b291a964cf2f07038";
 static UCHAR dk6[] = "56fa6aa75548099dcc37d7f03425e0c3";
+static UCHAR dk7[] = "8754c32c64b0f524fc50c00f788135de";
 
 static const struct
 {
@@ -503,7 +506,8 @@ static const struct
     {  8,  4,     4096, 20, password,      salt,      dk3 },
     {  8,  4,  1000000, 20, password,      salt,      dk4 },
     { 24, 36,     4096, 25, long_password, long_salt, dk5 },
-    {  9,  5,     4096, 16, password_NUL,  salt_NUL,  dk6 }
+    {  9,  5,     4096, 16, password_NUL,  salt_NUL,  dk6 },
+    {  8,  0,        1, 16, password,      NULL,      dk7 }
 };
 
 static void test_BcryptDeriveKeyPBKDF2(void)
@@ -4024,6 +4028,108 @@ static void test_RC4(void)
     ok(status == STATUS_SUCCESS, "got %#lx\n", status);
 }
 
+static void test_PBKDF2(void)
+{
+    static char salt[] = "cCxuHMEHLibcglJOG88dIw==";
+    static ULONGLONG iter_count = 25;
+    static BCryptBuffer pbkdf2_param_buffers[] =
+    {
+        {
+            sizeof(BCRYPT_SHA1_ALGORITHM),
+            KDF_HASH_ALGORITHM,
+            (void *)BCRYPT_SHA1_ALGORITHM,
+        },
+        {
+            sizeof(salt) - 1,
+            KDF_SALT,
+            salt,
+        },
+        {
+            sizeof(iter_count),
+            KDF_ITERATION_COUNT,
+            (void *)&iter_count,
+        }
+    };
+    static BCryptBufferDesc pbkdf2_params =
+    {
+        BCRYPTBUFFER_VERSION,
+        ARRAY_SIZE(pbkdf2_param_buffers),
+        pbkdf2_param_buffers,
+    };
+    static UCHAR pbkdf2_hash[] =
+    {
+        0x18, 0xf2, 0x58, 0x0b, 0x92, 0x6e, 0x6d, 0xfe,
+        0x55, 0xbb, 0x62, 0x87, 0x5b, 0x1f, 0x61, 0x83,
+        0x4d, 0x16, 0xe4, 0x04, 0xcd, 0xab, 0x43, 0x77,
+        0x25, 0x3e, 0x1d, 0xb4, 0x95, 0x5f, 0xf7, 0x01,
+    };
+
+    BCRYPT_KEY_LENGTHS_STRUCT key_lengths;
+    BCRYPT_ALG_HANDLE alg;
+    BCRYPT_KEY_HANDLE key;
+    NTSTATUS status;
+    ULONG val, size;
+    static BYTE buf[32];
+
+    status = BCryptOpenAlgorithmProvider(&alg, BCRYPT_PBKDF2_ALGORITHM, NULL, 0);
+    if (status == STATUS_NOT_FOUND)
+    {
+        win_skip("PBKDF2 not available\n");
+        return;
+    }
+    ok(!status, "got %#lx\n", status);
+    ok(pBCryptKeyDerivation != NULL, "BCryptKeyDerivation not available\n");
+
+    val = size = 0;
+    status = BCryptGetProperty(alg, BCRYPT_OBJECT_LENGTH, (UCHAR *)&val, sizeof(val), &size, 0);
+    ok(!status, "got %#lx\n", status);
+    ok(val, "got %lu\n", val);
+    ok(size == sizeof(val), "got %lu\n", size);
+
+    val = size = 0;
+    status = BCryptGetProperty(alg, BCRYPT_BLOCK_LENGTH, (UCHAR *)&val, sizeof(val), &size, 0);
+    ok(status == STATUS_NOT_SUPPORTED, "got %#lx\n", status);
+
+    memset(&key_lengths, 0xfe, sizeof(key_lengths));
+    size = 0;
+    status = BCryptGetProperty(alg, BCRYPT_KEY_LENGTHS, (UCHAR *)&key_lengths, sizeof(key_lengths), &size, 0);
+    ok(!status, "got %#lx\n", status);
+    ok(size == sizeof(key_lengths), "got %lu\n", size);
+    ok(key_lengths.dwMinLength == 0, "got %lu\n", key_lengths.dwMinLength);
+    ok(key_lengths.dwMaxLength == 16384, "got %lu\n", key_lengths.dwMaxLength);
+    ok(key_lengths.dwIncrement == 8, "got %lu\n", key_lengths.dwIncrement);
+
+    key = 0;
+    status = BCryptGenerateSymmetricKey(alg, &key, NULL, 0, (UCHAR *)"test", 4, 0);
+    ok(!status, "got %#lx\n", status);
+    val = size = 0;
+    status = BCryptGetProperty(key, BCRYPT_KEY_STRENGTH, (UCHAR *)&val, sizeof(val), &size, 0);
+    ok(!status, "got %#lx\n", status);
+    ok(val == strlen("test") * 8, "got %lu\n", val);
+
+    status = pBCryptKeyDerivation(key, &pbkdf2_params, NULL, 0, &size, 0);
+    ok(status == STATUS_INVALID_PARAMETER, "got %#lx\n", status);
+
+    buf[0] = buf[1] = 'x';
+    status = pBCryptKeyDerivation(key, &pbkdf2_params, buf, 1, &size, 0);
+    ok(!status, "got %#lx\n", status);
+    ok(size == 1, "size = %lu\n", size);
+    ok(buf[0] == pbkdf2_hash[0], "buf[0] = %x\n", buf[0]);
+    ok(buf[1] == 'x', "buf[1] = %x\n", buf[1]);
+
+    memset(buf, 'x', sizeof(buf));
+    status = pBCryptKeyDerivation(key, &pbkdf2_params, buf, sizeof(buf), &size, 0);
+    ok(!status, "got %#lx\n", status);
+    ok(size == sizeof(buf), "size = %lu\n", size);
+    ok(!memcmp(buf, pbkdf2_hash, sizeof(pbkdf2_hash)),
+            "wrong data (%s)\n", wine_dbgstr_an((char *)buf, size));
+
+    status = BCryptDestroyKey(key);
+    ok(!status, "got %#lx\n", status);
+    status = BCryptCloseAlgorithmProvider(alg, 0);
+    ok(status == STATUS_SUCCESS, "got %#lx\n", status);
+}
+
 static void test_dh_SecretAgreement(void)
 {
     static BCryptBuffer hash_param_buffers[] =
@@ -4409,6 +4515,7 @@ START_TEST(bcrypt)
         return;
     }
     pBCryptHash = (void *)GetProcAddress(module, "BCryptHash");
+    pBCryptKeyDerivation = (void *)GetProcAddress(module, "BCryptKeyDerivation");
 
     test_BCryptGenRandom();
     test_BCryptGetFipsAlgorithmMode();
@@ -4436,6 +4543,7 @@ START_TEST(bcrypt)
     test_SecretAgreement();
     test_rsa_encrypt();
     test_RC4();
+    test_PBKDF2();
     test_dh_SecretAgreement();
     test_dh_SecretAgreement_values();
 

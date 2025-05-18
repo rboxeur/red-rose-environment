@@ -2723,7 +2723,7 @@ START_TEST(server)
     }
     RpcExcept(TRUE)
     {
-      trace("Exception %d\n", RpcExceptionCode());
+      trace("Exception %ld\n", RpcExceptionCode());
     }
     RpcEndExcept
   }

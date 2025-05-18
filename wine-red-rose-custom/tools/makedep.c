@@ -3185,7 +3185,7 @@ static void output_source_one_arch( struct makefile *make, struct incl_file *sou
     else if (archs.count > 1 && make->use_msvcrt)
     {
         if (!so_dll_supported) return;
-        if (!(source->file->flags & FLAG_C_IMPLIB) && (!make->staticlib || make->extlib)) return;
+        if ((!make->staticlib || make->extlib)) return;
     }
 
     obj_name = strmake( "%s%s.o", source->arch ? "" : arch_dirs[arch], obj );
