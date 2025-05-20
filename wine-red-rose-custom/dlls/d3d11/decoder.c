@@ -65,7 +65,7 @@ static ULONG STDMETHODCALLTYPE d3d11_video_decoder_Release(ID3D11VideoDecoder *i
 
     if (!refcount)
     {
-        ID3D11Device2_Release(&decoder->device->ID3D11Device2_iface);
+ 	ID3D11Device5_Release(&decoder->device->ID3D11Device5_iface);
         wined3d_private_store_cleanup(&decoder->private_store);
         free(decoder);
     }
@@ -152,7 +152,7 @@ HRESULT d3d_video_decoder_create(struct d3d_device *device, const D3D11_VIDEO_DE
 
     wined3d_private_store_init(&object->private_store);
     object->device = device;
-    ID3D11Device2_AddRef(&device->ID3D11Device2_iface);
+    ID3D11Device5_AddRef(&device->ID3D11Device5_iface);
 
     TRACE("Created video decoder %p.\n", object);
     *decoder = object;
