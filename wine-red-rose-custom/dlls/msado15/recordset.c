@@ -1598,7 +1598,7 @@ static BOOL resize_recordset( struct recordset *recordset, ULONG row_count )
         VARIANT *tmp;
         ULONG count = max( row_count, recordset->allocated * 2 );
         if (!(tmp = realloc( recordset->data, count * row_size ))) return FALSE;
-        memset( tmp + recordset->allocated, 0, (count - recordset->allocated) * row_size );
+        memset( (BYTE*)tmp + recordset->allocated * row_size, 0, (count - recordset->allocated) * row_size );
         recordset->data = tmp;
         recordset->allocated = count;
     }
@@ -1707,17 +1707,28 @@ static HRESULT WINAPI recordset_MoveLast( _Recordset *iface )
     return S_OK;
 }
 
-static HRESULT create_command_text(IUnknown *session, BSTR command, ICommandText **cmd_text)
+static HRESULT get_rowset(struct recordset *recordset, IUnknown *session, BSTR source, IUnknown **rowset)
 {
-    HRESULT hr;
-    IOpenRowset *openrowset;
-    ICommandText *command_text;
-    ICommand *cmd;
     IDBCreateCommand *create_command;
+    ICommandText *command_text;
+    IOpenRowset *openrowset;
+    DBROWCOUNT affected;
+    ICommand *cmd;
+    DBID table;
+    HRESULT hr;
 
     hr = IUnknown_QueryInterface(session, &IID_IOpenRowset, (void**)&openrowset);
     if (FAILED(hr))
         return hr;
+
+    table.eKind = DBKIND_NAME;
+    table.uName.pwszName = source;
+    hr = IOpenRowset_OpenRowset(openrowset, NULL, &table, NULL, &IID_IUnknown, 0, NULL, rowset);
+    if (SUCCEEDED(hr))
+    {
+        IOpenRowset_Release(openrowset);
+        return hr;
+    }
 
     hr = IOpenRowset_QueryInterface(openrowset, &IID_IDBCreateCommand, (void**)&create_command);
     IOpenRowset_Release(openrowset);
@@ -1737,15 +1748,19 @@ static HRESULT create_command_text(IUnknown *session, BSTR command, ICommandText
         return hr;
     }
 
-    hr = ICommandText_SetCommandText(command_text, &DBGUID_DEFAULT, command);
+    hr = ICommandText_SetCommandText(command_text, &DBGUID_DEFAULT, source);
     if (FAILED(hr))
     {
         ICommandText_Release(command_text);
         return hr;
     }
 
-    *cmd_text = command_text;
+    hr = ICommandText_Execute(command_text, NULL, &IID_IUnknown, NULL, &affected, rowset);
+    ICommandText_Release(command_text);
+    if (FAILED(hr))
+        return hr;
 
+    recordset->count = affected > 0 ? affected : 0;
     return S_OK;
 }
 
@@ -1882,19 +1897,22 @@ static HRESULT load_all_recordset_data(struct recordset *recordset, IUnknown *ro
 
     columns = get_column_count(recordset);
 
-    /* Create the data array */
-    if (!resize_recordset( recordset, recordset->count ))
-    {
-        WARN("Failed to resize recordset\n");
-        return E_OUTOFMEMORY;
-    }
-
     hr = IUnknown_QueryInterface(rowset, &IID_IRowset, (void**)&rowset2);
     if (FAILED(hr))
     {
         WARN("Failed to get IRowset interface (0x%08lx)\n", hr);
         return hr;
     }
+
+    hr = IRowset_GetNextRows(rowset2, 0, 0, 1, &obtained, &row);
+    if (hr != S_OK)
+    {
+        recordset->count = 0;
+        recordset->index = -1;
+        IRowset_Release(rowset2);
+        return FAILED(hr) ? hr : S_OK;
+    }
+    recordset->index = 0;
 
     data = malloc (datasize);
     if (!data)
@@ -1904,10 +1922,18 @@ static HRESULT load_all_recordset_data(struct recordset *recordset, IUnknown *ro
         return E_OUTOFMEMORY;
     }
 
-    hr = IRowset_GetNextRows(rowset2, 0, 0, 1, &obtained, &row);
-    while (hr == S_OK)
+    do
     {
-        VARIANT copy;
+        VARIANT *v;
+
+        if (!resize_recordset(recordset, datarow+1))
+        {
+            IRowset_ReleaseRows(rowset2, 1, row, NULL, NULL, NULL);
+            free(data);
+            IRowset_Release(rowset2);
+            WARN("Failed to resize recordset\n");
+            return E_OUTOFMEMORY;
+        }
 
         for (datacol = 0; datacol < columns; datacol++)
         {
@@ -1919,16 +1945,17 @@ static HRESULT load_all_recordset_data(struct recordset *recordset, IUnknown *ro
                 break;
             }
 
-            VariantInit(&copy);
+            v = &recordset->data[datarow * columns + datacol];
+            VariantInit(v);
 
             if ( *(DBBYTEOFFSET*)(data + bindings[datacol].obStatus) == DBSTATUS_S_ISNULL)
             {
-                V_VT(&copy) = VT_NULL;
-                goto writedata;
+                V_VT(v) = VT_NULL;
+                continue;
             }
 
             /* For most cases DBTYPE_* = VT_* type */
-            V_VT(&copy) = bindings[datacol].wType;
+            V_VT(v) = bindings[datacol].wType;
             switch(bindings[datacol].wType)
             {
                 case DBTYPE_IUNKNOWN:
@@ -1966,8 +1993,8 @@ static HRESULT load_all_recordset_data(struct recordset *recordset, IUnknown *ro
 
                     if (recordset->columntypes[datacol] == DBTYPE_WSTR)
                     {
-                        V_VT(&copy) = VT_BSTR;
-                        V_BSTR(&copy) = SysAllocStringLen( (WCHAR*)buffer, total / sizeof(WCHAR) );
+                        V_VT(v) = VT_BSTR;
+                        V_BSTR(v) = SysAllocStringLen( (WCHAR*)buffer, total / sizeof(WCHAR) );
                     }
                     else if (recordset->columntypes[datacol] == DBTYPE_BYTES)
                     {
@@ -1976,15 +2003,15 @@ static HRESULT load_all_recordset_data(struct recordset *recordset, IUnknown *ro
                         sab.lLbound = 0;
                         sab.cElements = total;
 
-                        V_VT(&copy) = (VT_ARRAY|VT_UI1);
-                        V_ARRAY(&copy) = SafeArrayCreate(VT_UI1, 1, &sab);
+                        V_VT(v) = (VT_ARRAY|VT_UI1);
+                        V_ARRAY(v) = SafeArrayCreate(VT_UI1, 1, &sab);
 
-                        memcpy( (BYTE*)V_ARRAY(&copy)->pvData, buffer, total);
+                        memcpy( (BYTE*)V_ARRAY(v)->pvData, buffer, total);
                     }
                     else
                     {
                         FIXME("Unsupported conversion (%d)\n", recordset->columntypes[datacol]);
-                        V_VT(&copy) = VT_NULL;
+                        V_VT(v) = VT_NULL;
                     }
 
                     free(buffer);
@@ -1993,31 +2020,31 @@ static HRESULT load_all_recordset_data(struct recordset *recordset, IUnknown *ro
                     break;
                 }
                 case DBTYPE_R4:
-                    V_R4(&copy) = *(float*)(data + bindings[datacol].obValue);
+                    V_R4(v) = *(float*)(data + bindings[datacol].obValue);
                     break;
                 case DBTYPE_R8:
-                    V_R8(&copy) = *(DOUBLE*)(data + bindings[datacol].obValue);
+                    V_R8(v) = *(DOUBLE*)(data + bindings[datacol].obValue);
                     break;
                 case DBTYPE_I8:
-                    V_VT(&copy) = VT_I8;
-                    V_I8(&copy) = *(LONGLONG*)(data + bindings[datacol].obValue);
+                    V_VT(v) = VT_I8;
+                    V_I8(v) = *(LONGLONG*)(data + bindings[datacol].obValue);
                     break;
                 case DBTYPE_I4:
-                    V_I4(&copy) = *(LONG*)(data + bindings[datacol].obValue);
+                    V_I4(v) = *(LONG*)(data + bindings[datacol].obValue);
                     break;
                 case DBTYPE_STR:
                 {
                     WCHAR *str = heap_strdupAtoW( (char*)(data + bindings[datacol].obValue) );
 
-                    V_VT(&copy) = VT_BSTR;
-                    V_BSTR(&copy) = SysAllocString(str);
+                    V_VT(v) = VT_BSTR;
+                    V_BSTR(v) = SysAllocString(str);
                     free(str);
                     break;
                 }
                 case DBTYPE_WSTR:
                 {
-                    V_VT(&copy) = VT_BSTR;
-                    V_BSTR(&copy) = SysAllocString( (WCHAR*)(data + bindings[datacol].obValue) );
+                    V_VT(v) = VT_BSTR;
+                    V_BSTR(v) = SysAllocString( (WCHAR*)(data + bindings[datacol].obValue) );
                     break;
                 }
                 case DBTYPE_DBTIMESTAMP:
@@ -2026,7 +2053,7 @@ static HRESULT load_all_recordset_data(struct recordset *recordset, IUnknown *ro
                     DBTIMESTAMP *ts = (DBTIMESTAMP *)(data + bindings[datacol].obValue);
                     DATE d;
 
-                    V_VT(&copy) = VT_DATE;
+                    V_VT(v) = VT_DATE;
 
                     st.wYear = ts->year;
                     st.wMonth = ts->month;
@@ -2038,22 +2065,14 @@ static HRESULT load_all_recordset_data(struct recordset *recordset, IUnknown *ro
                     st.wDayOfWeek = 0;
                     hr = (SystemTimeToVariantTime(&st, &d) ? S_OK : E_FAIL);
 
-                    V_DATE(&copy) = d;
+                    V_DATE(v) = d;
                     break;
                 }
                 default:
-                    V_I2(&copy) = 0;
+                    V_VT(v) = VT_I2;
+                    V_I2(v) = 0;
                     FIXME("Unknown Type %d\n", bindings[datacol].wType);
             }
-
-writedata:
-            VariantInit( &recordset->data[datarow * columns + datacol] );
-            if ((hr = VariantCopy( &recordset->data[datarow * columns + datacol] , &copy)) != S_OK)
-            {
-                ERR("Column %d copy failed. Data %s\n", datacol, debugstr_variant(&copy));
-            }
-
-            VariantClear(&copy);
         }
 
         datarow++;
@@ -2063,7 +2082,7 @@ writedata:
             ERR("Failed to ReleaseRows 0x%08lx\n", hr);
 
         hr = IRowset_GetNextRows(rowset2, 0, 0, 1, &obtained, &row);
-    }
+    } while(hr == S_OK);
 
     free(data);
     IRowset_Release(rowset2);
@@ -2077,8 +2096,6 @@ static HRESULT WINAPI recordset_Open( _Recordset *iface, VARIANT source, VARIANT
     struct recordset *recordset = impl_from_Recordset( iface );
     ADOConnectionConstruction15 *construct;
     IUnknown *session;
-    ICommandText *command_text;
-    DBROWCOUNT affected;
     IUnknown *rowset;
     HRESULT hr;
     DBBINDING *bindings;
@@ -2104,6 +2121,12 @@ static HRESULT WINAPI recordset_Open( _Recordset *iface, VARIANT source, VARIANT
     else if (!recordset->active_connection)
         return MAKE_ADO_HRESULT( adErrInvalidConnection );
 
+    if (V_VT(&source) != VT_BSTR)
+    {
+        FIXME("Unsupported source type!\n");
+        return E_FAIL;
+    }
+
     hr = _Connection_QueryInterface(recordset->active_connection, &IID_ADOConnectionConstruction15, (void**)&construct);
     if (FAILED(hr))
         return E_FAIL;
@@ -2113,20 +2136,8 @@ static HRESULT WINAPI recordset_Open( _Recordset *iface, VARIANT source, VARIANT
     if (FAILED(hr))
         return E_FAIL;
 
-    if (V_VT(&source) != VT_BSTR)
-    {
-        FIXME("Unsupported source type!\n");
-        IUnknown_Release(session);
-        return E_FAIL;
-    }
-
-    hr = create_command_text(session, V_BSTR(&source), &command_text);
+    hr = get_rowset(recordset, session, V_BSTR(&source), &rowset);
     IUnknown_Release(session);
-    if (FAILED(hr))
-        return hr;
-
-    hr = ICommandText_Execute(command_text, NULL, &IID_IUnknown, NULL, &affected, &rowset);
-    ICommandText_Release(command_text);
     if (FAILED(hr) || !rowset)
         return hr;
 
@@ -2137,23 +2148,15 @@ static HRESULT WINAPI recordset_Open( _Recordset *iface, VARIANT source, VARIANT
         IUnknown_Release(rowset);
         return hr;
     }
+    resize_recordset(recordset, recordset->count);
 
-    recordset->count = affected > 0 ? affected : 0;
-    recordset->index = affected > 0 ? 0 : -1;
-
-    /*
-     * We can safely just return with an empty recordset here
-     */
-    if (affected > 0)
+    hr = load_all_recordset_data(recordset, rowset, bindings, datasize);
+    if (FAILED(hr))
     {
-        hr = load_all_recordset_data(recordset, rowset, bindings, datasize);
-        if (FAILED(hr))
-        {
-            WARN("Failed to load all recordset data (%lx)\n", hr);
-            CoTaskMemFree(bindings);
-            IUnknown_Release(rowset);
-            return hr;
-        }
+        WARN("Failed to load all recordset data (%lx)\n", hr);
+        CoTaskMemFree(bindings);
+        IUnknown_Release(rowset);
+        return hr;
     }
 
     CoTaskMemFree(bindings);
