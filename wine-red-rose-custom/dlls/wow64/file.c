@@ -19,6 +19,7 @@
  */
 
 #include <stdarg.h>
+#include <limits.h>
 
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
@@ -27,6 +28,7 @@
 #include "winnt.h"
 #include "winternl.h"
 #include "winioctl.h"
+#include "ntddscsi.h"
 #include "wow64_private.h"
 #include "wine/debug.h"
 
@@ -389,10 +391,158 @@ NTSTATUS WINAPI wow64_NtDeviceIoControlFile( UINT *args )
     IO_STATUS_BLOCK io;
     NTSTATUS status;
 
-    status = NtDeviceIoControlFile( handle, event, apc_32to64( apc ), apc_param_32to64( apc, apc_param ),
-                                    iosb_32to64( &io, io32 ), code, in_buf, in_len, out_buf, out_len );
-    put_iosb( io32, &io );
-    return status;
+    switch (code)
+    {
+    case IOCTL_SCSI_PASS_THROUGH:
+    {
+        SCSI_PASS_THROUGH32 *in32  = (SCSI_PASS_THROUGH32 *)in_buf;
+        SCSI_PASS_THROUGH32 *out32 = (SCSI_PASS_THROUGH32 *)out_buf;
+        SCSI_PASS_THROUGH *pkt;
+        size_t size;
+
+        if (in_len < sizeof(*in32))
+            return STATUS_INVALID_PARAMETER;
+        if (in32->Length < sizeof(*in32))
+            return STATUS_REVISION_MISMATCH;
+        if (in32->DataTransferLength > 0)
+        {
+            if (in32->DataBufferOffset < sizeof(*in32))
+                return STATUS_INVALID_PARAMETER;
+            if (ULONG_MAX - in32->DataTransferLength < in32->DataBufferOffset)
+                return STATUS_INVALID_PARAMETER;
+            if (out_len < in32->DataTransferLength + in32->DataBufferOffset)
+                return STATUS_INVALID_PARAMETER;
+        }
+        if (in32->SenseInfoLength > 0)
+        {
+            if (in32->SenseInfoOffset < sizeof(*in32))
+                return STATUS_INVALID_PARAMETER;
+            if (ULONG_MAX - in32->SenseInfoLength < in32->SenseInfoOffset)
+                return STATUS_INVALID_PARAMETER;
+            if (out_len < in32->SenseInfoLength + in32->SenseInfoOffset)
+                return STATUS_INVALID_PARAMETER;
+        }
+        if (!in32->DataTransferLength && !in32->SenseInfoLength && out_len < sizeof(*out32))
+            return STATUS_INVALID_PARAMETER;
+
+        size = sizeof(*pkt) + in32->SenseInfoLength + in32->DataTransferLength;
+        pkt = Wow64AllocateTemp( size );
+
+        pkt->Length             = sizeof(*pkt);
+        pkt->ScsiStatus         = in32->ScsiStatus;
+        pkt->PathId             = in32->PathId;
+        pkt->TargetId           = in32->TargetId;
+        pkt->Lun                = in32->Lun;
+        pkt->CdbLength          = in32->CdbLength;
+        pkt->SenseInfoLength    = in32->SenseInfoLength;
+        pkt->DataIn             = in32->DataIn;
+        pkt->DataTransferLength = in32->DataTransferLength;
+        pkt->TimeOutValue       = in32->TimeOutValue;
+        pkt->SenseInfoOffset    = sizeof(*pkt);
+        pkt->DataBufferOffset   = pkt->SenseInfoOffset + pkt->SenseInfoLength;
+        memcpy( pkt->Cdb, in32->Cdb, sizeof(pkt->Cdb) );
+
+        status = NtDeviceIoControlFile( handle, event, apc_32to64( apc ),
+                                        apc_param_32to64( apc, apc_param ),
+                                        iosb_32to64( &io, io32 ), code,
+                                        pkt, size, pkt, size );
+
+        if (NT_SUCCESS(status))
+        {
+            out32->Length             = sizeof(*out32);
+            out32->ScsiStatus         = pkt->ScsiStatus;
+            out32->PathId             = pkt->PathId;
+            out32->TargetId           = pkt->TargetId;
+            out32->Lun                = pkt->Lun;
+            out32->CdbLength          = pkt->CdbLength;
+            out32->SenseInfoLength    = pkt->SenseInfoLength;
+            out32->DataIn             = pkt->DataIn;
+            out32->DataTransferLength = pkt->DataTransferLength;
+            out32->TimeOutValue       = pkt->TimeOutValue;
+            out32->SenseInfoOffset    = in32->SenseInfoOffset;
+            out32->DataBufferOffset   = in32->DataBufferOffset;
+            memcpy( out32->Cdb, pkt->Cdb, sizeof(out32->Cdb) );
+            memcpy( (char *)out32 + out32->SenseInfoOffset,
+                    (char *)pkt + pkt->SenseInfoOffset, pkt->SenseInfoLength );
+            memcpy( (char *)out32 + out32->DataBufferOffset,
+                    (char *)pkt + pkt->DataBufferOffset, pkt->DataTransferLength );
+        }
+        put_iosb( io32, &io );
+        return status;
+    }
+    case IOCTL_SCSI_PASS_THROUGH_DIRECT:
+    {
+        SCSI_PASS_THROUGH_DIRECT32 *in32  = (SCSI_PASS_THROUGH_DIRECT32 *)in_buf;
+        SCSI_PASS_THROUGH_DIRECT32 *out32 = (SCSI_PASS_THROUGH_DIRECT32 *)out_buf;
+        SCSI_PASS_THROUGH_DIRECT *pkt;
+        size_t size;
+
+        if (in_len < sizeof(*in32))
+            return STATUS_INVALID_PARAMETER;
+        if (in32->Length < sizeof(*in32))
+            return STATUS_REVISION_MISMATCH;
+        if (in32->SenseInfoLength > 0)
+        {
+            if (in32->SenseInfoOffset < sizeof(*in32))
+                return STATUS_INVALID_PARAMETER;
+            if (ULONG_MAX - in32->SenseInfoLength < in32->SenseInfoOffset)
+                return STATUS_INVALID_PARAMETER;
+            if (out_len < in32->SenseInfoLength + in32->SenseInfoOffset)
+                return STATUS_INVALID_PARAMETER;
+        }
+        else if (out_len < sizeof(*out32))
+            return STATUS_INVALID_PARAMETER;
+
+        size = sizeof(*pkt) + in32->SenseInfoLength;
+        pkt = Wow64AllocateTemp( size );
+
+        pkt->Length             = sizeof(*pkt);
+        pkt->ScsiStatus         = in32->ScsiStatus;
+        pkt->PathId             = in32->PathId;
+        pkt->TargetId           = in32->TargetId;
+        pkt->Lun                = in32->Lun;
+        pkt->CdbLength          = in32->CdbLength;
+        pkt->SenseInfoLength    = in32->SenseInfoLength;
+        pkt->DataIn             = in32->DataIn;
+        pkt->DataTransferLength = in32->DataTransferLength;
+        pkt->TimeOutValue       = in32->TimeOutValue;
+        pkt->SenseInfoOffset    = sizeof(*pkt);
+        pkt->DataBuffer         = ULongToPtr( in32->DataBuffer );
+        memcpy( pkt->Cdb, in32->Cdb, sizeof(pkt->Cdb) );
+
+        status = NtDeviceIoControlFile( handle, event, apc_32to64( apc ),
+                                        apc_param_32to64( apc, apc_param ),
+                                        iosb_32to64( &io, io32 ), code,
+                                        pkt, size, pkt, size );
+
+        if (NT_SUCCESS(status))
+        {
+            out32->Length             = sizeof(*out32);
+            out32->ScsiStatus         = pkt->ScsiStatus;
+            out32->PathId             = pkt->PathId;
+            out32->TargetId           = pkt->TargetId;
+            out32->Lun                = pkt->Lun;
+            out32->CdbLength          = pkt->CdbLength;
+            out32->SenseInfoLength    = pkt->SenseInfoLength;
+            out32->DataIn             = pkt->DataIn;
+            out32->DataTransferLength = pkt->DataTransferLength;
+            out32->TimeOutValue       = pkt->TimeOutValue;
+            out32->SenseInfoOffset    = in32->SenseInfoOffset;
+            out32->DataBuffer         = PtrToUlong( pkt->DataBuffer );
+            memcpy( out32->Cdb, pkt->Cdb, sizeof(out32->Cdb) );
+            memcpy( (char *)out32 + out32->SenseInfoOffset,
+                    (char *)pkt + pkt->SenseInfoOffset, pkt->SenseInfoLength );
+        }
+        put_iosb( io32, &io );
+        return status;
+    }
+    default:
+        status = NtDeviceIoControlFile( handle, event, apc_32to64( apc ), apc_param_32to64( apc, apc_param ),
+                                        iosb_32to64( &io, io32 ), code, in_buf, in_len, out_buf, out_len );
+        put_iosb( io32, &io );
+        return status;
+    }
+
 }
 
 

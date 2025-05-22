@@ -414,6 +414,7 @@ MAKE_FUNCPTR( gss_unwrap_iov );
 MAKE_FUNCPTR( gss_verify_mic );
 MAKE_FUNCPTR( gss_wrap );
 MAKE_FUNCPTR( gss_wrap_iov );
+MAKE_FUNCPTR( gss_wrap_iov_length );
 #undef MAKE_FUNCPTR
 
 static BOOL load_gssapi_krb5(void)
@@ -450,6 +451,7 @@ static BOOL load_gssapi_krb5(void)
     LOAD_FUNCPTR( gss_verify_mic )
     LOAD_FUNCPTR( gss_wrap )
     LOAD_FUNCPTR( gss_wrap_iov )
+    LOAD_FUNCPTR( gss_wrap_iov_length )
 #undef LOAD_FUNCPTR
     return TRUE;
 
@@ -840,6 +842,36 @@ static NTSTATUS get_session_key( gss_ctx_id_t ctx, SecPkgContext_SessionKey *key
     return STATUS_SUCCESS;
 }
 
+static ULONG gss_trailer_length( gss_ctx_id_t ctx )
+{
+    OM_uint32 ret, minor_status, flags;
+    gss_iov_buffer_desc iov[4];
+
+    ret = pgss_inquire_context( &minor_status, ctx, NULL, NULL, NULL, NULL, &flags, NULL, NULL );
+    if (ret != GSS_S_COMPLETE) return 0;
+
+    iov[0].type          = GSS_IOV_BUFFER_TYPE_HEADER;
+    iov[0].buffer.length = 0;
+    iov[0].buffer.value  = NULL;
+    iov[1].type          = GSS_IOV_BUFFER_TYPE_DATA;
+    iov[1].buffer.length = 0;
+    iov[1].buffer.value  = NULL;
+    iov[2].type          = GSS_IOV_BUFFER_TYPE_PADDING;
+    iov[2].buffer.length = 0;
+    iov[2].buffer.value  = NULL;
+    iov[3].type          = GSS_IOV_BUFFER_TYPE_TRAILER;
+    iov[3].buffer.length = 0;
+    iov[3].buffer.value  = NULL;
+
+    ret = pgss_wrap_iov_length( &minor_status, ctx, (flags & GSS_C_CONF_FLAG) ? 1 : 0, GSS_C_QOP_DEFAULT, NULL, iov, ARRAY_SIZE(iov) );
+    TRACE( "gss_wrap_iov_length returned %#x minor status %#x\n", ret, minor_status );
+    if (GSS_ERROR( ret )) trace_gss_status( ret, minor_status );
+    if (ret == GSS_S_COMPLETE)
+        return iov[0].buffer.length + iov[3].buffer.length;
+
+    return 0;
+}
+
 static NTSTATUS query_context_attributes( void *args )
 {
     struct query_context_attributes_params *params = args;
@@ -858,15 +890,19 @@ static NTSTATUS query_context_attributes( void *args )
         ULONG size_max_signature, size_security_trailer;
         gss_ctx_id_t ctx  = ctxhandle_sspi_to_gss( params->context );
 
+        size_security_trailer = gss_trailer_length( ctx );
+
         if (is_dce_style_context( ctx ))
         {
             size_max_signature = KERBEROS_MAX_SIGNATURE_DCE;
-            size_security_trailer = KERBEROS_SECURITY_TRAILER_DCE;
+            if (!size_security_trailer)
+                size_security_trailer = KERBEROS_SECURITY_TRAILER_DCE;
         }
         else
         {
             size_max_signature = KERBEROS_MAX_SIGNATURE;
-            size_security_trailer = KERBEROS_SECURITY_TRAILER;
+            if (!size_security_trailer)
+                size_security_trailer = KERBEROS_SECURITY_TRAILER;
         }
         sizes->cbMaxToken        = KERBEROS_MAX_BUF;
         sizes->cbMaxSignature    = size_max_signature;
@@ -1012,16 +1048,25 @@ static NTSTATUS unseal_message_no_vector( gss_ctx_id_t ctx, const struct unseal_
 {
     gss_buffer_desc input, output;
     OM_uint32 ret, minor_status;
-    DWORD len_data, len_token;
     int conf_state;
 
-    len_data = params->data_length;
-    len_token = params->token_length;
+    if (params->stream_length)
+    {
+        input.length = params->stream_length;
+        if (!(input.value = malloc( input.length ))) return SEC_E_INSUFFICIENT_MEMORY;
+        memcpy( input.value, params->stream, params->stream_length );
+    }
+    else
+    {
+        DWORD len_data, len_token;
 
-    input.length = len_data + len_token;
-    if (!(input.value = malloc( input.length ))) return SEC_E_INSUFFICIENT_MEMORY;
-    memcpy( input.value, params->data, len_data );
-    memcpy( (char *)input.value + len_data, params->token, len_token );
+        len_data = params->data_length;
+        len_token = params->token_length;
+        input.length = len_data + len_token;
+        if (!(input.value = malloc( input.length ))) return SEC_E_INSUFFICIENT_MEMORY;
+        memcpy( input.value, params->data, len_data );
+        memcpy( (char *)input.value + len_data, params->token, len_token );
+    }
 
     ret = pgss_unwrap( &minor_status, ctx, &input, &output, &conf_state, NULL );
     free( input.value );
@@ -1030,7 +1075,7 @@ static NTSTATUS unseal_message_no_vector( gss_ctx_id_t ctx, const struct unseal_
     if (ret == GSS_S_COMPLETE)
     {
         if (params->qop) *params->qop = (conf_state ? 0 : SECQOP_WRAP_NO_ENCRYPT);
-        memcpy( params->data, output.value, len_data );
+        memcpy( params->data, output.value, output.length );
         pgss_release_buffer( &minor_status, &output );
     }
 
@@ -1042,7 +1087,7 @@ static NTSTATUS unseal_message( void *args )
     struct unseal_message_params *params = args;
     gss_ctx_id_t ctx = ctxhandle_sspi_to_gss( params->context );
 
-    if (is_dce_style_context( ctx )) return unseal_message_vector( ctx, params );
+    if (is_dce_style_context( ctx ) && !params->stream_length) return unseal_message_vector( ctx, params );
     return unseal_message_no_vector( ctx, params );
 }
 
