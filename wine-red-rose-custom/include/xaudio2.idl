@@ -27,7 +27,7 @@ import "audiosessiontypes.h";
 
 cpp_quote("#include <pshpack1.h>")
 
-#if XAUDIO2_VER <= 7
+#if XAUDIO2_VER <= 7 && !defined(XAPOFX1_VER) && !defined(X3DAUDIO1_VER)
 
 [
     threading(both),

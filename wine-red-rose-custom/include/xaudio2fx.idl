@@ -22,7 +22,9 @@ import "unknwn.idl";
 #define XAUDIO2_VER 9
 #endif
 
+#if !defined(XAPOFX1_VER) && !defined(X3DAUDIO1_VER)
 #if XAUDIO2_VER < 8
+
 [
     threading(both),
 #if XAUDIO2_VER == 0
@@ -72,4 +74,5 @@ coclass AudioReverb {}
 HRESULT __stdcall CreateAudioReverb(IUnknown **out);
 HRESULT __stdcall CreateAudioVolumeMeter(IUnknown **out);
 
+#endif
 #endif
