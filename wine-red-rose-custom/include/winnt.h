@@ -773,9 +773,9 @@ typedef DWORD FLONG;
 #define PROCESSOR_OPTIL          18767
 
 #ifdef _WIN64
-#define MAXIMUM_PROCESSORS       64
+#define MAXIMUM_PROCESSORS       512
 #else
-#define MAXIMUM_PROCESSORS       32
+#define MAXIMUM_PROCESSORS       256
 #endif
 
 typedef struct _MEMORY_BASIC_INFORMATION

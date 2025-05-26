@@ -501,6 +501,7 @@ static const GUID *wg_video_format_get_mediasubtype(enum wg_video_format format)
         case WG_VIDEO_FORMAT_WMV3: return &MEDIASUBTYPE_WMV3;
         case WG_VIDEO_FORMAT_WMVA: return &MEDIASUBTYPE_WMVA;
         case WG_VIDEO_FORMAT_WVC1: return &MEDIASUBTYPE_WVC1;
+        case WG_VIDEO_FORMAT_P010_10LE: return &MEDIASUBTYPE_P010;
     }
 
     assert(0);

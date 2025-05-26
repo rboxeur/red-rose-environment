@@ -3426,6 +3426,39 @@ static void test_ReadConsole(HANDLE input)
     CloseHandle(output);
 }
 
+static void test_ReadConsoleInputEx(HANDLE input)
+{
+    DWORD ret, count;
+    INPUT_RECORD buf;
+
+    ret = ReadConsoleInputExA(input, &buf, 1, &count, 0x0001);
+    ok(!ret && GetLastError() == ERROR_CALL_NOT_IMPLEMENTED, "ReadConsoleInputExA is not implemented.\n");
+
+    // When empty, just return as is without blocking
+    ret = ReadConsoleInputExA(input, &buf, 1, &count, 0x0002);
+    ok(ret && count == 0, "ReadConsoleInputExA nowait failed %ld \n", GetLastError());
+
+    memset(&buf, 0, sizeof(buf));
+    buf.EventType = MOUSE_EVENT;
+    buf.Event.MouseEvent.dwEventFlags = DOUBLE_CLICK;
+    ret = WriteConsoleInputA(input, &buf, 1, &count);
+    ok(ret, "got error %lu\n", GetLastError());
+
+    memset(&buf, 0, sizeof(buf));
+    ret = ReadConsoleInputExA(input, &buf, 1, &count, 0x0000);
+    ok(ret && buf.EventType == MOUSE_EVENT, "ReadConsoleInputExA failed %#lx \n", GetLastError());
+
+    memset(&buf, 0, sizeof(buf));
+    buf.EventType = MOUSE_EVENT;
+    buf.Event.MouseEvent.dwEventFlags = DOUBLE_CLICK;
+    ret = WriteConsoleInputA(input, &buf, 1, &count);
+    ok(ret, "got error %lu\n", GetLastError());
+
+    memset(&buf, 0, sizeof(buf));
+    ret = ReadConsoleInputExA(input, &buf, 1, &count, 0x0002);
+    ok(ret && buf.EventType == MOUSE_EVENT, "ReadConsoleInputExA failed %#lx \n", GetLastError());
+}
+
 static void test_GetCurrentConsoleFont(HANDLE std_output)
 {
     BOOL ret;
@@ -5525,6 +5558,8 @@ START_TEST(console)
     if (!ret) return;
 
     test_ReadConsole(hConIn);
+    test_ReadConsoleInputEx(hConIn);
+
     /* Non interactive tests */
     testCursor(hConOut, sbi.dwSize);
     /* test parameters (FIXME: test functionality) */

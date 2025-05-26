@@ -1830,6 +1830,58 @@ BOOL WINAPI ReadConsoleInputW( HANDLE handle, INPUT_RECORD *buffer, DWORD length
 }
 
 
+
+/***********************************************************************
+ *            ReadConsoleInputExA   (kernelbase.@)
+ */
+BOOL WINAPI ReadConsoleInputExA( HANDLE handle, INPUT_RECORD *buffer, DWORD length, DWORD *count, USHORT flags )
+{
+    DWORD read;
+
+    if (!ReadConsoleInputExW( handle, buffer, length, &read, flags )) return FALSE;
+    input_records_WtoA( buffer, read );
+    if (count) *count = read;
+    return TRUE;
+}
+
+
+/***********************************************************************
+ *            ReadConsoleInputExW   (kernelbase.@)
+ */
+BOOL WINAPI ReadConsoleInputExW( HANDLE handle, INPUT_RECORD *buffer, DWORD length, DWORD *count, USHORT flags )
+{
+    USHORT no_remove = 1;
+    USHORT no_wait = 2;
+    USHORT all = 3;
+
+    TRACE( "(%p,%p,%ld,%p,%#x).\n", handle, buffer, length, count, flags );
+    // if all flags are set, it is the same as calling PeekConsoleInputW
+    if ((flags & all) == all)
+        return PeekConsoleInputW( handle, buffer, length, count) ;
+
+    if (flags == no_wait) {
+        // TODO: Does it need to be the exact count tha the user supplied?
+        if (PeekConsoleInputW( handle, buffer, 1, count) && *count > 0) {
+            return ReadConsoleInputExW( handle, buffer, length, count, 0 );
+        }
+        return TRUE;
+    }
+
+    if (flags == no_remove) {
+        FIXME("ReadConsoleInputExW not implemented for NOREMOVE");
+        SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+        return FALSE;
+    }
+
+    if (!console_ioctl( handle, IOCTL_CONDRV_READ_INPUT, NULL, 0,
+                        buffer, length * sizeof(*buffer), count ))
+        return FALSE;
+    *count /= sizeof(*buffer);
+    return TRUE;
+}
+
+
+
 /******************************************************************************
  *	WriteConsoleInputA   (kernelbase.@)
  */

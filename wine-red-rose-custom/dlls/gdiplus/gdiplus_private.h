@@ -666,4 +666,11 @@ static inline void set_rect(GpRectF *rect, REAL x, REAL y, REAL width, REAL heig
     rect->Height = height;
 }
 
+static inline int is_valid_ColorAdjustType(ColorAdjustType type)
+{
+    if (type >= ColorAdjustTypeDefault && type < ColorAdjustTypeCount)
+        return TRUE;
+    return FALSE;
+}
+
 #endif

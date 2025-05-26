@@ -146,6 +146,27 @@ static HRESULT read_midi_event(IStream *stream, struct midi_event *event, BYTE *
 
         switch (event->meta_type)
         {
+        case MIDI_META_TEXT_EVENT:
+        case MIDI_META_COPYRIGHT_NOTICE:
+        case MIDI_META_TRACK_NAME:
+        case MIDI_META_INSTRUMENT_NAME:
+        case MIDI_META_LYRIC:
+        case MIDI_META_MARKER:
+        case MIDI_META_CUE_POINT:
+            char *str = malloc(length);
+            if (FAILED(hr = stream_read_at_most(stream, str, length, bytes_left)))
+                return hr;
+            TRACE("MIDI meta event type %#02x, text: %s\n", event->meta_type, debugstr_an(str, length));
+            free(str);
+            /* Skip over this event */
+            return read_midi_event(stream, event, last_status, bytes_left);
+        case MIDI_META_END_OF_TRACK:
+            if (length)
+            {
+                ERR("Invalid MIDI meta event length %lu for end of track event.\n", length);
+                return E_FAIL;
+            }
+            break;
         case MIDI_META_SET_TEMPO:
             if (length != 3)
             {
@@ -367,8 +388,20 @@ static HRESULT midi_parser_parse(struct midi_parser *parser, IDirectMusicSegment
         while ((hr = read_midi_event(parser->stream, &event, &last_status, &length)) == S_OK)
         {
             parser->time += event.delta_time;
-            if (event.status == 0xff && event.meta_type == MIDI_META_SET_TEMPO)
-                hr = midi_parser_handle_set_tempo(parser, &event);
+            if (event.status == MIDI_META)
+            {
+                if (event.meta_type == MIDI_META_END_OF_TRACK)
+                    break;
+                switch (event.meta_type)
+                {
+                case MIDI_META_SET_TEMPO:
+                    hr = midi_parser_handle_set_tempo(parser, &event);
+                    break;
+                default:
+                    FIXME("Unhandled MIDI meta event type %#02x at time +%lu\n", event.meta_type, parser->time);
+                    break;
+                }
+            }
             else
             {
                 switch (event.status & 0xf0)
