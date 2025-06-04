@@ -656,6 +656,45 @@ static void test_DrawTextCalcRect(void)
     ok(rect.top == rect2.top, "unexpected value %ld, got %ld\n", rect.top, rect2.top);
     ok(rect.bottom == rect2.bottom , "unexpected value %ld, got %ld\n", rect.bottom, rect2.bottom);
 
+    /* further tests for dtp */
+    SelectObject(hdc, hOldFont);
+    ret = DeleteObject(hFont);
+    ok(ret, "DeleteObject error %lu\n", GetLastError());
+    lf.lfHeight = 200 * 9 / 72;
+    hFont = CreateFontIndirectA(&lf);
+    ok(hFont != 0, "CreateFontIndirectA error %lu\n", GetLastError());
+    hOldFont = SelectObject(hdc, hFont);
+
+    SetRect( &rect, 0,0, 100, 25);
+    memset(&dtp, 0, sizeof(dtp));
+    dtp.cbSize = sizeof(dtp);
+    textheight = DrawTextExW(hdc, textW, lstrlenW(textW), &rect, DT_EDITCONTROL | DT_NOPREFIX | DT_WORDBREAK, &dtp);
+    todo_wine ok(dtp.uiLengthDrawn == 10, "Unexpected uiLengthDrawn %d\n", dtp.uiLengthDrawn );
+
+    memset(&dtp, 0, sizeof(dtp));
+    dtp.cbSize = sizeof(dtp);
+    textheight = DrawTextExW(hdc, textW, lstrlenW(textW), &rect, DT_EDITCONTROL | DT_NOPREFIX | DT_WORDBREAK | DT_CALCRECT, &dtp);
+    todo_wine ok(dtp.uiLengthDrawn == 16, "Unexpected uiLengthDrawn %d\n", dtp.uiLengthDrawn );
+
+    memset(&dtp, 0, sizeof(dtp));
+    dtp.cbSize = sizeof(dtp);
+    textheight = DrawTextExW(hdc, (LPWSTR)L"a 1\tb2c3", lstrlenW(L"a 1\tb2c3"), &rect, DT_EDITCONTROL | DT_NOPREFIX | DT_WORDBREAK, &dtp);
+    todo_wine ok(dtp.uiLengthDrawn == 8, "Unexpected uiLengthDrawn %d\n", dtp.uiLengthDrawn );
+
+    memset(&dtp, 0, sizeof(dtp));
+    dtp.cbSize = sizeof(dtp);
+    textheight = DrawTextExW(hdc, (LPWSTR)L"a 1\tb2c3", lstrlenW(L"a 1\tb2c3"), &rect, DT_EDITCONTROL | DT_NOPREFIX | DT_WORDBREAK | DT_CALCRECT, &dtp);
+    ok(dtp.uiLengthDrawn == 8, "Unexpected uiLengthDrawn %d\n", dtp.uiLengthDrawn );
+
+    memset(&dtp, 0, sizeof(dtp));
+    dtp.cbSize = sizeof(dtp);
+    textheight = DrawTextExW(hdc, (LPWSTR)L" a1b2c3", lstrlenW(L" a1b2c3"), &rect, DT_EDITCONTROL | DT_NOPREFIX | DT_WORDBREAK, &dtp);
+    todo_wine ok(dtp.uiLengthDrawn == 7, "Unexpected uiLengthDrawn %d\n", dtp.uiLengthDrawn );
+    
+    memset(&dtp, 0, sizeof(dtp));
+    dtp.cbSize = sizeof(dtp);
+    textheight = DrawTextExW(hdc, (LPWSTR)L" a1b2c3", lstrlenW(L" a1b2c3"), &rect, DT_EDITCONTROL | DT_NOPREFIX | DT_WORDBREAK | DT_CALCRECT, &dtp);
+    ok(dtp.uiLengthDrawn == 7, "Unexpected uiLengthDrawn %d\n", dtp.uiLengthDrawn );
 
     SelectObject(hdc, hOldFont);
     ret = DeleteObject(hFont);

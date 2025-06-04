@@ -118,6 +118,7 @@ static void mark_cert_imported( HKEY import_key, const CERT_CONTEXT *cert )
     RegSetValueExW( import_key, hash_str, 0, REG_DWORD, (BYTE *)&value, sizeof(value) );
 }
 
+/* Takes ownership of `cached`. */
 static void check_and_store_certs( HCERTSTORE cached, HKEY key, HKEY import_key )
 {
     DWORD root_count = 0;
@@ -128,7 +129,12 @@ static void check_and_store_certs( HCERTSTORE cached, HKEY key, HKEY import_key 
     TRACE("\n");
 
     if (!(engine = CRYPT_CreateChainEngine( cached, CERT_SYSTEM_STORE_CURRENT_USER, &chainEngineConfig )))
+    {
+        CertCloseStore( cached, 0 );
         return;
+    }
+
+    /* `engine` owns `cached`. */
 
     while ((cert = CertEnumCertificatesInStore( cached, cert )))
     {
@@ -645,6 +651,8 @@ static void add_ms_root_certs(HKEY key, HCERTSTORE cached)
  * any location contains any certificates, to prevent spending unnecessary time
  * adding redundant certificates, e.g. when both a certificate bundle and
  * individual certificates exist in the same directory.
+ *
+ * This function takes ownership of `cached`.
  */
 static void sync_trusted_roots_from_known_locations( HKEY key, HCERTSTORE cached )
 {
@@ -668,7 +676,10 @@ static void sync_trusted_roots_from_known_locations( HKEY key, HCERTSTORE cached
     {
         if (RegCreateKeyExW( HKEY_LOCAL_MACHINE, L"Software\\Wine\\HostImportedCertificates_tmp", 0, NULL, 0,
                              KEY_ALL_ACCESS, NULL, &import_key, NULL ))
+        {
+            CertCloseStore( cached, 0 );
             return;
+        }
 
         /* If the key is absent existing certificates were added by an older Wine version, mark all cached certificates
          * as imported (as it was previously assumed) so they can be deleted when are deleted on host. */
@@ -680,6 +691,7 @@ static void sync_trusted_roots_from_known_locations( HKEY key, HCERTSTORE cached
         {
             ERR( "Error renaming key %#lx.\n", value );
             RegCloseKey( import_key );
+            CertCloseStore( cached, 0 );
             return;
         }
     }
@@ -750,6 +762,8 @@ static void sync_trusted_roots_from_known_locations( HKEY key, HCERTSTORE cached
 
     if (new_count)
         check_and_store_certs( cached, key, import_key );
+    else
+        CertCloseStore( cached, 0 );
 
     RegCloseKey( import_key );
     TRACE( "existing %u, deleted %u, new %u.\n", existing_count, deleted_count, new_count );
@@ -793,6 +807,7 @@ void CRYPT_ImportSystemRootCertsToReg(void)
     CRYPT_RegReadSerializedFromReg(key, CERT_STORE_CERTIFICATE_CONTEXT_FLAG, cached, CERT_STORE_ADD_ALWAYS);
     add_ms_root_certs(key, cached);
     sync_trusted_roots_from_known_locations(key, cached);
+    cached = NULL;
 
 done:
     RegCloseKey(key);
