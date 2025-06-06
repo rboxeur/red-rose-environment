@@ -64,7 +64,7 @@ from enum import Enum
 LOGGER = logging.Logger("vulkan")
 LOGGER.addHandler(logging.StreamHandler())
 
-VK_XML_VERSION = "1.4.303"
+VK_XML_VERSION = "1.4.315"
 WINE_VK_VERSION = (1, 4)
 
 # Filenames to create.
@@ -105,6 +105,7 @@ UNSUPPORTED_EXTENSIONS = [
     "VK_KHR_video_encode_queue",
     "VK_KHR_video_queue", # TODO Video extensions use separate headers + xml
     "VK_NV_external_memory_rdma", # Needs shared resources work.
+    "VK_NV_external_compute_queue", # Has a new dispatchable handle
 
     # Extensions for other platforms
     "VK_EXT_external_memory_dma_buf",
