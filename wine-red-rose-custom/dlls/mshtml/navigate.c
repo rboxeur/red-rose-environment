@@ -813,8 +813,9 @@ static HRESULT process_response_headers(nsChannelBSC *This, const WCHAR *headers
 static void query_http_info(nsChannelBSC *This, IWinInetHttpInfo *wininet_info)
 {
     const WCHAR *ptr;
-    DWORD len = 0;
-    WCHAR *buf;
+    DWORD len = 0, wlen;
+    WCHAR *wbuf;
+    char *buf;
 
     IWinInetHttpInfo_QueryInfo(wininet_info, HTTP_QUERY_RAW_HEADERS_CRLF, NULL, &len, NULL, NULL);
     if(!len)
@@ -825,17 +826,29 @@ static void query_http_info(nsChannelBSC *This, IWinInetHttpInfo *wininet_info)
         return;
 
     IWinInetHttpInfo_QueryInfo(wininet_info, HTTP_QUERY_RAW_HEADERS_CRLF, buf, &len, NULL, NULL);
-    if(!len) {
-        free(buf);
-        return;
-    }
+    if(!len)
+        goto out;
 
-    ptr = wcschr(buf, '\r');
+
+    wlen = MultiByteToWideChar(CP_ACP, 0, buf, len, NULL, 0);
+    if (!wlen)
+        goto out;
+
+    wbuf = malloc((wlen + 1) * sizeof(WCHAR));
+    if (!wbuf)
+        goto out;
+
+    MultiByteToWideChar(CP_ACP, 0, buf, len, wbuf, wlen);
+    wbuf[wlen] = L'\0';
+
+    ptr = wcschr(wbuf, '\r');
     if(ptr && ptr[1] == '\n') {
         ptr += 2;
         process_response_headers(This, ptr);
     }
+    free(wbuf);
 
+out:
     free(buf);
 }
 
