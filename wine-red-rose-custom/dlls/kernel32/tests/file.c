@@ -6562,6 +6562,39 @@ static void test_eof(void)
     ok(ret, "failed to delete %s, error %lu\n", debugstr_a(filename), GetLastError());
 }
 
+static void test_GetFinalPathNameByHandleW_more_than_MAX_PATH(void)
+{
+    WCHAR file_name[MAX_PATH] = {0};
+    WCHAR test_path[MAX_PATH * 2] = {0};
+    WCHAR result_path[MAX_PATH * 2];
+    DWORD count;
+    HANDLE file;
+
+    lstrcpyW(test_path, L"\\\\?\\");
+    count = GetTempPathW(ARRAY_SIZE(test_path) - 4, test_path + 4);
+    ok(count, "Failed to get temp path, error %lu\n", GetLastError());
+    count += 4;
+
+    if (test_path[count - 1] != L'\\')
+        lstrcatW(test_path, L"\\");
+
+    for (int i = 0; i < ARRAY_SIZE(file_name) - 5; i++)
+        file_name[i] = L'a';
+    lstrcatW(test_path, file_name);
+
+    file = CreateFileW(test_path, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+                       CREATE_ALWAYS, FILE_FLAG_DELETE_ON_CLOSE, 0);
+    ok(file != INVALID_HANDLE_VALUE, "CreateFileW error %lu\n", GetLastError());
+
+    memset(result_path, 0xcb, sizeof(result_path));
+    count = pGetFinalPathNameByHandleW(file, result_path, ARRAY_SIZE(result_path), FILE_NAME_NORMALIZED);
+    ok(count == lstrlenW(test_path), "Expected length %u, got %lu\n", lstrlenW(test_path), count);
+    ok(lstrcmpiW(test_path, result_path) == 0, "Expected %s, got %s\n",
+       wine_dbgstr_w(test_path), wine_dbgstr_w(result_path));
+
+    CloseHandle(file);
+}
+
 START_TEST(file)
 {
     char temp_path[MAX_PATH];
@@ -6628,6 +6661,7 @@ START_TEST(file)
     test_file_access();
     test_GetFinalPathNameByHandleA();
     test_GetFinalPathNameByHandleW();
+    test_GetFinalPathNameByHandleW_more_than_MAX_PATH();
     test_SetFileInformationByHandle();
     test_SetFileRenameInfo();
     test_GetFileAttributesExW();

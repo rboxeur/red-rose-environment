@@ -193,6 +193,10 @@ HRESULT WINAPI RoGetActivationFactory(HSTRING classid, REFIID iid, void **class_
         }
         IActivationFactory_Release(factory);
     }
+    else
+    {
+        ERR("Class %s not found in %s, hr %#lx.\n", wine_dbgstr_hstring(classid), debugstr_w(library), hr);
+    }
 
 done:
     free(library);
@@ -416,6 +420,14 @@ HRESULT WINAPI RoGetAgileReference(enum AgileReferenceOptions option, REFIID rii
 }
 
 /***********************************************************************
+ *      RoFailFastWithErrorContextInternal2 (combase.@)
+ */
+void WINAPI RoFailFastWithErrorContextInternal2(HRESULT error, ULONG exception_count, /* PSTOWED_EXCEPTION_INFORMATION_V2 */void *information)
+{
+    FIXME("%#lx, %lu, %p stub.\n", error, exception_count, information);
+}
+
+/***********************************************************************
  *      RoGetApartmentIdentifier (combase.@)
  */
 HRESULT WINAPI RoGetApartmentIdentifier(UINT64 *identifier)
@@ -517,6 +529,15 @@ BOOL WINAPI RoOriginateErrorW(HRESULT error, UINT max_len, const WCHAR *message)
 }
 
 /***********************************************************************
+ *      RoReportUnhandledError (combase.@)
+ */
+HRESULT WINAPI RoReportUnhandledError(IRestrictedErrorInfo *info)
+{
+    FIXME("(%p): stub\n", info);
+    return S_OK;
+}
+
+/***********************************************************************
  *      RoSetErrorReportingFlags (combase.@)
  */
 HRESULT WINAPI RoSetErrorReportingFlags(UINT32 flags)
@@ -524,6 +545,21 @@ HRESULT WINAPI RoSetErrorReportingFlags(UINT32 flags)
     FIXME("(%08x): stub\n", flags);
     return S_OK;
 }
+
+/***********************************************************************
+ *      RoGetErrorReportingFlags (combase.@)
+ */
+HRESULT WINAPI RoGetErrorReportingFlags(UINT32 *flags)
+{
+    FIXME("(%p): stub\n", flags);
+
+    if (!flags)
+        return E_POINTER;
+
+    *flags = RO_ERROR_REPORTING_USESETERRORINFO;
+    return S_OK;
+}
+
 
 /***********************************************************************
  *      CleanupTlsOleState (combase.@)

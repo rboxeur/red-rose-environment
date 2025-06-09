@@ -1918,13 +1918,12 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleA( HANDLE file, LPSTR pat
 DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR path,
                                                           DWORD count, DWORD flags )
 {
-    WCHAR buffer[sizeof(OBJECT_NAME_INFORMATION) + MAX_PATH + 1];
-    OBJECT_NAME_INFORMATION *info = (OBJECT_NAME_INFORMATION*)&buffer;
+    OBJECT_NAME_INFORMATION *info = NULL;
     WCHAR drive_part[MAX_PATH];
     DWORD drive_part_len = 0;
     NTSTATUS status;
     DWORD result = 0;
-    ULONG dummy;
+    ULONG buffer_size;
     WCHAR *ptr;
 
     TRACE( "(%p,%p,%ld,%lx)\n", file, path, count, flags );
@@ -1937,20 +1936,37 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
     }
 
     /* get object name */
-    status = NtQueryObject( file, ObjectNameInformation, &buffer, sizeof(buffer) - sizeof(WCHAR), &dummy );
-    if (!set_ntstatus( status )) return 0;
+    buffer_size = sizeof(*info) + (MAX_PATH + 1) * sizeof(WCHAR);
+    do
+    {
+        if (info)
+            HeapFree( GetProcessHeap(), 0, info );
+        info = HeapAlloc( GetProcessHeap(), 0, buffer_size );
+        if (!info)
+            return ERROR_OUTOFMEMORY;
+
+        status = NtQueryObject( file, ObjectNameInformation, info, buffer_size, &buffer_size );
+    } while (status == STATUS_BUFFER_OVERFLOW);
+
+    if (!set_ntstatus( status ))
+    {
+        result = 0;
+        goto cleanup;
+    }
 
     if (!info->Name.Buffer)
     {
         SetLastError( ERROR_INVALID_HANDLE );
-        return 0;
+        result = 0;
+        goto cleanup;
     }
     if (info->Name.Length < 4 * sizeof(WCHAR) || info->Name.Buffer[0] != '\\' ||
         info->Name.Buffer[1] != '?' || info->Name.Buffer[2] != '?' || info->Name.Buffer[3] != '\\' )
     {
         FIXME("Unexpected object name: %s\n", debugstr_wn(info->Name.Buffer, info->Name.Length / sizeof(WCHAR)));
         SetLastError( ERROR_GEN_FAILURE );
-        return 0;
+        result = 0;
+        goto cleanup;
     }
 
     /* add terminating null character, remove "\\??\\" */
@@ -1968,7 +1984,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
     /* Get information required for VOLUME_NAME_NONE, VOLUME_NAME_GUID and VOLUME_NAME_NT */
     if (flags == VOLUME_NAME_NONE || flags == VOLUME_NAME_GUID || flags == VOLUME_NAME_NT)
     {
-        if (!GetVolumePathNameW( info->Name.Buffer, drive_part, MAX_PATH )) return 0;
+        if (!GetVolumePathNameW( info->Name.Buffer, drive_part, MAX_PATH ))
+        {
+            result = 0;
+            goto cleanup;
+        }
         drive_part_len = lstrlenW(drive_part);
         if (!drive_part_len || drive_part_len > lstrlenW(info->Name.Buffer) ||
             drive_part[drive_part_len-1] != '\\' ||
@@ -1977,7 +1997,8 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
             FIXME( "Path %s returned by GetVolumePathNameW does not match file path %s\n",
                    debugstr_w(drive_part), debugstr_w(info->Name.Buffer) );
             SetLastError( ERROR_GEN_FAILURE );
-            return 0;
+            result = 0;
+            goto cleanup;
         }
     }
 
@@ -1993,7 +2014,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
         WCHAR volume_prefix[51];
 
         /* GetVolumeNameForVolumeMountPointW sets error code on failure */
-        if (!GetVolumeNameForVolumeMountPointW( drive_part, volume_prefix, 50 )) return 0;
+        if (!GetVolumeNameForVolumeMountPointW( drive_part, volume_prefix, 50 ))
+        {
+            result = 0;
+            goto cleanup;
+        }
         ptr = info->Name.Buffer + drive_part_len;
         result = lstrlenW(volume_prefix) + lstrlenW(ptr);
         if (result < count)
@@ -2013,7 +2038,11 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
 
         /* QueryDosDeviceW sets error code on failure */
         drive_part[drive_part_len - 1] = 0;
-        if (!QueryDosDeviceW( drive_part, nt_prefix, MAX_PATH )) return 0;
+        if (!QueryDosDeviceW( drive_part, nt_prefix, MAX_PATH ))
+        {
+            result = 0;
+            goto cleanup;
+        }
         ptr = info->Name.Buffer + drive_part_len - 1;
         result = lstrlenW(nt_prefix) + lstrlenW(ptr);
         if (result < count)
@@ -2047,6 +2076,9 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFinalPathNameByHandleW( HANDLE file, LPWSTR pa
         WARN("Invalid combination of flags: %lx\n", flags);
         SetLastError( ERROR_INVALID_PARAMETER );
     }
+
+cleanup:
+    HeapFree( GetProcessHeap(), 0, info );
     return result;
 }
 

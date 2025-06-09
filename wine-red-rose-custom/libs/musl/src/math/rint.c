@@ -12,6 +12,9 @@ static const double_t toint = 1/EPS;
 
 double __cdecl rint(double x)
 {
+#if defined(__GNUC__) && defined(__i386__)
+	return __builtin_rint(x);
+#endif
 	union {double f; uint64_t i;} u = {x};
 	int e = u.i>>52 & 0x7ff;
 	int s = u.i>>63;
