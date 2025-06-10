@@ -978,6 +978,11 @@ static void session_command_complete(struct media_session *session)
     if ((e = list_head(&session->commands)))
     {
         op = LIST_ENTRY(e, struct session_op, entry);
+        if (op->submitted)
+        {
+            ERR("op %p already submitted\n", op);
+            return;
+        }
         hr = MFPutWorkItem(MFASYNC_CALLBACK_QUEUE_STANDARD, &session->commands_callback, &op->IUnknown_iface);
         op->submitted = SUCCEEDED(hr);
     }

@@ -4,4 +4,5 @@ PARENTSRC = ../msvcrt
 
 SOURCES = \
 	handler4.c \
-	main.c
+	main.c \
+	version.rc

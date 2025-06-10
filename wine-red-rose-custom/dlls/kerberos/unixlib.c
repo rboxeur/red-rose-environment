@@ -461,11 +461,17 @@ fail:
     return FALSE;
 }
 
-static BOOL is_dce_style_context( gss_ctx_id_t ctx )
+static OM_uint32 get_context_flags( gss_ctx_id_t ctx )
 {
     OM_uint32 ret, minor_status, flags;
     ret = pgss_inquire_context( &minor_status, ctx, NULL, NULL, NULL, NULL, &flags, NULL, NULL );
-    return (ret == GSS_S_COMPLETE && (flags & GSS_C_DCE_STYLE));
+    return ret == GSS_S_COMPLETE ? flags : 0;
+}
+
+static BOOL is_dce_style_context( gss_ctx_id_t ctx )
+{
+    OM_uint32 flags = get_context_flags( ctx );
+    return flags & GSS_C_DCE_STYLE;
 }
 
 static NTSTATUS status_gss_to_sspi( OM_uint32 status )
@@ -753,6 +759,8 @@ static NTSTATUS initialize_context( void *args )
 
     if (params->target_name && (status = import_name( params->target_name, &target ))) return status;
 
+    if (req_flags & GSS_C_CONF_FLAG) req_flags |= GSS_C_INTEG_FLAG;
+
     ret = pgss_init_sec_context( &minor_status, cred_handle, &ctx_handle, target, GSS_C_NO_OID, req_flags, 0,
                                  GSS_C_NO_CHANNEL_BINDINGS, &input_token, NULL, &output_token, &ret_flags,
                                  &expiry_time );
@@ -1007,8 +1015,11 @@ static NTSTATUS seal_message( void *args )
 {
     struct seal_message_params *params = args;
     gss_ctx_id_t ctx = ctxhandle_sspi_to_gss( params->context );
+    OM_uint32 flags = get_context_flags( ctx );
 
-    if (is_dce_style_context( ctx )) return seal_message_vector( ctx, params );
+    if (!(flags & GSS_C_CONF_FLAG)) return SEC_E_UNSUPPORTED_FUNCTION;
+
+    if (flags & GSS_C_DCE_STYLE) return seal_message_vector( ctx, params );
     return seal_message_no_vector( ctx, params );
 }
 

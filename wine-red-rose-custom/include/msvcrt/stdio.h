@@ -442,7 +442,11 @@ _ACRTIMP int __cdecl vsprintf_s(char*,size_t,const char*,va_list) __WINE_CRT_PRI
 _ACRTIMP int __cdecl _vsnprintf(char*,size_t,const char*,va_list) __WINE_CRT_PRINTF_ATTR(3, 0);
 static inline int vsnprintf(char *buffer, size_t size, const char *format, va_list args) __WINE_CRT_PRINTF_ATTR(3, 0);
 static inline int vsnprintf(char *buffer, size_t size, const char *format, va_list args)
-{ return _vsnprintf(buffer,size,format,args); }
+{
+    int r = _vsnprintf(buffer,size,format,args);
+    if (r>=size) buffer[size-1] = 0;
+    return r;
+}
 
 _ACRTIMP int WINAPIV _snscanf_l(const char*,size_t,const char*,_locale_t,...) __WINE_CRT_SCANF_ATTR(3, 5);
 _ACRTIMP int WINAPIV _sscanf_l(const char *,const char*,_locale_t,...) __WINE_CRT_SCANF_ATTR(2, 4);

@@ -526,7 +526,11 @@ static BOOL
 TREEVIEW_SendSimpleNotify(const TREEVIEW_INFO *infoPtr, UINT code)
 {
     NMHDR hdr;
-    return TREEVIEW_SendRealNotify(infoPtr, code, &hdr);
+    BOOL result = TREEVIEW_SendRealNotify(infoPtr, code, &hdr);
+
+    if(!IsWindow(infoPtr->hwnd))
+        result = TRUE;
+    return result;
 }
 
 static VOID
