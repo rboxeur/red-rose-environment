@@ -1409,11 +1409,16 @@ static void test_Environment(void)
     ptr += strlen(ptr) + 1;
     /* copy all existing variables except:
      * - PATH (already set above)
+     * - CI_COMMIT_AUTHOR and GITLAB_USER_NAME, which can contain extended ascii character
+     *     depending on the patch creators name, which get in Windows not properly passed
+     *     into the child process by CreateProcessA.
      * - the directory definitions (=[A-Z]:=)
      */
     for (ptr2 = env; *ptr2; ptr2 += strlen(ptr2) + 1)
     {
         if (strncmp(ptr2, "PATH=", 5) != 0 &&
+            strncmp(ptr2, "CI_COMMIT_AUTHOR=", 17) != 0 &&
+            strncmp(ptr2, "GITLAB_USER_NAME=", 17) != 0 &&
             !is_str_env_drive_dir(ptr2))
         {
             strcpy(ptr, ptr2);

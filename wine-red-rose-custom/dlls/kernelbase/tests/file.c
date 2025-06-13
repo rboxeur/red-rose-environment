@@ -29,6 +29,7 @@
 #include "wine/test.h"
 
 static HRESULT (WINAPI *pQueryIoRingCapabilities)(IORING_CAPABILITIES *);
+static BOOL (WINAPI *pSetFileInformationByHandle)(HANDLE, FILE_INFO_BY_HANDLE_CLASS, void *, DWORD);
 
 static void test_ioring_caps(void)
 {
@@ -46,12 +47,62 @@ static void test_ioring_caps(void)
     todo_wine ok(hr == S_OK, "got %#lx.\n", hr);
 }
 
+static void test_SetFileInformationByHandle(void)
+{
+    HANDLE handle;
+    static const WCHAR filename1[] = L"test1";
+    static const WCHAR filename2[] = L"test2";
+    static const WCHAR filename3[] = L"test3";
+    BOOL success;
+    FILE_RENAME_INFO* renameinfo;
+    size_t renameinfo_sz;
+    FILE_RENAME_INFO* renameinfoex;
+    size_t renameinfoex_sz;
+
+    if (!pQueryIoRingCapabilities)
+    {
+        win_skip("QueryIoRingCapabilities is not available, skipping tests.\n");
+        return;
+    }
+
+    SetLastError(0xdeadbeef);
+    handle = CreateFileW(filename1, GENERIC_READ|GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+            FILE_FLAG_DELETE_ON_CLOSE, 0);
+    ok(handle != INVALID_HANDLE_VALUE, "CreateFileA error: %lu\n", GetLastError());
+
+    renameinfo_sz = sizeof(FILE_RENAME_INFO) + sizeof(filename2);
+    renameinfo = malloc(renameinfo_sz);
+    ok(renameinfo != NULL, "Out of memory\n");
+    memset(renameinfo, 0, renameinfo_sz);
+    SetLastError(0xdeadbeef);
+    renameinfo->FileNameLength = lstrlenW(filename2);
+    memcpy(renameinfo->FileName, filename2, sizeof(filename2));
+    success = SetFileInformationByHandle(handle, FileRenameInfo, renameinfo, renameinfo_sz);
+    ok(success, "SetFileInformationByHandle failed to change filename, error: %lu\n", GetLastError());
+
+    renameinfoex_sz = sizeof(FILE_RENAME_INFO) + sizeof(filename3);
+    renameinfoex = malloc(renameinfoex_sz);
+    ok(renameinfoex != NULL, "Out of memory\n");
+    memset(renameinfoex, 0, renameinfoex_sz);
+    SetLastError(0xdeadbeef);
+    renameinfoex->FileNameLength = lstrlenW(filename3);
+    memcpy(renameinfoex->FileName, filename3, sizeof(filename3));
+    success = SetFileInformationByHandle(handle, FileRenameInfoEx, renameinfoex, renameinfoex_sz);
+    ok(success, "SetFileInformationByHandle failed to change filename, error: %lu\n", GetLastError());
+
+    free(renameinfo);
+    free(renameinfoex);
+    CloseHandle(handle);
+}
+
 START_TEST(file)
 {
     HMODULE hmod;
 
     hmod = LoadLibraryA("kernelbase.dll");
     pQueryIoRingCapabilities = (void *)GetProcAddress(hmod, "QueryIoRingCapabilities");
+    pSetFileInformationByHandle = (void *)GetProcAddress(hmod, "SetFileInformationByHandle");
 
     test_ioring_caps();
+    test_SetFileInformationByHandle();
 }

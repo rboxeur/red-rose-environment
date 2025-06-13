@@ -1721,7 +1721,7 @@ static void test_MsiQueryFeatureState(void)
     ok(state == INSTALLSTATE_UNKNOWN, "Expected INSTALLSTATE_UNKNOWN, got %d\n", state);
     ok(error == ERROR_SUCCESS, "expected ERROR_SUCCESS, got %lu\n", error);
 
-    res = RegSetValueExA(userkey, "feature", 0, REG_SZ, (const BYTE *)"", 2);
+    res = RegSetValueExA(userkey, "feature", 0, REG_SZ, (const BYTE *)"", 1);
     ok(res == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %ld\n", res);
 
     /* feature value exists */

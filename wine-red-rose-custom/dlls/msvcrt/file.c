@@ -153,7 +153,19 @@ ioinfo MSVCRT___badioinfo = { INVALID_HANDLE_VALUE, WX_TEXT };
  * array of pointers to ioinfo arrays [32]
  */
 ioinfo * MSVCRT___pioinfo[MSVCRT_MAX_FILES/MSVCRT_FD_BLOCK_SIZE] = { 0 };
-
+static ioinfo stdio_ioinfo[3];
+static RTL_CRITICAL_SECTION_DEBUG stdio_critsect_debug[3] =
+{
+    { 0, 0, &stdio_ioinfo[0].crit,
+      { &stdio_critsect_debug[0].ProcessLocksList, &stdio_critsect_debug[0].ProcessLocksList },
+      0, 0, { (DWORD_PTR)(__FILE__ ": stdin_cs") } },
+    { 0, 0, &stdio_ioinfo[1].crit,
+      { &stdio_critsect_debug[1].ProcessLocksList, &stdio_critsect_debug[1].ProcessLocksList },
+      0, 0, { (DWORD_PTR)(__FILE__ ": stdout_cs") } },
+    { 0, 0, &stdio_ioinfo[2].crit,
+      { &stdio_critsect_debug[2].ProcessLocksList, &stdio_critsect_debug[2].ProcessLocksList },
+      0, 0, { (DWORD_PTR)(__FILE__ ": stderr_cs") } },
+};
 #if _MSVCR_VER >= 80
 
 #if _MSVCR_VER >= 140
@@ -166,14 +178,17 @@ static inline void ioinfo_set_crit_init(ioinfo *info)
 {
 }
 #else
+
+#define EF_CRIT_INIT      0x01
+
 static inline BOOL ioinfo_is_crit_init(ioinfo *info)
 {
-    return info->exflag & 1;
+    return info->exflag & EF_CRIT_INIT;
 }
 
 static inline void ioinfo_set_crit_init(ioinfo *info)
 {
-    info->exflag |= 1;
+    info->exflag |= EF_CRIT_INIT;
 }
 #endif
 
@@ -240,6 +255,25 @@ static inline void ioinfo_set_unicode(ioinfo *info, BOOL unicode)
     else
         info->exflag &= ~EF_UNK_UNICODE;
 }
+#endif
+
+#if _MSVCR_VER >= 140
+static ioinfo stdio_ioinfo[3] =
+{
+    { .handle = INVALID_HANDLE_VALUE, .crit = { &stdio_critsect_debug[0], -1, 0, 0, 0, 0 } },
+    { .handle = INVALID_HANDLE_VALUE, .crit = { &stdio_critsect_debug[1], -1, 0, 0, 0, 0 } },
+    { .handle = INVALID_HANDLE_VALUE, .crit = { &stdio_critsect_debug[2], -1, 0, 0, 0, 0 } },
+};
+#else
+static ioinfo stdio_ioinfo[3] =
+{
+    { .handle = INVALID_HANDLE_VALUE, .crit = { &stdio_critsect_debug[0], -1, 0, 0, 0, 0 },
+      .exflag = EF_CRIT_INIT },
+    { .handle = INVALID_HANDLE_VALUE, .crit = { &stdio_critsect_debug[1], -1, 0, 0, 0, 0 },
+      .exflag = EF_CRIT_INIT },
+    { .handle = INVALID_HANDLE_VALUE, .crit = { &stdio_critsect_debug[2], -1, 0, 0, 0, 0 },
+      .exflag = EF_CRIT_INIT },
+};
 #endif
 
 typedef struct {
@@ -372,6 +406,8 @@ static void time_to_filetime( __time64_t time, FILETIME *ft )
 static inline ioinfo* get_ioinfo_nolock(int fd)
 {
     ioinfo *ret = NULL;
+    if(fd>=0 && fd<3)
+        return &stdio_ioinfo[fd];
     if(fd>=0 && fd<MSVCRT_MAX_FILES)
         ret = MSVCRT___pioinfo[fd/MSVCRT_FD_BLOCK_SIZE];
     if(!ret)

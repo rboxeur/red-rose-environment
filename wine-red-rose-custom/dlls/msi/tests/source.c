@@ -2974,7 +2974,7 @@ static void test_MsiSourceListEnumMediaDisks(void)
     ok(!lstrcmpA(prompt, "bbb"), "Expected \"bbb\", got \"%s\"\n", prompt);
     ok(promptsz == 6, "Expected 6, got %lu\n", promptsz);
 
-    res = RegSetValueExA(media, "1", 0, REG_SZ, (LPBYTE)"label", 13);
+    res = RegSetValueExA(media, "1", 0, REG_SZ, (LPBYTE)"label", 6);
     ok(res == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %ld\n", res);
 
     /* no semicolon */
@@ -2993,7 +2993,7 @@ static void test_MsiSourceListEnumMediaDisks(void)
     ok(!lstrcmpA(prompt, "label"), "Expected \"label\", got \"%s\"\n", prompt);
     ok(promptsz == 5, "Expected 5, got %lu\n", promptsz);
 
-    res = RegSetValueExA(media, "1", 0, REG_SZ, (LPBYTE)"label;", 13);
+    res = RegSetValueExA(media, "1", 0, REG_SZ, (LPBYTE)"label;", 7);
     ok(res == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %ld\n", res);
 
     /* semicolon, no disk prompt */
@@ -3012,7 +3012,7 @@ static void test_MsiSourceListEnumMediaDisks(void)
     ok(!lstrcmpA(prompt, ""), "Expected \"\", got \"%s\"\n", prompt);
     ok(promptsz == 0, "Expected 0, got %lu\n", promptsz);
 
-    res = RegSetValueExA(media, "1", 0, REG_SZ, (LPBYTE)";prompt", 13);
+    res = RegSetValueExA(media, "1", 0, REG_SZ, (LPBYTE)";prompt", 8);
     ok(res == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %ld\n", res);
 
     /* semicolon, label doesn't exist */
@@ -3031,7 +3031,7 @@ static void test_MsiSourceListEnumMediaDisks(void)
     ok(!lstrcmpA(prompt, "prompt"), "Expected \"prompt\", got \"%s\"\n", prompt);
     ok(promptsz == 6, "Expected 6, got %lu\n", promptsz);
 
-    res = RegSetValueExA(media, "1", 0, REG_SZ, (LPBYTE)";", 13);
+    res = RegSetValueExA(media, "1", 0, REG_SZ, (LPBYTE)";", 2);
     ok(res == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %ld\n", res);
 
     /* semicolon, neither label nor disk prompt exist */
