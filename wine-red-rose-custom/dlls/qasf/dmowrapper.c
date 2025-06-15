@@ -108,7 +108,9 @@ static HRESULT WINAPI buffer_GetBufferAndLength(IMediaBuffer *iface, BYTE **data
     TRACE("iface %p, data %p, len %p.\n", iface, data, len);
 
     *len = IMediaSample_GetActualDataLength(buffer->sample);
-    return IMediaSample_GetPointer(buffer->sample, data);
+    if (data)
+        return IMediaSample_GetPointer(buffer->sample, data);
+    return S_OK;
 }
 
 static const IMediaBufferVtbl buffer_vtbl =
@@ -677,7 +679,21 @@ static HRESULT dmo_wrapper_query_interface(struct strmbase_filter *iface, REFIID
 static HRESULT dmo_wrapper_init_stream(struct strmbase_filter *iface)
 {
     struct dmo_wrapper *filter = impl_from_strmbase_filter(iface);
+    IMediaObject *dmo;
+    HRESULT hr;
     DWORD i;
+
+    if (!filter->dmo)
+        return E_FAIL;
+
+    IUnknown_QueryInterface(filter->dmo, &IID_IMediaObject, (void **)&dmo);
+
+    if (FAILED(hr = IMediaObject_AllocateStreamingResources(dmo)))
+    {
+        ERR("AllocateStreamingResources() failed, hr %#lx.\n", hr);
+        IMediaObject_Release(dmo);
+        return hr;
+    }
 
     for (i = 0; i < filter->source_count; ++i)
     {
@@ -685,6 +701,7 @@ static HRESULT dmo_wrapper_init_stream(struct strmbase_filter *iface)
             IMemAllocator_Commit(filter->sources[i].pin.pAllocator);
     }
 
+    IMediaObject_Release(dmo);
     return S_OK;
 }
 
@@ -707,6 +724,7 @@ static HRESULT dmo_wrapper_cleanup_stream(struct strmbase_filter *iface)
     }
 
     IMediaObject_Flush(dmo);
+    IMediaObject_FreeStreamingResources(dmo);
 
     IMediaObject_Release(dmo);
     LeaveCriticalSection(&filter->filter.stream_cs);

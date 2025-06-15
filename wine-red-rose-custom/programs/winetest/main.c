@@ -1690,6 +1690,16 @@ int __cdecl main( int argc, char *argv[] )
             SetEnvironmentVariableA( "WINETEST_DEBUG", "1" );
             SetEnvironmentVariableA( "WINETEST_INTERACTIVE", "0" );
             SetEnvironmentVariableA( "WINETEST_REPORT_SUCCESS", "0" );
+
+            /* This environment variables contain the patch authors name,
+               which may contain extended ascii or UTF-8 characters.
+               At least the kernel32:process test fails on Windows because
+               of this, as CreateProcessA with a user supplied environment
+               could not replicate these variable contents.
+               And the failure message makes the CI fail in qemu-agent.py with a:
+               UnicodeDecodeError: 'utf-8' codec can't decode byte ... */
+            SetEnvironmentVariableA( "CI_COMMIT_AUTHOR", NULL );
+            SetEnvironmentVariableA( "GITLAB_USER_NAME", NULL );
         }
         if (junit)
         {
