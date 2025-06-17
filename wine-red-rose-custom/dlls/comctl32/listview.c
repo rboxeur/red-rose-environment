@@ -1120,13 +1120,7 @@ static void prepaint_setup (const LISTVIEW_INFO *infoPtr, HDC hdc, const NMLVCUS
         textcolor = comctl32_color.clrWindowText;
 
     /* Set the text attributes */
-    if (backcolor != CLR_NONE)
-    {
-	SetBkMode(hdc, OPAQUE);
-	SetBkColor(hdc, backcolor);
-    }
-    else
-	SetBkMode(hdc, TRANSPARENT);
+    SetBkColor(hdc, backcolor);
     SetTextColor(hdc, textcolor);
 }
 
@@ -5284,6 +5278,8 @@ static void LISTVIEW_Refresh(LISTVIEW_INFO *infoPtr, HDC hdc, const RECT *prcEra
 
     GetClientRect(infoPtr->hwndSelf, &rcClient);
     customdraw_fill(&nmlvcd, infoPtr, hdc, &rcClient, 0);
+    /* v5 sets the initial background mix mode to TRANSPARENT while v6 uses OPAQUE. */
+    SetBkMode(hdc, TRANSPARENT);
     cdmode = notify_customdraw(infoPtr, CDDS_PREPAINT, &nmlvcd);
     if (cdmode & CDRF_SKIPDEFAULT) goto enddraw;
 
@@ -6882,8 +6878,6 @@ static BOOL LISTVIEW_GetItemT(const LISTVIEW_INFO *infoPtr, LPLVITEMW lpLVItem, 
     {
         if (!lpLVItem->iSubItem || (infoPtr->dwLvExStyle & LVS_EX_SUBITEMIMAGES))
             lpLVItem->iImage = pItemHdr->iImage;
-        else
-            lpLVItem->iImage = 0;
     }
 
     /* The pszText field */
@@ -7309,6 +7303,7 @@ static UINT LISTVIEW_GetItemState(const LISTVIEW_INFO *infoPtr, INT nItem, UINT 
     lvItem.iItem = nItem;
     lvItem.iSubItem = 0;
     lvItem.mask = LVIF_STATE;
+    lvItem.state = 0;
     lvItem.stateMask = uMask;
     if (!LISTVIEW_GetItemW(infoPtr, &lvItem)) return 0;
 

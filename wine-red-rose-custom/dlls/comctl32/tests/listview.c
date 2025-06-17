@@ -1142,14 +1142,32 @@ static void test_images(void)
 
     flush_sequences(sequences, NUM_MSG_SEQUENCES);
 
+    /*
+     * If LVS_EX_SUBITEMIMAGES is not set, iImage field value is untouched
+     * for subitems.
+     */
     memset(&item, 0, sizeof(item));
     item.mask = LVIF_IMAGE;
     item.iSubItem = 1;
+    item.iImage = 500;
     r = SendMessageA(hwnd, LVM_GETITEMA, 0, (LPARAM)&item);
     ok(r, "Failed to get item.\n");
+    ok(item.iImage == 500, "Unexpected iImage value %d.\n", item.iImage);
 
     ok_sequence(sequences, PARENT_SEQ_INDEX, empty_seq, "get image dispinfo 2", FALSE);
 
+    r = SendMessageA(hwnd, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_SUBITEMIMAGES);
+    ok(!r, "Unexpected return value %d.\n", r);
+
+    memset(&item, 0, sizeof(item));
+    item.mask = LVIF_IMAGE;
+    item.iSubItem = 1;
+    item.iImage = 500;
+    r = SendMessageA(hwnd, LVM_GETITEMA, 0, (LPARAM)&item);
+    ok(r, "Failed to get item.\n");
+    ok(item.iImage == I_IMAGECALLBACK, "Unexpected iImage value %d.\n", item.iImage);
+
+    flush_sequences(sequences, NUM_MSG_SEQUENCES);
     DestroyWindow(hwnd);
 }
 
@@ -2087,6 +2105,7 @@ static void test_redraw(void)
 static LRESULT WINAPI cd_wndproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     COLORREF clr, c0ffee = RGB(0xc0, 0xff, 0xee);
+    int mode;
 
     if(message == WM_NOTIFY) {
         NMHDR *nmhdr = (NMHDR*)lParam;
@@ -2106,9 +2125,13 @@ static LRESULT WINAPI cd_wndproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
             switch(nmlvcd->nmcd.dwDrawStage) {
             case CDDS_PREPAINT:
+                mode = GetBkMode(nmlvcd->nmcd.hdc);
+                ok(mode == TRANSPARENT, "Got unexpected mode.\n");
                 SetBkColor(nmlvcd->nmcd.hdc, c0ffee);
                 return CDRF_NOTIFYITEMDRAW|CDRF_NOTIFYPOSTPAINT;
             case CDDS_ITEMPREPAINT:
+                mode = GetBkMode(nmlvcd->nmcd.hdc);
+                ok(mode == TRANSPARENT, "Got unexpected mode.\n");
                 clr = GetBkColor(nmlvcd->nmcd.hdc);
                 todo_wine_if(nmlvcd->iSubItem)
                     ok(clr == c0ffee, "Unexpected background color %#lx.\n", clr);
@@ -2116,6 +2139,8 @@ static LRESULT WINAPI cd_wndproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                 nmlvcd->clrText = RGB(0, 255, 0);
                 return CDRF_NOTIFYSUBITEMDRAW|CDRF_NOTIFYPOSTPAINT;
             case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
+                mode = GetBkMode(nmlvcd->nmcd.hdc);
+                ok(mode == TRANSPARENT, "Got unexpected mode.\n");
                 clr = GetBkColor(nmlvcd->nmcd.hdc);
                 ok(nmlvcd->clrTextBk == CLR_DEFAULT, "Unexpected text background %#lx.\n", nmlvcd->clrTextBk);
                 ok(nmlvcd->clrText == RGB(0, 255, 0), "Unexpected text color %#lx.\n", nmlvcd->clrText);
@@ -2126,6 +2151,8 @@ static LRESULT WINAPI cd_wndproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                     ok(clr == c0ffee, "clr=%.8lx\n", clr);
                 return CDRF_NOTIFYPOSTPAINT;
             case CDDS_ITEMPOSTPAINT | CDDS_SUBITEM:
+                mode = GetBkMode(nmlvcd->nmcd.hdc);
+                ok(mode == TRANSPARENT, "Got unexpected mode.\n");
                 clr = GetBkColor(nmlvcd->nmcd.hdc);
                 if (showsel_always && is_selected)
                     ok(clr == GetSysColor(COLOR_3DFACE), "Unexpected background color %#lx.\n", clr);
@@ -2148,62 +2175,73 @@ static LRESULT WINAPI cd_wndproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
 static void test_customdraw(void)
 {
+    static const COLORREF test_colors[] = {CLR_DEFAULT, CLR_NONE, RGB(255, 0, 0)};
     HWND hwnd;
     WNDPROC oldwndproc;
     LVITEMA item;
+    int i;
 
-    hwnd = create_listview_control(LVS_REPORT);
+    for (i = 0; i < ARRAY_SIZE(test_colors); i++)
+    {
+        winetest_push_context("color %#x", i);
 
-    insert_column(hwnd, 0);
-    insert_column(hwnd, 1);
-    insert_item(hwnd, 0);
+        hwnd = create_listview_control(LVS_REPORT);
 
-    oldwndproc = (WNDPROC)SetWindowLongPtrA(hwndparent, GWLP_WNDPROC,
-                                           (LONG_PTR)cd_wndproc);
+        insert_column(hwnd, 0);
+        insert_column(hwnd, 1);
+        insert_item(hwnd, 0);
+        SendMessageA(hwnd, LVM_SETTEXTBKCOLOR, 0, test_colors[i]);
 
-    InvalidateRect(hwnd, NULL, TRUE);
-    UpdateWindow(hwnd);
+        oldwndproc = (WNDPROC)SetWindowLongPtrA(hwndparent, GWLP_WNDPROC,
+                                               (LONG_PTR)cd_wndproc);
 
-    /* message tests */
-    flush_sequences(sequences, NUM_MSG_SEQUENCES);
-    InvalidateRect(hwnd, NULL, TRUE);
-    UpdateWindow(hwnd);
-    ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_report_cd_seq, "parent customdraw, LVS_REPORT", FALSE);
+        InvalidateRect(hwnd, NULL, TRUE);
+        UpdateWindow(hwnd);
 
-    /* Check colors when item is selected. */
-    item.mask = LVIF_STATE;
-    item.stateMask = LVIS_SELECTED;
-    item.state = LVIS_SELECTED;
-    SendMessageA(hwnd, LVM_SETITEMSTATE, 0, (LPARAM)&item);
+        /* message tests */
+        flush_sequences(sequences, NUM_MSG_SEQUENCES);
+        InvalidateRect(hwnd, NULL, TRUE);
+        UpdateWindow(hwnd);
+        ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_report_cd_seq, "parent customdraw, LVS_REPORT", FALSE);
 
-    flush_sequences(sequences, NUM_MSG_SEQUENCES);
-    InvalidateRect(hwnd, NULL, TRUE);
-    UpdateWindow(hwnd);
-    ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_report_cd_seq,
-            "parent customdraw, item selected, LVS_REPORT, selection", FALSE);
+        /* Check colors when item is selected. */
+        item.mask = LVIF_STATE;
+        item.stateMask = LVIS_SELECTED;
+        item.state = LVIS_SELECTED;
+        SendMessageA(hwnd, LVM_SETITEMSTATE, 0, (LPARAM)&item);
 
-    SetWindowLongW(hwnd, GWL_STYLE, GetWindowLongW(hwnd, GWL_STYLE) | LVS_SHOWSELALWAYS);
-    flush_sequences(sequences, NUM_MSG_SEQUENCES);
-    InvalidateRect(hwnd, NULL, TRUE);
-    UpdateWindow(hwnd);
-    ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_report_cd_seq,
-            "parent customdraw, item selected, LVS_SHOWSELALWAYS, LVS_REPORT", FALSE);
+        flush_sequences(sequences, NUM_MSG_SEQUENCES);
+        InvalidateRect(hwnd, NULL, TRUE);
+        UpdateWindow(hwnd);
+        ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_report_cd_seq,
+                "parent customdraw, item selected, LVS_REPORT, selection", FALSE);
 
-    DestroyWindow(hwnd);
+        SetWindowLongW(hwnd, GWL_STYLE, GetWindowLongW(hwnd, GWL_STYLE) | LVS_SHOWSELALWAYS);
+        flush_sequences(sequences, NUM_MSG_SEQUENCES);
+        InvalidateRect(hwnd, NULL, TRUE);
+        UpdateWindow(hwnd);
+        ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_report_cd_seq,
+                "parent customdraw, item selected, LVS_SHOWSELALWAYS, LVS_REPORT", FALSE);
 
-    hwnd = create_listview_control(LVS_LIST);
+        DestroyWindow(hwnd);
 
-    insert_column(hwnd, 0);
-    insert_column(hwnd, 1);
-    insert_item(hwnd, 0);
+        hwnd = create_listview_control(LVS_LIST);
 
-    flush_sequences(sequences, NUM_MSG_SEQUENCES);
-    InvalidateRect(hwnd, NULL, TRUE);
-    UpdateWindow(hwnd);
-    ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_list_cd_seq, "parent customdraw, LVS_LIST", FALSE);
+        insert_column(hwnd, 0);
+        insert_column(hwnd, 1);
+        insert_item(hwnd, 0);
+        SendMessageA(hwnd, LVM_SETTEXTBKCOLOR, 0, test_colors[i]);
 
-    SetWindowLongPtrA(hwndparent, GWLP_WNDPROC, (LONG_PTR)oldwndproc);
-    DestroyWindow(hwnd);
+        flush_sequences(sequences, NUM_MSG_SEQUENCES);
+        InvalidateRect(hwnd, NULL, TRUE);
+        UpdateWindow(hwnd);
+        ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_list_cd_seq, "parent customdraw, LVS_LIST", FALSE);
+
+        SetWindowLongPtrA(hwndparent, GWLP_WNDPROC, (LONG_PTR)oldwndproc);
+        DestroyWindow(hwnd);
+
+        winetest_pop_context();
+    }
 }
 
 static void test_icon_spacing(void)
@@ -3446,6 +3484,8 @@ static void test_ownerdata(void)
     expect(1, res);
     res = SendMessageA(hwnd, LVM_GETITEMCOUNT, 0, 0);
     expect(1, res);
+    res = SendMessageA(hwnd, LVM_GETITEMSTATE, 0, 0xff);
+    expect(2, res);
     DestroyWindow(hwnd);
 
     /* LVM_SETITEM and LVM_SETITEMTEXT is unsupported on LVS_OWNERDATA */
