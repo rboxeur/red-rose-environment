@@ -1415,7 +1415,7 @@ static DWORD urlcache_set_entry_info(entry_url *url_entry, const INTERNET_CACHE_
  *    hash key for the string
  *
  */
-static DWORD urlcache_hash_key(LPCSTR lpszKey)
+static DWORD urlcache_hash_key(const BYTE *lpszKey)
 {
     /* NOTE: this uses the same lookup table as SHLWAPI.UrlHash{A,W}
      * but the algorithm and result are not the same!
@@ -1461,11 +1461,12 @@ static DWORD urlcache_hash_key(LPCSTR lpszKey)
     for (i = 0; i < ARRAY_SIZE(key); i++)
         key[i] = lookupTable[(*lpszKey + i) & 0xFF];
 
-    for (lpszKey++; *lpszKey; lpszKey++)
-    {
-        for (i = 0; i < ARRAY_SIZE(key); i++)
-            key[i] = lookupTable[*lpszKey ^ key[i]];
-    }
+    if (*lpszKey)
+        for (lpszKey++; *lpszKey; lpszKey++)
+        {
+            for (i = 0; i < ARRAY_SIZE(key); i++)
+                key[i] = lookupTable[*lpszKey ^ key[i]];
+        }
 
     return *(DWORD *)key;
 }
@@ -1491,7 +1492,7 @@ static BOOL urlcache_find_hash_entry(const urlcache_header *pHeader, LPCSTR lpsz
      *  there can be multiple hash tables in the file and the offset to
      *  the next one is stored in the header of the hash table
      */
-    DWORD key = urlcache_hash_key(lpszUrl);
+    DWORD key = urlcache_hash_key((const BYTE *)lpszUrl);
     DWORD offset = (key & (HASHTABLE_NUM_ENTRIES-1)) * HASHTABLE_BLOCKSIZE;
     entry_hash_table* pHashEntry;
     DWORD id = 0;
@@ -1580,7 +1581,7 @@ static DWORD urlcache_hash_entry_create(urlcache_header *pHeader, LPCSTR lpszUrl
 {
     /* see urlcache_find_hash_entry for structure of hash tables */
 
-    DWORD key = urlcache_hash_key(lpszUrl);
+    DWORD key = urlcache_hash_key((const BYTE *)lpszUrl);
     DWORD offset = (key & (HASHTABLE_NUM_ENTRIES-1)) * HASHTABLE_BLOCKSIZE;
     entry_hash_table* pHashEntry, *pHashPrev = NULL;
     DWORD id = 0;
