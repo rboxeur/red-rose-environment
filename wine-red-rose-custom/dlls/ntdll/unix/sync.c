@@ -2401,10 +2401,10 @@ static unsigned int is_integral_atom( const WCHAR *atomstr, ULONG len, RTL_ATOM 
         if (len > MAX_ATOM_LEN) return STATUS_INVALID_PARAMETER;
         return STATUS_MORE_ENTRIES;
     }
-    else atom = LOWORD( atomstr );
+    else if ((atom = LOWORD( atomstr )) >= MAXINTATOM) return STATUS_INVALID_PARAMETER;
 done:
-    if (!atom || atom >= MAXINTATOM) return STATUS_INVALID_PARAMETER;
-    *ret_atom = atom;
+    if (atom >= MAXINTATOM) atom = 0;
+    if (!(*ret_atom = atom)) return STATUS_INVALID_PARAMETER;
     return STATUS_SUCCESS;
 }
 
@@ -2453,7 +2453,9 @@ NTSTATUS WINAPI NtDeleteAtom( RTL_ATOM atom )
 {
     unsigned int status;
 
-    SERVER_START_REQ( delete_atom )
+    if (!atom) status = STATUS_INVALID_HANDLE;
+    else if (atom < MAXINTATOM) status = STATUS_SUCCESS;
+    else SERVER_START_REQ( delete_atom )
     {
         req->atom = atom;
         status = wine_server_call( req );

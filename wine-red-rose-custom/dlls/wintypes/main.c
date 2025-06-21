@@ -38,10 +38,15 @@ static const struct
 {
     const WCHAR *name;
     unsigned int max_major;
+    unsigned int max_minor;
 }
 present_contracts[] =
 {
-    { L"Windows.Foundation.UniversalApiContract", 10, },
+    { L"Windows.Foundation.UniversalApiContract", 10, 0, },
+    { L"Windows.Foundation.FoundationContract", 4, 0, },
+    { L"Windows.Networking.Connectivity.WwanContract", 2, 0, },
+    { L"Windows.Services.Store.StoreContract", 4, 0, },
+    { L"Windows.System.SystemManagementContract", 7, 0, },
 };
 
 static BOOLEAN is_api_contract_present( const HSTRING hname, unsigned int version )
@@ -301,13 +306,17 @@ static HRESULT STDMETHODCALLTYPE api_information_statics_IsEnumNamedValuePresent
 static HRESULT STDMETHODCALLTYPE api_information_statics_IsApiContractPresentByMajor(
         IApiInformationStatics *iface, HSTRING contract_name, UINT16 major_version, BOOLEAN *value)
 {
-    FIXME("iface %p, contract_name %s, major_version %u, value %p semi-stub.\n", iface,
+    const WCHAR *name;
+    FIXME("iface %p, contract_name %s, major_version %u, value %p.\n", iface,
             debugstr_hstring(contract_name), major_version, value);
 
-    if (!contract_name)
+    if (!contract_name || !value)
         return E_INVALIDARG;
 
-    *value = is_api_contract_present( contract_name, major_version );
+    if (!WindowsGetStringLen(contract_name))
+        return E_INVALIDARG;
+
+    *value = is_api_contract_present(contract_name, major_version);
     return S_OK;
 }
 
@@ -315,13 +324,37 @@ static HRESULT STDMETHODCALLTYPE api_information_statics_IsApiContractPresentByM
         IApiInformationStatics *iface, HSTRING contract_name, UINT16 major_version,
         UINT16 minor_version, BOOLEAN *value)
 {
-    FIXME("iface %p, contract_name %s, major_version %u, minor_version %u, value %p stub!\n", iface,
+    const WCHAR *name;
+    unsigned int i;
+
+    FIXME("iface %p, contract_name %s, major_version %u, minor_version %u, value %p.\n", iface,
             debugstr_hstring(contract_name), major_version, minor_version, value);
 
-    if (!contract_name)
+    if (!contract_name || !value)
         return E_INVALIDARG;
 
-    return E_NOTIMPL;
+    if (!WindowsGetStringLen(contract_name))
+        return E_INVALIDARG;
+
+    name = WindowsGetStringRawBuffer(contract_name, NULL);
+    if (!name)
+        return E_FAIL;
+
+    *value = FALSE;
+
+    for (i = 0; i < ARRAY_SIZE(present_contracts); ++i)
+    {
+        if (!wcsicmp(name, present_contracts[i].name))
+        {
+            if (major_version < present_contracts[i].max_major)
+                *value = TRUE;
+            else if (major_version == present_contracts[i].max_major)
+                *value = minor_version <= present_contracts[i].max_minor;
+            break;
+        }
+    }
+
+    return S_OK;
 }
 
 static const struct IApiInformationStaticsVtbl api_information_statics_vtbl =

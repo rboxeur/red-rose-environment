@@ -406,31 +406,104 @@ static void test_IApiInformationStatics(void)
 
     ret = FALSE;
     hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 1, 0, &ret);
-    todo_wine
     ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
-    todo_wine
     ok(ret == TRUE, "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
 
     ret = FALSE;
     hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 0, 999, &ret);
-    todo_wine
     ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
-    todo_wine
     ok(ret == TRUE, "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
 
     ret = FALSE;
     hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 1, 999, &ret);
-    todo_wine
     ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
-    todo_wine
     ok(ret == TRUE || broken(ret == FALSE) /* Win10 1507 */,
             "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
 
     ret = TRUE;
     hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 999, 999, &ret);
-    todo_wine
     ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
-    todo_wine
+    ok(ret == FALSE, "IsApiContractPresentByMajorAndMinor returned TRUE.\n");
+
+    WindowsDeleteString(str);
+
+    hr = WindowsCreateString(L"Windows.Networking.Connectivity.WwanContract",
+            wcslen(L"Windows.Networking.Connectivity.WwanContract"), &str);
+    ok(hr == S_OK, "WindowsCreateString failed, hr %#lx.\n", hr);
+
+    if (0) /* Crash on Windows */
+    {
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 1, 0, NULL);
+    ok(hr == E_INVALIDARG, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    }
+
+    ret = FALSE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 2, 0, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    ok(ret == TRUE, "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
+
+    ret = FALSE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 1, 999, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    ok(ret == TRUE || broken(ret == FALSE) , "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
+
+    ret = TRUE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 999, 999, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    ok(ret == FALSE, "IsApiContractPresentByMajorAndMinor returned TRUE.\n");
+
+    WindowsDeleteString(str);
+
+    hr = WindowsCreateString(L"Windows.Services.Store.StoreContract",
+            wcslen(L"Windows.Services.Store.StoreContract"), &str);
+    ok(hr == S_OK, "WindowsCreateString failed, hr %#lx.\n", hr);
+
+    if (0) /* Crash on Windows */
+    {
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 1, 0, NULL);
+    ok(hr == E_INVALIDARG, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    }
+
+    ret = FALSE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 4, 0, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    ok(ret == TRUE, "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
+
+    ret = FALSE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 3, 999, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    ok(ret == TRUE || broken(ret == FALSE) , "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
+
+    ret = TRUE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 999, 999, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    ok(ret == FALSE, "IsApiContractPresentByMajorAndMinor returned TRUE.\n");
+
+    WindowsDeleteString(str);
+
+    hr = WindowsCreateString(L"Windows.System.SystemManagementContract",
+            wcslen(L"Windows.System.SystemManagementContract"), &str);
+    ok(hr == S_OK, "WindowsCreateString failed, hr %#lx.\n", hr);
+
+    if (0) /* Crash on Windows */
+    {
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 1, 0, NULL);
+    ok(hr == E_INVALIDARG, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    }
+
+    ret = FALSE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 7, 0, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    ok(ret == TRUE, "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
+
+    ret = FALSE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 6, 999, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
+    ok(ret == TRUE || broken(ret == FALSE) , "IsApiContractPresentByMajorAndMinor returned FALSE.\n");
+
+    ret = TRUE;
+    hr = IApiInformationStatics_IsApiContractPresentByMajorAndMinor(statics, str, 999, 999, &ret);
+    ok(hr == S_OK, "IsApiContractPresentByMajorAndMinor failed, hr %#lx.\n", hr);
     ok(ret == FALSE, "IsApiContractPresentByMajorAndMinor returned TRUE.\n");
 
     WindowsDeleteString(str);
@@ -443,7 +516,7 @@ static void test_IApiInformationStatics(void)
         for (j = 0; j <= present_contracts[i].max_major; ++j)
         {
             ret = FALSE;
-            hr = IApiInformationStatics_IsApiContractPresentByMajor(statics, str, i, &ret);
+            hr = IApiInformationStatics_IsApiContractPresentByMajor(statics, str, j, &ret);
             ok(hr == S_OK, "IsApiContractPresentByMajor failed, hr %#lx, i %u, major %u.\n", hr, i, j);
             ok(ret == TRUE, "IsApiContractPresentByMajor returned FALSE, i %u, major %u.\n", i, j);
         }
