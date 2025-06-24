@@ -146,8 +146,8 @@ static const char * __wine_dbg_cdecl wine_dbg_vsprintf( const char *format, va_l
 static inline const char * __wine_dbg_cdecl wine_dbg_vsprintf( const char *format, va_list args )
 {
     char buffer[200];
-
-    vsnprintf( buffer, sizeof(buffer), format, args );
+    int len = vsnprintf( buffer, sizeof(buffer), format, args );
+    if (len >= sizeof(buffer)) buffer[sizeof(buffer) - 1] = 0;
     return __wine_dbg_strdup( buffer );
 }
 
@@ -167,8 +167,8 @@ static int __wine_dbg_cdecl wine_dbg_vprintf( const char *format, va_list args )
 static inline int __wine_dbg_cdecl wine_dbg_vprintf( const char *format, va_list args )
 {
     char buffer[1024];
-
-    vsnprintf( buffer, sizeof(buffer), format, args );
+    int len = vsnprintf( buffer, sizeof(buffer), format, args );
+    if (len >= sizeof(buffer)) buffer[sizeof(buffer) - 1] = 0;
     return __wine_dbg_output( buffer );
 }
 

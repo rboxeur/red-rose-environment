@@ -1386,6 +1386,7 @@ static void set_process_name( int argc, char *argv[] )
     /* find the end of the argv array and move everything down */
     end = argv[argc - 1];
     while (*end) end++;
+    if (argv[1] < argv[0]) fatal_error( "argv[1] is located before argv[0]\n" );
     off = argv[1] - argv[0];
     for (p = argv[1]; p <= end; p++) *(p - off) = *p;
     wld_memset( end - off, 0, off );
@@ -1480,6 +1481,14 @@ void* __attribute__((used)) wld_start( void **stack )
         if ((char *)av >= (char *)preload_info[i].addr &&
             (char *)pargc <= (char *)preload_info[i].addr + preload_info[i].size)
         {
+            remove_preload_range( i );
+            i--;
+        }
+        else if ((char*)wld_start >= (char *)preload_info[i].addr &&
+            (char *)wld_start <= (char *)preload_info[i].addr + preload_info[i].size)
+        {
+            wld_printf( "preloader: Warning: we got loaded into reserved range %p-%p, ignoring reservation\n",
+                        preload_info[i].addr, (char *)preload_info[i].addr + preload_info[i].size );
             remove_preload_range( i );
             i--;
         }

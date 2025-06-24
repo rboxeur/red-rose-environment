@@ -3210,14 +3210,14 @@ HKCU,Software\Wine\DllOverrides,"nvapi64",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"nvofapi64",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"nvapi",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"dsoal-aldrv",0x2,"native,builtin"
-HKCU,Software\Wine\DllOverrides,"dsound",0x2,"builtin,native"
+HKCU,Software\Wine\DllOverrides,"dsound",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"OpenAL32",0x2,"native,builtin"
 ;; ICU
-HKCU,Software\Wine\DllOverrides,"icudt68",0x2,"native,builtin
-HKCU,Software\Wine\DllOverrides,"icuin68",0x2,"native,builtin
-HKCU,Software\Wine\DllOverrides,"icuio68",0x2,"native,builtin
-HKCU,Software\Wine\DllOverrides,"icutu68",0x2,"native,builtin
-HKCU,Software\Wine\DllOverrides,"icuuc68",0x2,"native,builtin
+HKCU,Software\Wine\DllOverrides,"icudt68",0x2,"native,builtin"
+HKCU,Software\Wine\DllOverrides,"icuin68",0x2,"native,builtin"
+HKCU,Software\Wine\DllOverrides,"icuio68",0x2,"native,builtin"
+HKCU,Software\Wine\DllOverrides,"icutu68",0x2,"native,builtin"
+HKCU,Software\Wine\DllOverrides,"icuuc68",0x2,"native,builtin"
 ;; Other Games supported and tested for Red Rose
 HKCU,Software\Wine\AppDefaults\BloodySpell.exe,"Version",,"win7"
 HKCU,Software\Wine\AppDefaults\NightofRevenge.exe\DllOverrides,"winhttp",,"native,builtin"
