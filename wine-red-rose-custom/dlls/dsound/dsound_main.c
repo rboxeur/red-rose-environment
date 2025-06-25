@@ -312,7 +312,9 @@ static BOOL CALLBACK a_to_w_callback(LPGUID guid, LPCWSTR descW, LPCWSTR modW, L
     char descA[MAXPNAMELEN], modA[MAXPNAMELEN];
 
     WideCharToMultiByte(CP_ACP, 0, descW, -1, descA, sizeof(descA), NULL, NULL);
+    descA[sizeof(descA)-1] = 0;
     WideCharToMultiByte(CP_ACP, 0, modW, -1, modA, sizeof(modA), NULL, NULL);
+    modA[sizeof(modA)-1] = 0;
 
     return context->callA(guid, descA, modA, context->data);
 }
