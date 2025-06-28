@@ -29,6 +29,7 @@
     - export LC_ALL=C.UTF-8
     - export LP_NUM_THREADS=4
     - export WINEDEBUG=err-all,fixme-all
+    - export WINEPREFIX=$BASEDIR/.wine
     - |
       cat >$HOME/xorg.conf << EOF
       Section "Device"
@@ -46,7 +47,8 @@
     - ln -sf $BASEDIR/wine-gecko-$GECKO_VER-x86.msi $BASEDIR/wine-gecko-$GECKO_VER-x86_64.msi usr/local/share/wine/gecko
     - ln -sf $BASEDIR/wine-mono-$MONO_VER-x86.msi usr/local/share/wine/mono
     - pulseaudio --start --exit-idle-time=-1
-    - wine wineboot.exe -u
+    - rm -rf ~/.wine
+    - wine wineboot.exe
     - wineserver -w
 
 test-linux-64:
