@@ -181,6 +181,17 @@ typedef struct {
     HWND hwndWindow;
 } WebBrowserContainer;
 
+struct HHInfo;
+
+typedef struct WebBrowserEvents2Impl
+{
+    IDispatch iface;
+    IDispatchVtbl *lpVtbl;
+
+    struct HHInfo *info;
+    LONG ref;
+} WebBrowserEvents2Impl;
+
 typedef struct {
     WebBrowserContainer *web_browser;
 
@@ -203,6 +214,8 @@ typedef struct {
     HHTab tabs[TAB_FAVORITES+1];
     int viewer_initialized;
     DWORD current_tab;
+
+    WebBrowserEvents2Impl *navigate_sink;
 } HHInfo;
 
 BOOL InitWebBrowser(HHInfo*,HWND);

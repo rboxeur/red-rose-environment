@@ -25,6 +25,7 @@
 #include "wingdi.h"
 #include "commctrl.h"
 #include "wininet.h"
+#include "exdispid.h"
 
 #include "wine/debug.h"
 
@@ -258,11 +259,20 @@ BOOL NavigateToChm(HHInfo *info, LPCWSTR file, LPCWSTR index)
     return SUCCEEDED(navigate_url(info, buf));
 }
 
-static void DoSync(HHInfo *info)
+static BOOL is_chm(WCHAR *url)
 {
-    WCHAR buf[INTERNET_MAX_URL_LENGTH];
+    const WCHAR *prefix = L"mk:@MSITStore:";
+    return !wcsncmp(url, prefix, wcslen(prefix));
+}
+
+static void DoSyncContent(HHInfo *info)
+{
+    const WCHAR *index;
     HRESULT hres;
     BSTR url;
+
+    if (info->current_tab != TAB_CONTENTS)
+        return;
 
     hres = IWebBrowser2_get_LocationURL(info->web_browser->web_browser, &url);
 
@@ -272,24 +282,104 @@ static void DoSync(HHInfo *info)
         return;
     }
 
-    /* If we're not currently viewing a page in the active .chm file, abort */
-    if ((!AppendFullPathURL(info->WinType.pszFile, buf, NULL)) || (lstrlenW(buf) > lstrlenW(url)))
+    /* If we're not currently viewing a page in a .chm file, abort */
+    if (!is_chm(url))
     {
         SysFreeString(url);
         return;
     }
 
-    if (lstrcmpiW(buf, url) > 0)
-    {
-        const WCHAR *index;
+    index = wcsstr(url, L"::/");
 
-        index = wcsstr(url, L"::/");
-
-        if (index)
-            ActivateContentTopic(info->tabs[TAB_CONTENTS].hwnd, index + 3, info->content); /* skip over ::/ */
-    }
+    if (index)
+        ActivateContentTopic(info->tabs[TAB_CONTENTS].hwnd, index + 3, info->content); /* skip over ::/ */
 
     SysFreeString(url);
+}
+
+static HRESULT WINAPI WebBrowserEvents2_QueryInterface(IDispatch *iface, REFIID riid, void **v)
+{
+    *v = NULL;
+
+    if(IsEqualGUID(&DIID_DWebBrowserEvents2, riid) || IsEqualGUID(&IID_IDispatch, riid)) {
+        *v = iface;
+        return S_OK;
+    }
+
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI Dispatch_AddRef(IDispatch *iface)
+{
+    WebBrowserEvents2Impl *impl = (WebBrowserEvents2Impl *)iface;
+    return InterlockedIncrement(&impl->ref);
+}
+static ULONG WINAPI Dispatch_Release(IDispatch *iface)
+{
+    WebBrowserEvents2Impl *impl = (WebBrowserEvents2Impl *)iface;
+    ULONG ref = InterlockedDecrement(&impl->ref);
+
+    if (!ref)
+        free(impl);
+    return ref;
+}
+
+static HRESULT WINAPI WebBrowserEvents2_Invoke(IDispatch *iface, DISPID dispIdMember, REFIID riid,
+        LCID lcid, WORD wFlags, DISPPARAMS *pDispParams, VARIANT *pVarResult,
+        EXCEPINFO *pExcepInfo, UINT *puArgErr)
+{
+    if (dispIdMember == DISPID_NAVIGATECOMPLETE2)
+    {
+        WebBrowserEvents2Impl *impl = (WebBrowserEvents2Impl *)iface;
+        DoSyncContent((HHInfo *)impl->info);
+    }
+    return S_OK;
+}
+
+static IDispatchVtbl WebBrowserEvents2Vtbl =
+{
+    WebBrowserEvents2_QueryInterface,
+    Dispatch_AddRef,
+    Dispatch_Release,
+    NULL,
+    NULL,
+    NULL,
+    WebBrowserEvents2_Invoke
+};
+
+static void hook_nav_complete(HHInfo *info, BOOL init)
+{
+    IConnectionPointContainer *container;
+    IConnectionPoint *point;
+    HRESULT hres;
+
+    static DWORD dw = 100;
+
+    hres = IWebBrowser2_QueryInterface(info->web_browser->web_browser, &IID_IConnectionPointContainer, (void **)&container);
+    if (FAILED(hres))
+        return;
+
+    hres = IConnectionPointContainer_FindConnectionPoint(container, &DIID_DWebBrowserEvents2, &point);
+    IConnectionPointContainer_Release(container);
+    if (FAILED(hres))
+        return;
+
+    if (init)
+    {
+        info->navigate_sink = malloc(sizeof(*(info->navigate_sink)));
+        info->navigate_sink->iface.lpVtbl = &WebBrowserEvents2Vtbl;
+        info->navigate_sink->lpVtbl = &WebBrowserEvents2Vtbl;
+        info->navigate_sink->info = (struct HHInfo *)info;
+        info->navigate_sink->ref = 1;
+        IConnectionPoint_Advise(point, (IUnknown *)info->navigate_sink, &dw);
+    }
+    else
+    {
+        IConnectionPoint_Unadvise(point, dw);
+        IDispatch_Release((IDispatch *)info->navigate_sink);
+    }
+
+    IConnectionPoint_Release(point);
 }
 
 /* Size Bar */
@@ -577,7 +667,34 @@ static LRESULT OnTabChange(HWND hwnd)
     if(info->tabs[info->current_tab].hwnd)
         ShowWindow(info->tabs[info->current_tab].hwnd, SW_SHOW);
 
+    if (info->current_tab == TAB_CONTENTS)
+        DoSyncContent(info);
+
     return 0;
+}
+
+static BOOL is_current_page(HHInfo *info, const WCHAR *local)
+{
+    WCHAR* url;
+    WCHAR* current_page;
+    HRESULT res;
+
+    res = IWebBrowser2_get_LocationURL(info->web_browser->web_browser, &url);
+    if (FAILED(res))
+        return FALSE;
+
+    if (is_chm(url))
+    {
+        current_page = wcsstr(url, L"::/");
+        if (current_page && !lstrcmpW(local, current_page + 3))
+            return TRUE;
+    }else
+    {
+        if (!lstrcmpW(local, url))
+            return TRUE;
+    }
+
+    return FALSE;
 }
 
 static LRESULT OnTopicChange(HHInfo *info, void *user_data)
@@ -596,6 +713,9 @@ static LRESULT OnTopicChange(HHInfo *info, void *user_data)
         citer = (ContentItem *) user_data;
         name = citer->name;
         local = citer->local;
+        if (is_current_page(info, local))
+            return 0;
+
         while(citer) {
             if(citer->merge.chm_file) {
                 chmfile = citer->merge.chm_file;
@@ -880,7 +1000,7 @@ static void TB_OnClick(HWND hWnd, DWORD dwID)
             ExpandContract(info);
             break;
         case IDTB_SYNC:
-            DoSync(info);
+            DoSyncContent(info);
             break;
         case IDTB_OPTIONS:
             DisplayPopupMenu(info);
@@ -1157,6 +1277,8 @@ static BOOL HH_AddHTMLPane(HHInfo *pHHInfo)
 
     if (!InitWebBrowser(pHHInfo, hWnd))
         return FALSE;
+
+    hook_nav_complete(pHHInfo, TRUE);
 
     /* store the pointer to the HH info struct */
     SetWindowLongPtrW(hWnd, 0, (LONG_PTR)pHHInfo);
@@ -1782,6 +1904,7 @@ void ReleaseHelpViewer(HHInfo *info)
     if (info->pCHMInfo)
         CloseCHM(info->pCHMInfo);
 
+    hook_nav_complete(info, FALSE);
     ReleaseWebBrowser(info);
     ReleaseContent(info);
     ReleaseIndex(info);
