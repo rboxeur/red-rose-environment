@@ -1227,7 +1227,8 @@ static HRESULT WINAPI test_transfer_notify_EventNotify(IMFMediaEngineNotify *ifa
         break;
 
     case MF_MEDIA_ENGINE_EVENT_ERROR:
-        ok(broken(param2 == MF_E_UNSUPPORTED_BYTESTREAM_TYPE), "Unexpected error %#lx\n", param2);
+        ok(broken(param2 == MF_E_UNSUPPORTED_BYTESTREAM_TYPE || param2 == MF_E_INVALIDMEDIATYPE),
+                "Unexpected error %#lx\n", param2);
         notify->error = param2;
         /* fallthrough */
     case MF_MEDIA_ENGINE_EVENT_FIRSTFRAMEREADY:
@@ -1265,7 +1266,7 @@ static struct test_transfer_notify *create_transfer_notify(void)
     return object;
 }
 
-static void test_TransferVideoFrame(void)
+static void test_TransferVideoFrame(DXGI_FORMAT format, const WCHAR *expected_frame)
 {
     struct test_transfer_notify *notify;
     ID3D11Texture2D *texture = NULL, *rb_texture;
@@ -1283,6 +1284,8 @@ static void test_TransferVideoFrame(void)
     BSTR url;
     LONGLONG pts;
 
+    winetest_push_context(format == DXGI_FORMAT_R10G10B10A2_UNORM ? "10-bit" : "8-bit");
+
     stream = load_resource(L"i420-64x64.avi", L"video/avi");
 
     notify = create_transfer_notify();
@@ -1298,7 +1301,7 @@ static void test_TransferVideoFrame(void)
     hr = IMFDXGIDeviceManager_ResetDevice(manager, (IUnknown *)device, token);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    create_media_engine(&notify->IMFMediaEngineNotify_iface, manager, DXGI_FORMAT_B8G8R8X8_UNORM,
+    create_media_engine(&notify->IMFMediaEngineNotify_iface, manager, format,
             &IID_IMFMediaEngineEx, (void **)&media_engine);
 
     IMFDXGIDeviceManager_Release(manager);
@@ -1310,7 +1313,7 @@ static void test_TransferVideoFrame(void)
     desc.Width = 64;
     desc.Height = 64;
     desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_B8G8R8X8_UNORM;
+    desc.Format = format;
     desc.BindFlags = D3D11_BIND_RENDER_TARGET;
     desc.SampleDesc.Count = 1;
     hr = ID3D11Device_CreateTexture2D(device, &desc, NULL, &texture);
@@ -1365,7 +1368,9 @@ static void test_TransferVideoFrame(void)
     ok(!!map_desc.pData, "got pData %p\n", map_desc.pData);
     ok(map_desc.DepthPitch == 16384, "got DepthPitch %u\n", map_desc.DepthPitch);
     ok(map_desc.RowPitch == desc.Width * 4, "got RowPitch %u\n", map_desc.RowPitch);
-    res = check_rgb32_data(L"rgb32frame.bmp", map_desc.pData, map_desc.RowPitch * desc.Height, &dst_rect);
+    res = check_rgb32_data(expected_frame, map_desc.pData, map_desc.RowPitch * desc.Height, &dst_rect);
+    /* R10G10B10A2 equivalents in openGL and Vulkan are not binary compatible with R10G10B10A2 */
+    todo_wine_if(format == DXGI_FORMAT_R10G10B10A2_UNORM)
     ok(res == 0, "Unexpected %lu%% diff\n", res);
     ID3D11DeviceContext_Unmap(context, (ID3D11Resource *)rb_texture, 0);
 
@@ -1385,6 +1390,8 @@ done:
         ID3D11Device_Release(device);
 
     IMFMediaEngineNotify_Release(&notify->IMFMediaEngineNotify_iface);
+
+    winetest_pop_context();
 }
 
 struct test_transform
@@ -2511,7 +2518,8 @@ START_TEST(mfmediaengine)
     test_time_range();
     test_SetSourceFromByteStream();
     test_audio_configuration();
-    test_TransferVideoFrame();
+    test_TransferVideoFrame(DXGI_FORMAT_B8G8R8X8_UNORM, L"rgb32frame.bmp");
+    test_TransferVideoFrame(DXGI_FORMAT_R10G10B10A2_UNORM, L"rgb32-10frame.bmp");
     test_effect();
     test_GetDuration();
     test_GetSeekable();
