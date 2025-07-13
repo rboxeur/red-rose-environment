@@ -564,6 +564,25 @@ BOOL WINAPI DECLSPEC_HOTPATCH VirtualProtectEx( HANDLE process, void *addr, SIZE
     return set_ntstatus( NtProtectVirtualMemory( process, &addr, &size, new_prot, old_prot ));
 }
 
+/***********************************************************************
+ *             VirtualProtectFromApp   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH VirtualProtectFromApp( void *addr, SIZE_T size,
+    ULONG new_prot, ULONG *old_prot )
+{
+    DWORD prot;
+    BOOL ret;
+
+    if (new_prot & ( PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY ) || !old_prot)
+    {
+        return set_ntstatus( STATUS_INVALID_PARAMETER );
+    }
+
+    ret = VirtualProtect( addr, size, new_prot, &prot );
+    *old_prot = prot;
+
+    return ret;
+}
 
 /***********************************************************************
  *             VirtualQuery   (kernelbase.@)
