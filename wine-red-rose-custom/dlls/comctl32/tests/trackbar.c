@@ -547,9 +547,13 @@ static void test_trackbar_buddy(void)
     HWND hWndRightBuddy;
     HWND hWndCurrentBuddy;
     HWND rTest;
+    DWORD objid;
 
     hWndTrackbar = create_trackbar(defaultstyle, hWndParent);
     ok(hWndTrackbar != NULL, "Expected non NULL value\n");
+
+    objid = SendMessageA(hWndTrackbar, WM_GETOBJECT, 0, OBJID_QUERYCLASSNAMEIDX);
+    ok(objid == 0x10012, "Unexpected objid %lu.\n", objid);
 
     flush_sequences(sequences, NUM_MSG_SEQUENCE);
 

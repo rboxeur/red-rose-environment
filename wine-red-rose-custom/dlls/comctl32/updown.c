@@ -1042,6 +1042,11 @@ static LRESULT WINAPI UpDownWindowProc(HWND hwnd, UINT message, WPARAM wParam, L
 		return UPDOWN_KeyPressed(infoPtr, (int)wParam);
 	    break;
 
+        case WM_GETOBJECT:
+            if ((LONG)lParam == OBJID_QUERYCLASSNAMEIDX)
+                return 0x10016;
+	    return DefWindowProcW (hwnd, message, wParam, lParam);
+
 	case WM_PRINTCLIENT:
 	case WM_PAINT:
 	    return UPDOWN_Paint (infoPtr, (HDC)wParam);

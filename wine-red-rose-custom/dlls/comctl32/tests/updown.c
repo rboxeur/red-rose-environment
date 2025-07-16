@@ -835,6 +835,7 @@ static void test_updown_create(void)
     CHAR text[MAX_PATH];
     HWND updown;
     RECT r;
+    DWORD objid;
 
     flush_sequences(sequences, NUM_MSG_SEQUENCES);
 
@@ -842,6 +843,9 @@ static void test_updown_create(void)
     ok(updown != NULL, "Failed to create updown control\n");
     ok_sequence(sequences, PARENT_SEQ_INDEX, add_updown_to_parent_seq, "add updown control to parent", TRUE);
     ok_sequence(sequences, EDIT_SEQ_INDEX, add_updown_with_edit_seq, "add updown control with edit", FALSE);
+
+    objid = SendMessageA(updown, WM_GETOBJECT, 0, OBJID_QUERYCLASSNAMEIDX);
+    ok(objid == 0x10016, "Unexpected objid %lu.\n", objid);
 
     flush_sequences(sequences, NUM_MSG_SEQUENCES);
 

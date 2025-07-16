@@ -1999,7 +1999,7 @@ char*f(const char *h,char n) {return strchr(h,n);}]])],[ac_cv_c_logicalop_noisy=
                CFLAGS=$saved_CFLAGS
            fi])])
   case "$wine_cv_64bit_compare_swap" in
-      unknown) AC_MSG_ERROR([gcc doesn't support 64-bit compare-and-swap on this platform]) ;;
+      unknown) AC_MSG_ERROR([$CC doesn't support 64-bit compare-and-swap on this platform]) ;;
       "none needed") ;;
       *) EXTRACFLAGS="$EXTRACFLAGS $wine_cv_64bit_compare_swap" ;;
   esac

@@ -605,14 +605,21 @@ static void header_item_getback(HWND hwnd, UINT mask, HDITEMA *item)
     ok(ret != 0, "Failed to delete item.\n");
 }
 
-static void test_item_auto_format(HWND parent)
+static void test_item_auto_format(HWND parent, BOOL is_v6)
 {
     static char text[] = "Test";
     HDITEMA item;
     HBITMAP hbm;
     HWND hwnd;
+    DWORD objid;
 
     hwnd = create_custom_header_control(parent, FALSE);
+
+    objid = SendMessageA(hwnd, WM_GETOBJECT, 0, OBJID_QUERYCLASSNAMEIDX);
+    if (is_v6)
+        todo_wine ok(objid == 0, "Unexpected objid %lu.\n", objid);
+    else
+        ok(objid == 0x10011, "Unexpected objid %lu.\n", objid);
 
     /* Windows implicitly sets some format bits in INSERTITEM */
 
@@ -1905,7 +1912,7 @@ START_TEST(header)
         return;
 
     test_header_control();
-    test_item_auto_format(hHeaderParentWnd);
+    test_item_auto_format(hHeaderParentWnd, FALSE);
     test_header_order();
     test_hdm_orderarray();
     test_customdraw();
@@ -1938,7 +1945,7 @@ START_TEST(header)
     /* comctl32 version 6 tests start here */
     test_hdf_fixedwidth(parent_hwnd);
     test_hds_nosizing(parent_hwnd);
-    test_item_auto_format(parent_hwnd);
+    test_item_auto_format(parent_hwnd, TRUE);
     test_hdm_layout(parent_hwnd);
 
     uninit_winevent_hook();

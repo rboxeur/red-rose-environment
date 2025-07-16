@@ -6142,6 +6142,7 @@ todo_wine {
 
 static void test_create_effect_from_memory(void)
 {
+    D3D10_EFFECT_DESC desc;
     ID3D10Device *device;
     ID3D10Effect *effect;
     ID3D10Blob *errors;
@@ -6180,6 +6181,16 @@ static void test_create_effect_from_memory(void)
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     ok(!errors, "Got unexpected errors %p.\n", errors);
     ok(!!effect && effect != (ID3D10Effect *)0xdeadbeef, "Got unexpected effect %p.\n", effect);
+
+    /* Empty buffers are always included before version 40. */
+    hr = effect->lpVtbl->GetDesc(effect, &desc);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+#if D3DX10_SDK_VERSION > 40
+    ok(desc.ConstantBuffers == 1, "Unexpected buffer count.\n");
+#else
+    todo_wine
+    ok(desc.ConstantBuffers == 2, "Unexpected buffer count.\n");
+#endif
     effect->lpVtbl->Release(effect);
 
     /* Test creating effect from source without setting profile. */

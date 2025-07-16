@@ -2219,6 +2219,11 @@ HEADER_WindowProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_GETDLGCODE:
             return DLGC_WANTTAB | DLGC_WANTARROWS;
 
+        case WM_GETOBJECT:
+            if ((LONG)lParam == OBJID_QUERYCLASSNAMEIDX)
+                return 0x10011;
+	    return DefWindowProcW(hwnd, msg, wParam, lParam);
+
         case WM_GETFONT:
             return HEADER_GetFont (infoPtr);
 

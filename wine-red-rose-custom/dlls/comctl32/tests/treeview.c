@@ -516,8 +516,12 @@ static void test_fillroot(void)
 {
     TVITEMA tvi;
     HWND hTree;
+    DWORD objid;
 
     hTree = create_treeview_control(0);
+
+    objid = SendMessageA(hTree, WM_GETOBJECT, 0, OBJID_QUERYCLASSNAMEIDX);
+    ok(objid == 0x10019, "Unexpected objid %lu.\n", objid);
 
     flush_sequences(sequences, NUM_MSG_SEQUENCES);
 

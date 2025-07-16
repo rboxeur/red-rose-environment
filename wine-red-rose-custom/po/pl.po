@@ -7938,7 +7938,7 @@ msgid "Vector property is required.\n"
 msgstr "Wymagana jest własność wektora.\n"
 
 #: dlls/mferror/mferror.mc:389
-msgid "Operation was cancelled.\n"
+msgid "Operation was canceled.\n"
 msgstr "Zaniechano działania.\n"
 
 #: dlls/mferror/mferror.mc:396
@@ -9137,12 +9137,12 @@ msgstr "poza-ekranem"
 
 #: dlls/oleacc/oleacc.rc:115
 msgctxt "object state"
-msgid "sizeable"
+msgid "sizable"
 msgstr "do-skalowania"
 
 #: dlls/oleacc/oleacc.rc:116
 msgctxt "object state"
-msgid "moveable"
+msgid "movable"
 msgstr "do-przesunięcia"
 
 #: dlls/oleacc/oleacc.rc:117

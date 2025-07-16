@@ -39,6 +39,7 @@
 #undef DeleteFile  /* needed for FILE_DISPOSITION_INFO */
 
 static HANDLE (WINAPI *pFindFirstFileExA)(LPCSTR,FINDEX_INFO_LEVELS,LPVOID,FINDEX_SEARCH_OPS,LPVOID,DWORD);
+static BOOL (WINAPI *pGetOverlappedResultEx)(HANDLE, OVERLAPPED *, DWORD *, DWORD, BOOL);
 static BOOL (WINAPI *pReplaceFileW)(LPCWSTR, LPCWSTR, LPCWSTR, DWORD, LPVOID, LPVOID);
 static UINT (WINAPI *pGetSystemWindowsDirectoryA)(LPSTR, UINT);
 static BOOL (WINAPI *pGetVolumeNameForVolumeMountPointA)(LPCSTR, LPSTR, DWORD);
@@ -96,6 +97,7 @@ static void InitFunctionPointers(void)
     pRtlFreeUnicodeString = (void *)GetProcAddress(hntdll, "RtlFreeUnicodeString");
 
     pFindFirstFileExA=(void*)GetProcAddress(hkernel32, "FindFirstFileExA");
+    pGetOverlappedResultEx =(void*)GetProcAddress(hkernel32, "GetOverlappedResultEx");
     pReplaceFileW=(void*)GetProcAddress(hkernel32, "ReplaceFileW");
     pGetSystemWindowsDirectoryA=(void*)GetProcAddress(hkernel32, "GetSystemWindowsDirectoryA");
     pGetVolumeNameForVolumeMountPointA = (void *) GetProcAddress(hkernel32, "GetVolumeNameForVolumeMountPointA");
@@ -4002,6 +4004,7 @@ static void test_overlapped(void)
 {
     OVERLAPPED ov;
     DWORD r, result;
+    HANDLE event;
 
     /* GetOverlappedResult crashes if the 2nd or 3rd param are NULL */
     if (0) /* tested: WinXP */
@@ -4073,6 +4076,192 @@ static void test_overlapped(void)
 
     r = CloseHandle( ov.hEvent );
     ok( r == TRUE, "close handle failed\n");
+
+    if (!pGetOverlappedResultEx)
+    {
+        win_skip( "GetOverlappedResultEx is not available, skipping tests.\n" );
+        return;
+    }
+
+    event = CreateEventW(NULL, FALSE, FALSE, NULL);
+
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    r = pGetOverlappedResultEx(event, &ov, &result, 1, FALSE);
+    ok(!r && GetLastError() == WAIT_TIMEOUT, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    r = GetOverlappedResult(event, &ov, &result, FALSE);
+    ok(!r && GetLastError() == ERROR_IO_INCOMPLETE, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    SetLastError( 0xdeadbeef );
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    QueueUserAPC( user_apc, GetCurrentThread(), 0 );
+    r = GetOverlappedResult(event, &ov, &result, FALSE);
+    ok(!r && GetLastError() == ERROR_IO_INCOMPLETE, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    SetEvent(event);
+    QueueUserAPC( user_apc, GetCurrentThread(), 0 );
+    r = GetOverlappedResult(event, &ov, &result, TRUE);
+    ok(r, "got %lu, error %lu.\n", r, GetLastError());
+    r = WaitForSingleObject(event, 0);
+    ok(r == WAIT_TIMEOUT, "got %#lx.\n", r);
+    ok( result == 0xabcd, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    SetLastError( 0xdeadbeef );
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    r = pGetOverlappedResultEx(event, &ov, &result, 0, FALSE);
+    ok(!r && GetLastError() == ERROR_IO_INCOMPLETE, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    SetLastError( 0xdeadbeef );
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    SetEvent(event);
+    r = pGetOverlappedResultEx(event, &ov, &result, 0, FALSE);
+    ok(!r && GetLastError() == ERROR_IO_INCOMPLETE, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+    r = WaitForSingleObject(event, 0);
+    ok(r == WAIT_OBJECT_0, "got %#lx.\n", r);
+
+    result = 0xdeadbeef;
+    SetLastError( 0xdeadbeef );
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    r = pGetOverlappedResultEx(event, &ov, &result, 1, FALSE);
+    ok(!r && GetLastError() == WAIT_TIMEOUT, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    SetLastError( 0xdeadbeef );
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = (HANDLE)0xdeadbeef;
+    r = pGetOverlappedResultEx(event, &ov, &result, 1, FALSE);
+    ok(!r && GetLastError() == ERROR_INVALID_HANDLE, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    SetLastError( 0xdeadbeef );
+    ov.Internal = STATUS_PENDING;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    SetEvent(event);
+    r = pGetOverlappedResultEx(event, &ov, &result, 1, FALSE);
+    ok(ov.Internal == STATUS_PENDING, "got %#Ix.\n", ov.Internal);
+    ok(r, "got %lu, error %lu.\n", r, GetLastError());
+    ok(GetLastError() == ERROR_IO_PENDING, "got %lu.\n", GetLastError());
+    ok( result == 0xabcd, "wrong result %lu\n", result );
+    r = WaitForSingleObject(event, 0);
+    ok(r == WAIT_TIMEOUT, "got %#lx.\n", r);
+
+    /* Test event wait if status is not STATUS_PENDING. */
+
+    /* With GetOverlapped result wait is skipped. */
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_SUCCESS;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    r = GetOverlappedResult(event, &ov, &result, TRUE);
+    ok(r, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xabcd, "wrong result %lu\n", result );
+
+    /* Unlike GetOverlappedResult, GetOverlappedResultEx always waits for event unless timeout is 0 even if
+     * ov.Internal is not STATUS_PENDING. */
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_SUCCESS;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    QueueUserAPC( user_apc, GetCurrentThread(), 0 );
+    r = pGetOverlappedResultEx(event, &ov, &result, INFINITE, TRUE);
+    ok(!r && GetLastError() == WAIT_IO_COMPLETION, "got %lu, error %lu.\n", r, GetLastError());
+
+    SetLastError(0xdeadbeef);
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_SUCCESS;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    r = pGetOverlappedResultEx(event, &ov, &result, 0, 0);
+    ok(GetLastError() == ERROR_SUCCESS, "got %lu.\n", GetLastError());
+    ok(r, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xabcd, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_SUCCESS;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = event;
+    r = pGetOverlappedResultEx(event, &ov, &result, 1, 0);
+    ok(!r && GetLastError() == WAIT_TIMEOUT, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_SUCCESS;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = NULL;
+    QueueUserAPC( user_apc, GetCurrentThread(), 0 );
+    r = pGetOverlappedResultEx(event, &ov, &result, INFINITE, TRUE);
+    ok(!r && GetLastError() == WAIT_IO_COMPLETION, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    SetLastError(0xdeadbeef);
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_SUCCESS;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = NULL;
+    r = pGetOverlappedResultEx(event, &ov, &result, 0, 0);
+    ok(GetLastError() == ERROR_SUCCESS, "got %lu.\n", GetLastError());
+    ok(r, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xabcd, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_SUCCESS;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = NULL;
+    r = pGetOverlappedResultEx(event, &ov, &result, 1, 0);
+    ok(!r && GetLastError() == WAIT_TIMEOUT, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_UNEXPECTED_IO_ERROR;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = NULL;
+    r = pGetOverlappedResultEx(event, &ov, &result, 1, 0);
+    ok(!r && GetLastError() == WAIT_TIMEOUT, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xdeadbeef, "wrong result %lu\n", result );
+
+    result = 0xdeadbeef;
+    ov.Internal = STATUS_UNEXPECTED_IO_ERROR;
+    ov.InternalHigh = 0xabcd;
+    ov.hEvent = NULL;
+    SetEvent(event);
+    r = pGetOverlappedResultEx(event, &ov, &result, 1, 0);
+    ok(!r && GetLastError() == ERROR_IO_DEVICE, "got %lu, error %lu.\n", r, GetLastError());
+    ok( result == 0xabcd, "wrong result %lu\n", result );
+    r = WaitForSingleObject(event, 0);
+    ok(r == WAIT_TIMEOUT, "got %#lx.\n", r);
+
+    CloseHandle(event);
 }
 
 static void test_RemoveDirectory(void)

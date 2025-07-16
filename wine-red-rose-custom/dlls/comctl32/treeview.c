@@ -5866,6 +5866,11 @@ TREEVIEW_WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_GETFONT:
 	return TREEVIEW_GetFont(infoPtr);
 
+    case WM_GETOBJECT:
+        if ((LONG)lParam == OBJID_QUERYCLASSNAMEIDX)
+            return 0x10019;
+        goto def;
+
     case WM_HSCROLL:
 	return TREEVIEW_HScroll(infoPtr, wParam);
 

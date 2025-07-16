@@ -232,7 +232,7 @@ void NE_DumpModule( HMODULE16 hModule )
         while (ordinal < bundle->last)
         {
             if (entry->type == 0xff)
-                TRACE("%d: %02x:%04x (moveable)\n", ordinal++, entry->segnum, entry->offs);
+                TRACE("%d: %02x:%04x (movable)\n", ordinal++, entry->segnum, entry->offs);
             else
                 TRACE("%d: %02x:%04x (fixed)\n", ordinal++, entry->segnum, entry->offs);
             entry++;

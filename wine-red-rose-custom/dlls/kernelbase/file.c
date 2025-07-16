@@ -3419,32 +3419,22 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetFileType( HANDLE file )
 BOOL WINAPI DECLSPEC_HOTPATCH GetOverlappedResult( HANDLE file, LPOVERLAPPED overlapped,
                                                    LPDWORD result, BOOL wait )
 {
-    return GetOverlappedResultEx( file, overlapped, result, wait ? INFINITE : 0, FALSE );
-}
-
-
-/***********************************************************************
- *	GetOverlappedResultEx   (kernelbase.@)
- */
-BOOL WINAPI DECLSPEC_HOTPATCH GetOverlappedResultEx( HANDLE file, OVERLAPPED *overlapped,
-                                                     DWORD *result, DWORD timeout, BOOL alertable )
-{
     NTSTATUS status;
     DWORD ret;
 
-    TRACE( "(%p %p %p %lu %d)\n", file, overlapped, result, timeout, alertable );
+    TRACE( "(%p %p %p %d)\n", file, overlapped, result, wait );
 
     /* Paired with the write-release in set_async_iosb() in ntdll; see the
      * latter for details. */
     status = ReadAcquire( (LONG *)&overlapped->Internal );
     if (status == STATUS_PENDING)
     {
-        if (!timeout)
+        if (!wait)
         {
             SetLastError( ERROR_IO_INCOMPLETE );
             return FALSE;
         }
-        ret = WaitForSingleObjectEx( overlapped->hEvent ? overlapped->hEvent : file, timeout, alertable );
+        ret = WaitForSingleObject( overlapped->hEvent ? overlapped->hEvent : file, INFINITE );
         if (ret == WAIT_FAILED)
             return FALSE;
         else if (ret)
@@ -3461,6 +3451,43 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetOverlappedResultEx( HANDLE file, OVERLAPPED *ov
 
     *result = overlapped->InternalHigh;
     return set_ntstatus( status );
+}
+
+
+/***********************************************************************
+ *	GetOverlappedResultEx   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH GetOverlappedResultEx( HANDLE file, OVERLAPPED *overlapped,
+                                                     DWORD *result, DWORD timeout, BOOL alertable )
+{
+    NTSTATUS status;
+    DWORD ret;
+
+    TRACE( "(%p %p %p %lu %d)\n", file, overlapped, result, timeout, alertable );
+
+    if (timeout)
+    {
+        ret = WaitForSingleObjectEx( overlapped->hEvent ? overlapped->hEvent : file, timeout, alertable );
+        if (ret == WAIT_FAILED) return FALSE;
+        if (ret)
+        {
+            SetLastError( ret );
+            return FALSE;
+        }
+        /* We don't need to give this load acquire semantics; the wait above
+         * already guarantees that the IOSB and output buffer are filled. */
+        status = overlapped->Internal;
+    }
+    else if ((status = ReadAcquire( (LONG *)&overlapped->Internal )) == STATUS_PENDING)
+    {
+        /* Paired with the write-release in set_async_iosb() in ntdll; see the
+         * latter for details. */
+        SetLastError( ERROR_IO_INCOMPLETE );
+        return FALSE;
+    }
+    *result = overlapped->InternalHigh;
+    SetLastError( RtlNtStatusToDosError( status ));
+    return !status || status == STATUS_PENDING;
 }
 
 

@@ -8093,7 +8093,7 @@ msgstr ""
 #: dlls/mferror/mferror.mc:389
 #, fuzzy
 #| msgid "Operation canceled by user.\n"
-msgid "Operation was cancelled.\n"
+msgid "Operation was canceled.\n"
 msgstr "Operácia prerušená užívateľom.\n"
 
 #: dlls/mferror/mferror.mc:396
@@ -9371,14 +9371,14 @@ msgstr ""
 #, fuzzy
 #| msgid "Size available"
 msgctxt "object state"
-msgid "sizeable"
+msgid "sizable"
 msgstr "Veľkosť k dispozícii"
 
 #: dlls/oleacc/oleacc.rc:116
 #, fuzzy
 #| msgid "Remove al&l"
 msgctxt "object state"
-msgid "moveable"
+msgid "movable"
 msgstr "Odstrániť &všetko"
 
 #: dlls/oleacc/oleacc.rc:117
@@ -16587,7 +16587,7 @@ msgstr ""
 #: programs/reg/reg.rc:131
 #, fuzzy
 #| msgid "Operation canceled by user.\n"
-msgid "reg: The registry operation was cancelled\n"
+msgid "reg: The registry operation was canceled\n"
 msgstr "Operácia prerušená užívateľom.\n"
 
 #: programs/reg/reg.rc:174

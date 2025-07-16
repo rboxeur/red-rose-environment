@@ -41,6 +41,7 @@ static void test_create_tooltip(BOOL is_v6)
 {
     HWND parent, hwnd;
     DWORD style, exp_style;
+    DWORD objid;
 
     parent = CreateWindowExA(0, "static", NULL, WS_POPUP,
                           0, 0, 0, 0,
@@ -51,6 +52,9 @@ static void test_create_tooltip(BOOL is_v6)
                           10, 10, 300, 100,
                           parent, NULL, NULL, 0);
     ok(hwnd != NULL, "failed to create tooltip wnd\n");
+
+    objid = SendMessageA(hwnd, WM_GETOBJECT, 0, OBJID_QUERYCLASSNAMEIDX);
+    ok(objid == 0x10018, "Unexpected objid %lu.\n", objid);
 
     style = GetWindowLongA(hwnd, GWL_STYLE);
     exp_style = 0x7fffffff | WS_POPUP;

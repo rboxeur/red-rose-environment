@@ -1057,6 +1057,7 @@ static void test_images(void)
     HIMAGELIST himl;
     HBITMAP hbmp;
     RECT r1, r2;
+    DWORD objid;
     static CHAR hello[] = "hello";
 
     himl = pImageList_Create(40, 40, 0, 4, 4);
@@ -1071,6 +1072,9 @@ static void test_images(void)
     hwnd = CreateWindowExA(0, WC_LISTVIEWA, "foo", LVS_OWNERDRAWFIXED,
                 10, 10, 100, 200, hwndparent, NULL, NULL, NULL);
     ok(hwnd != NULL, "failed to create listview window\n");
+
+    objid = SendMessageA(hwnd, WM_GETOBJECT, 0, OBJID_QUERYCLASSNAMEIDX);
+    ok(objid == 0x10013, "Unexpected objid %lu.\n", objid);
 
     r = SendMessageA(hwnd, LVM_SETEXTENDEDLISTVIEWSTYLE, 0,
                     LVS_EX_UNDERLINEHOT | LVS_EX_FLATSB | LVS_EX_ONECLICKACTIVATE);

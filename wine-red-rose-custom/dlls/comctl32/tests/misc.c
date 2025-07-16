@@ -1182,6 +1182,21 @@ static void test_WM_STYLECHANGED(void)
     DestroyWindow(parent);
 }
 
+static void test_WM_GETOBJECT(void)
+{
+    HWND hwnd;
+    DWORD objid;
+
+    hwnd = CreateWindowA(HOTKEY_CLASSA, "test", WS_POPUP, 100, 100, 100, 100,
+                           0, 0, 0, 0);
+    ok(hwnd != NULL, "CreateWindowA failed, error %lu.\n", GetLastError());
+
+    objid = SendMessageA(hwnd, WM_GETOBJECT, 0, OBJID_QUERYCLASSNAMEIDX);
+    ok(objid == 0x10010, "Unexpected objid %lu.\n", objid);
+
+    DestroyWindow(hwnd);
+}
+
 START_TEST(misc)
 {
     ULONG_PTR ctx_cookie;
