@@ -138,6 +138,7 @@ static const struct column col_desktopmonitor[] =
 {
     { L"Name",                  CIM_STRING },
     { L"PixelsPerXLogicalInch", CIM_UINT32 },
+    { L"Status",                CIM_STRING },
 };
 static const struct column col_directory[] =
 {
@@ -487,7 +488,7 @@ static const struct column col_videocontroller[] =
     { L"CurrentScanMode",             CIM_UINT16 },
     { L"CurrentVerticalResolution",   CIM_UINT32 },
     { L"Description",                 CIM_STRING|COL_FLAG_DYNAMIC },
-    { L"DeviceId",                    CIM_STRING|COL_FLAG_KEY },
+    { L"DeviceID",                    CIM_STRING|COL_FLAG_DYNAMIC|COL_FLAG_KEY },    
     { L"DriverDate",                  CIM_DATETIME },
     { L"DriverVersion",               CIM_STRING },
     { L"InstalledDisplayDrivers",     CIM_STRING },
@@ -606,6 +607,7 @@ struct record_desktopmonitor
 {
     const WCHAR *name;
     UINT32       pixelsperxlogicalinch;
+    const WCHAR *status;
 };
 struct record_directory
 {
@@ -2230,6 +2232,7 @@ static enum fill_status fill_desktopmonitor( struct table *table, const struct e
     rec = (struct record_desktopmonitor *)table->data;
     rec->name                  = L"Generic Non-PnP Monitor";
     rec->pixelsperxlogicalinch = get_pixelsperxlogicalinch();
+    rec->status                = L"OK";
 
     if (match_row( table, row, cond, &status )) row++;
 
