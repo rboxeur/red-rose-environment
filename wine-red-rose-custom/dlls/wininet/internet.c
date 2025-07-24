@@ -3509,6 +3509,75 @@ BOOL WINAPI InternetTimeToSystemTimeA( LPCSTR string, SYSTEMTIME* time, DWORD re
     return ret;
 }
 
+static inline int calc_month(SYSTEMTIME* time, const WCHAR **s, WCHAR *end)
+{
+    if (**s == '\0') return TRUE;
+    time->wMonth = 0;
+    if (iswalpha(**s))
+    {
+        if ((*s)[1] == '\0' || (*s)[2] == '\0') return TRUE;
+        for (int i = 0; i < 12; i++)
+        {
+            if (!wcsnicmp(WININET_month[i], *s, 3))
+            {
+                time->wMonth = i + 1;
+                *s += 3;
+                break;
+            }
+        }
+    }
+    else if (is_time_digit(**s))
+    {
+        time->wMonth = wcstol(*s, &end, 10);
+        *s = end;
+    }
+    if (time->wMonth == 0) return TRUE;
+    return FALSE;
+}
+
+static inline void calc_day(SYSTEMTIME* time, const WCHAR **s, WCHAR *end)
+{
+    time->wDay = wcstol( *s, &end, 10 );
+    *s = end;
+}
+
+static inline int calc_time(SYSTEMTIME* time, const WCHAR **s, WCHAR *end)
+{
+    if (**s == '\0') return TRUE;
+    time->wHour = wcstol( *s, &end, 10 );
+    *s = end;
+
+    while (**s && !is_time_digit(**s)) (*s)++;
+    if (**s == '\0') return TRUE;
+    time->wMinute = wcstol( *s, &end, 10 );
+    *s = end;
+
+    while (**s && !is_time_digit(**s)) (*s)++;
+    if (**s == '\0') return TRUE;
+    time->wSecond = wcstol( *s, &end, 10 );
+    *s = end;
+
+    time->wMilliseconds = 0;
+    return FALSE;
+}
+
+static inline void calc_year(SYSTEMTIME* time, const WCHAR **s, WCHAR *end)
+{
+    WORD current_year = time->wYear;
+
+    time->wYear = wcstol( *s, &end, 10 );
+    if (1601 > time->wYear) /* year should be between 1601 and 30827 inclusive */
+        time->wYear += (current_year - (current_year % 1000));
+    *s = end;
+}
+
+static inline int is_time(const WCHAR *s)
+{
+    if (s[1] == L':' || s[2] == L':')
+        return 1;
+    return 0;
+}
+
 /***********************************************************************
  *           InternetTimeToSystemTimeW (WININET.@)
  */
@@ -3517,6 +3586,7 @@ BOOL WINAPI InternetTimeToSystemTimeW( LPCWSTR string, SYSTEMTIME* time, DWORD r
     unsigned int i;
     const WCHAR *s = string;
     WCHAR       *end;
+    int got_day = 0, got_time = 0;
 
     TRACE( "%s %p 0x%08lx\n", debugstr_w(string), time, reserved );
 
@@ -3541,6 +3611,7 @@ BOOL WINAPI InternetTimeToSystemTimeW( LPCWSTR string, SYSTEMTIME* time, DWORD r
             if (!wcsnicmp(WININET_wkday[i], s, 3))
             {
                 time->wDayOfWeek = i;
+                s += 3;
                 break;
             }
         }
@@ -3552,54 +3623,43 @@ BOOL WINAPI InternetTimeToSystemTimeW( LPCWSTR string, SYSTEMTIME* time, DWORD r
     }
     if (time->wDayOfWeek > 6) return TRUE;
 
-    while (*s && !is_time_digit(*s)) s++;
-    time->wDay = wcstol( s, &end, 10 );
-    s = end;
-
     while (*s && !iswalpha(*s) && !is_time_digit(*s)) s++;
-    if (*s == '\0') return TRUE;
-    time->wMonth = 0;
-
-    if (iswalpha(*s))
+    if (is_time_digit(*s))
     {
-        if (s[1] == '\0' || s[2] == '\0') return TRUE;
-        for (i = 0; i < 12; i++)
-        {
-            if (!wcsnicmp(WININET_month[i], s, 3))
-            {
-                time->wMonth = i + 1;
-                break;
-            }
-        }
-    }
-    else if (is_time_digit(*s))
+        calc_day(time, &s, end);
+        got_day = 1;
+    }else
     {
-        time->wMonth = wcstol(s, &end, 10);
-        s = end;
+        if (calc_month(time, &s, end))
+            return TRUE;
     }
-    if (time->wMonth == 0) return TRUE;
+    while (*s && !iswalpha(*s) && !is_time_digit(*s)) s++;
+    if (got_day)
+    {
+        if (calc_month(time, &s, end))
+            return TRUE;
+    }
+    else
+        calc_day(time, &s, end);
 
     while (*s && !is_time_digit(*s)) s++;
     if (*s == '\0') return TRUE;
-    time->wYear = wcstol( s, &end, 10 );
-    s = end;
-
+    if (is_time(s))
+    {
+        if (calc_time(time, &s, end))
+            return TRUE;
+        got_time = 1;
+    }else
+        calc_year(time, &s, end);
     while (*s && !is_time_digit(*s)) s++;
     if (*s == '\0') return TRUE;
-    time->wHour = wcstol( s, &end, 10 );
-    s = end;
-
-    while (*s && !is_time_digit(*s)) s++;
-    if (*s == '\0') return TRUE;
-    time->wMinute = wcstol( s, &end, 10 );
-    s = end;
-
-    while (*s && !is_time_digit(*s)) s++;
-    if (*s == '\0') return TRUE;
-    time->wSecond = wcstol( s, &end, 10 );
-    s = end;
-
-    time->wMilliseconds = 0;
+    if (got_time)
+        calc_year(time, &s, end);
+    else
+    {
+        if (calc_time(time, &s, end))
+            return TRUE;
+    }
     return TRUE;
 }
 

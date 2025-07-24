@@ -431,18 +431,22 @@ struct handle_table *copy_handle_table( struct process *process, struct process 
 /* close a handle and decrement the refcount of the associated object */
 unsigned int close_handle( struct process *process, obj_handle_t handle )
 {
-    struct handle_table *table;
+    struct handle_table *table = handle_is_global(handle) ? global_table : process->handles;
     struct handle_entry *entry;
     struct object *obj;
+    int index;
 
     if (!(entry = get_handle( process, handle ))) return STATUS_INVALID_HANDLE;
     if (entry->access & RESERVED_CLOSE_PROTECT) return STATUS_HANDLE_NOT_CLOSABLE;
     obj = entry->ptr;
+    index = entry - table->entries;
     if (!obj->ops->close_handle( obj, process, handle )) return STATUS_HANDLE_NOT_CLOSABLE;
-    entry->ptr = NULL;
+
+    /* table might have been shrunk, so we need to get it again */
     table = handle_is_global(handle) ? global_table : process->handles;
-    if (entry < table->entries + table->free) table->free = entry - table->entries;
-    if (entry == table->entries + table->last) shrink_handle_table( table );
+    table->entries[index].ptr = NULL;
+    if (index < table->free) table->free = index;
+    if (index == table->last) shrink_handle_table( table );
     release_object_from_handle( obj );
     return STATUS_SUCCESS;
 }

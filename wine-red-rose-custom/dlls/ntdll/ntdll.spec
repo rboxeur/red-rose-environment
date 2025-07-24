@@ -931,7 +931,7 @@
 @ stdcall RtlQueryPerformanceFrequency(ptr)
 @ stub RtlQueryProcessBackTraceInformation
 @ stdcall RtlQueryProcessDebugInformation(long long ptr)
-@ stub RtlQueryProcessHeapInformation
+@ stdcall RtlQueryProcessHeapInformation(ptr)
 @ stub RtlQueryProcessLockInformation
 @ stdcall RtlQueryProcessPlaceholderCompatibilityMode()
 @ stub RtlQueryProperties

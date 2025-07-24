@@ -956,9 +956,10 @@ static void test_InternetTimeToSystemTime(void)
         { "2, 11*01/2022 11+13=05",        &expect2, TRUE },
         { "2, 11-Jan-2022 11:13:05",       &expect2, TRUE },
         { "Fr",                            NULL,     FALSE },
-        { "Fri Jan 7 12:06:35 2005",       &expect1, TRUE, TRUE },
-        { "Fri Jan 7 12:06:35 2005 GMT",   &expect1, TRUE, TRUE },
-        { "Fri Jan 7 12:06:35 2005 UTC",   &expect1, TRUE, TRUE },
+        { "Fri Jan 7 12:06:35 2005",       &expect1, TRUE },
+        { "Fri Jan 7 12:06:35 2005 GMT",   &expect1, TRUE },
+        { "Fri Jan 7 12:06:35 2005 UTC",   &expect1, TRUE },
+        { "Fri, 7-Jan-05 12:06:35 GMT",    &expect1, TRUE }
     };
 
     ret = pInternetTimeToSystemTimeA(NULL, NULL, 0);

@@ -124,6 +124,18 @@ static void test_spstream(void)
     hr = ISpStream_SetBaseStream(stream, base_stream, &fmtid, wfx);
     ok(hr == SPERR_ALREADY_INITIALIZED, "got %#lx.\n", hr);
 
+    hr = ISpStream_Close(stream);
+    ok(hr == S_OK, "got %#lx.\n", hr);
+
+    hr = ISpStream_SetBaseStream(stream, base_stream, &fmtid, wfx);
+    ok(hr == SPERR_ALREADY_INITIALIZED, "got %#lx.\n", hr);
+
+    hr = ISpStream_GetBaseStream(stream, &base_stream2);
+    ok(hr == SPERR_STREAM_CLOSED, "got %#lx.\n", hr);
+
+    hr = ISpStream_Close(stream);
+    ok(hr == SPERR_STREAM_CLOSED, "got %#lx.\n", hr);
+
     ISpStream_Release(stream);
 
     hr = CoCreateInstance(&CLSID_SpStream, NULL, CLSCTX_INPROC_SERVER,
@@ -163,6 +175,9 @@ static void test_spstream(void)
 
     hr = ISpStream_Clone(stream, NULL);
     ok(hr == E_NOTIMPL, "got %#lx.\n", hr);
+
+    hr = ISpStream_GetFormat(stream, &fmtid2, &wfx2);
+    ok(hr == SPERR_UNINITIALIZED, "got %#lx.\n", hr);
 
     hr = ISpStream_GetFormat(stream, &fmtid2, &wfx2);
     ok(hr == SPERR_UNINITIALIZED, "got %#lx.\n", hr);
@@ -224,6 +239,18 @@ static void test_spstream(void)
     hr = ISpStream_Clone(stream, NULL);
     ok(hr == E_NOTIMPL, "got %#lx.\n", hr);
 
+    hr = ISpStream_GetFormat(stream, NULL, NULL);
+    ok(hr == E_POINTER, "got %#lx.\n", hr);
+
+    hr = ISpStream_GetFormat(stream, &fmtid2, NULL);
+    ok(hr == E_POINTER, "got %#lx.\n", hr);
+
+    hr = ISpStream_GetFormat(stream, &fmtid2, &wfx2);
+    ok(hr == S_OK, "got %#lx.\n", hr);
+    ok(IsEqualGUID(&fmtid2, &SPDFID_WaveFormatEx), "got %s.\n", wine_dbgstr_guid(&fmtid2));
+    ok(!memcmp(wfx, wfx2, sizeof(WAVEFORMATEX)), "wfx mismatch.\n");
+    CoTaskMemFree(wfx2);
+
     hr = ISpStream_Close(stream);
     ok(hr == S_OK, "got %#lx.\n", hr);
 
@@ -268,6 +295,9 @@ static void test_spstream(void)
 
     hr = ISpStream_Clone(stream, NULL);
     ok(hr == E_NOTIMPL, "got %#lx.\n", hr);
+
+    hr = ISpStream_GetFormat(stream, &fmtid2, &wfx2);
+    ok(hr == SPERR_STREAM_CLOSED, "got %#lx.\n", hr);
 
     hr = ISpStream_Close(stream);
     ok(hr == SPERR_STREAM_CLOSED, "got %#lx.\n", hr);

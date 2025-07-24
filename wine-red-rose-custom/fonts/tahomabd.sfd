@@ -1,4 +1,4 @@
-SplineFontDB: 3.2
+SplineFontDB: 3.0
 FontName: WineTahomaBold
 FullName: Tahoma Bold
 FamilyName: Tahoma
@@ -111,7 +111,7 @@ NameList: Adobe Glyph List
 DisplaySize: -36
 AntiAlias: 1
 FitToEm: 1
-WinInfo: 910 14 8
+WinInfo: 0 14 8
 BeginPrivate: 10
 BlueValues 27 [-30 0 1120 1177 1522 1522]
 OtherBlues 11 [-426 -426]
@@ -126,7 +126,7 @@ ExpansionFactor 4 0.06
 EndPrivate
 TeXData: 1 0 0 327680 163840 109226 571904 -1048576 109226 783286 444596 497025 792723 393216 433062 380633 303038 157286 324010 404750 52429 2506097 1059062 262144
 AnchorClass2: "Anchor-10" "'mark' Mark Positioning lookup 9 subtable" "Anchor-9" "'mark' Mark Positioning lookup 8 subtable" "Anchor-7" "'mark' Mark Positioning lookup 6 subtable" "Anchor-6" "'mark' Mark Positioning lookup 5 subtable" "Anchor-1" "'mkmk' Mark to Mark in Arabic lookup 1 subtable" "Anchor-0" "'mkmk' Mark to Mark in Arabic lookup 0 subtable"
-BeginChars: 65677 978
+BeginChars: 65677 977
 
 StartChar: .notdef
 Encoding: 65536 -1 0
@@ -543,37 +543,37 @@ EndChar
 StartChar: zero
 Encoding: 48 48 17
 Width: 1304
-Flags: HW
+Flags: W
 HStem: -29 262<540.7 764.916> 1257 263<540.7 764.916>
 VStem: 58 385<398.29 1092.72> 862 385<398.29 1092.72>
 LayerCount: 2
 Fore
 SplineSet
-862 748 m 4
- 862 935 846 1066 814 1142 c 4
- 782 1218 728 1257 653 1257 c 260
- 578 1257 523 1218 491 1142 c 4
- 459 1066 443 935 443 748 c 4
- 443 559 459 426 491 349 c 4
- 523 272 578 233 653 233 c 4
- 728 233 782 272 814 349 c 4
- 846 426 862 559 862 748 c 4
-1247 745 m 4
- 1247 498 1195 306 1092 172 c 4
- 989 38 843 -29 653 -29 c 4
- 463 -29 316 38 213 172 c 4
- 110 306 58 498 58 745 c 4
- 58 993 110 1184 213 1318 c 4
- 316 1452 463 1520 653 1520 c 4
- 843 1520 989 1452 1092 1318 c 4
- 1195 1184 1247 993 1247 745 c 4
+862 748 m 0
+ 862 935 846 1066 814 1142 c 0
+ 782 1218 728 1257 653 1257 c 256
+ 578 1257 523 1218 491 1142 c 0
+ 459 1066 443 935 443 748 c 0
+ 443 559 459 426 491 349 c 0
+ 523 272 578 233 653 233 c 0
+ 728 233 782 272 814 349 c 0
+ 846 426 862 559 862 748 c 0
+1247 745 m 0
+ 1247 498 1195 306 1092 172 c 0
+ 989 38 843 -29 653 -29 c 0
+ 463 -29 316 38 213 172 c 0
+ 110 306 58 498 58 745 c 0
+ 58 993 110 1184 213 1318 c 0
+ 316 1452 463 1520 653 1520 c 0
+ 843 1520 989 1452 1092 1318 c 0
+ 1195 1184 1247 993 1247 745 c 0
 EndSplineSet
 EndChar
 
 StartChar: one
 Encoding: 49 49 18
 Width: 1304
-Flags: HW
+Flags: W
 HStem: 0 266<209 520 884 1194> 1159 21G<201 289.611>
 VStem: 520 364<266 1231>
 LayerCount: 2
@@ -597,9 +597,9 @@ EndChar
 StartChar: two
 Encoding: 50 50 19
 Width: 1304
-Flags: HW
+Flags: W
 HStem: 0 283<525 1167> 1257 263<327.629 677.813>
-VStem: 770 387<879.215 1167.16>
+VStem: 770 387<879.216 1167.16>
 LayerCount: 2
 Fore
 SplineSet
@@ -608,7 +608,7 @@ SplineSet
  1167 0 l 1
  122 0 l 1
  122 283 l 1
- 635 764 l 2
+ 635 764 l 1
  681 808 715 851 737 893 c 0
  759 935 770 979 770 1024 c 0
  770 1094 748 1150 704 1193 c 0
@@ -629,7 +629,7 @@ EndChar
 StartChar: three
 Encoding: 51 51 20
 Width: 1304
-Flags: HW
+Flags: W
 HStem: -29 262<243.849 705.067> 645 248<338 694.157> 1174 21G<157 186.5> 1257 263<253.63 690.572>
 VStem: 762 385<957.376 1190.92> 797 385<314.362 561.43>
 LayerCount: 2
@@ -671,7 +671,7 @@ EndChar
 StartChar: four
 Encoding: 52 52 21
 Width: 1304
-Flags: HW
+Flags: W
 HStem: 0 21G<694 1058> 272 279<291 694 1058 1241>
 VStem: 694 364<0 272 551 1176>
 LayerCount: 2
@@ -700,7 +700,7 @@ EndChar
 StartChar: five
 Encoding: 53 53 22
 Width: 1304
-Flags: HW
+Flags: W
 HStem: -29 262<314.885 700.549> 741 263<465.569 696.619> 1210 283<464 1084>
 VStem: 157 307<979 1210> 807 385<338.205 635.944>
 LayerCount: 2
@@ -735,7 +735,7 @@ EndChar
 StartChar: six
 Encoding: 54 54 23
 Width: 1304
-Flags: HW
+Flags: W
 HStem: -29 242<564.524 799.114> 737 248<562.328 798.846> 1178 21G<1107 1137> 1266 252<627.741 1039.23>
 VStem: 87 412<385.37 890.125> 864 371<282.039 669.243>
 LayerCount: 2
@@ -774,7 +774,7 @@ EndChar
 StartChar: seven
 Encoding: 55 55 24
 Width: 1304
-Flags: HW
+Flags: W
 HStem: 0 21G<259 629.793> 1210 283<97 790>
 LayerCount: 2
 Fore
@@ -794,7 +794,7 @@ EndChar
 StartChar: eight
 Encoding: 56 56 25
 Width: 1304
-Flags: HW
+Flags: W
 HStem: -29 242<519.431 785.512> 668 241<529.094 773.094> 1278 242<529.236 771.341>
 VStem: 85 364<284.679 597.596> 118 364<957.935 1227.77> 821 365<957.935 1228.08> 854 364<283.696 600.777>
 LayerCount: 2
@@ -841,7 +841,7 @@ EndChar
 StartChar: nine
 Encoding: 57 57 26
 Width: 1304
-Flags: HW
+Flags: W
 HStem: -29 252<257.414 674.158> 502 250<503.177 738.78> 1276 242<502.198 735.161>
 VStem: 66 371<822.111 1205.96> 803 411<598.625 1101.64>
 LayerCount: 2
@@ -5496,7 +5496,7 @@ VStem: 252 638<2015 2015>
 LayerCount: 2
 Fore
 SplineSet
-704 1635 m 1025
+704 1635 m 1,0,-1
 EndSplineSet
 Refer: 226 711 S 1 0 0 1 39 377 2
 Refer: 59 90 N 1 0 0 1 0 0 2
@@ -8046,7 +8046,7 @@ SplineSet
  1001 1120 l 1
  1001 0 l 1
  941.25 0 l 1xf4
-817.276 0 m 1024
+817.276 0 m 0
 EndSplineSet
 EndChar
 
@@ -8494,7 +8494,7 @@ SplineSet
  350 1489 l 1
  152 1489 l 1
  152 0 l 1xe0
-350 175 m 1049
+350 175 m 25
 EndSplineSet
 EndChar
 
@@ -8545,7 +8545,7 @@ SplineSet
  1071 1489 l 1
  1071 178.5 l 1
  1585.5 177 l 17
-1071 175 m 1049
+1071 175 m 25
 EndSplineSet
 EndChar
 
@@ -8575,7 +8575,7 @@ SplineSet
  1071 1489 l 1
  1071 178.5 l 1
  1586.5 177 l 17xf0
-1071 175 m 1049
+1071 175 m 25
 EndSplineSet
 EndChar
 
@@ -9965,7 +9965,7 @@ SplineSet
  350 905 l 1
  1035 905 l 1
  1035 1489 l 1
- 1233 1489 l 1025
+ 1233 1489 l 1
 EndSplineSet
 EndChar
 
@@ -19652,42 +19652,6 @@ SplineSet
  435.849 1314.62 292.256 1167.62 257.219 905 c 1
 EndSplineSet
 EndChar
-
-StartChar: Omega
-Encoding: 937 937 977
-Width: 1576
-Flags: W
-HStem: 0 178<43 362 1132 1452> 1339 172<551.133 945.467>
-VStem: 59 207<634.8 1008.33> 1227 208<636.533 1010.07>
-LayerCount: 2
-Fore
-SplineSet
-1452 178 m 1
- 1452 0 l 1
- 852 0 l 1
- 852 178 l 1
- 971.333 243.333 1063.33 330.667 1128 440 c 0
- 1194 551 1227 674 1227 809 c 0
- 1227 963.667 1186.33 1089.33 1105 1186 c 0
- 1019 1288 899.667 1339 747 1339 c 0
- 596.333 1339 477.333 1287.33 390 1184 c 0
- 307.333 1087.33 266 962.333 266 809 c 0
- 266 675 299 552.333 365 441 c 0
- 431.667 330.333 524.333 242.667 643 178 c 1
- 643 0 l 1
- 43 0 l 1
- 43 178 l 1
- 362 178 l 1
- 160 356 59 563 59 799 c 0
- 59 1010.33 120.333 1181.33 243 1312 c 0
- 369 1444.67 537 1511 747 1511 c 0
- 954.333 1511 1121.33 1445.67 1248 1315 c 0
- 1372.67 1186.33 1435 1017.67 1435 809 c 0
- 1435 676.333 1409.67 559.333 1359 458 c 0
- 1311.67 363.333 1236 270 1132 178 c 1
- 1452 178 l 1
-EndSplineSet
-EndChar
 EndChars
 BitmapFont: 9 978 7 2 1
 BDFChar: 0 65536 9 1 7 0 6
@@ -20566,8 +20530,6 @@ BDFChar: 975 1108 5 0 4 0 4
 GeigaGQ7^D
 BDFChar: 976 1028 7 0 5 0 6
 Gg*tu^s%$'
-BDFChar: 977 937 7 0 5 0 6
-Gg(hoKLl"@
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -21450,8 +21412,6 @@ BDFChar: 975 1108 6 0 4 0 4
 GeigaGQ7^D
 BDFChar: 976 1028 7 0 5 0 6
 Gg*tu^s%$'
-BDFChar: 977 937 8 0 6 0 6
-3(ALOJjf#,
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -22369,8 +22329,6 @@ BDFChar: 975 1108 6 0 4 0 5
 Geiga^j#hZ
 BDFChar: 976 1028 7 0 5 0 7
 I)*Pm^qda5
-BDFChar: 977 937 9 0 6 0 7
-3(/@MJq?DY
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -23090,8 +23048,6 @@ BDFChar: 975 1108 6 0 5 0 6
 Gf7De^r1Ht
 BDFChar: 976 1028 8 0 6 0 8
 I)<\7pqX\^HiO-H
-BDFChar: 977 937 9 1 7 0 8
-&FRPiK#391mJm4e
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -23807,8 +23763,6 @@ BDFChar: 975 1108 7 0 5 0 6
 Gf7Dm^r1Ht
 BDFChar: 976 1028 9 0 7 0 8
 5%27Br4p*V4obQ_
-BDFChar: 977 937 10 1 9 0 9
-&-2/!_Z57<JUi<%JH.t9pON!g
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -24524,8 +24478,6 @@ BDFChar: 975 1108 8 0 5 0 7
 3(/;dJ:L$I
 BDFChar: 976 1028 10 0 7 0 10
 5!a^LJGaqJJ3c@!
-BDFChar: 977 937 12 0 10 0 10
-"9<eaE597s^gOrc?sk+m0Ym5:n_aBI
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N
@@ -25241,8 +25193,6 @@ BDFChar: 975 1108 8 0 5 0 8
 3(/:Ipjdl_2uipY
 BDFChar: 976 1028 11 0 8 0 11
 *rmF65QH<7J,oQKJ,k*"J,hh7+FkO6
-BDFChar: 977 937 12 0 10 0 11
-"9:[%?smAM^gOrc^gLPX+CK0(qr%A0
 BDFRefChar: 971 52 0 0 N
 BDFRefChar: 972 84 0 0 N
 BDFRefChar: 973 53 0 0 N

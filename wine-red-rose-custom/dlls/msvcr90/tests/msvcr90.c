@@ -948,7 +948,7 @@ static void test_qsort_s(void)
 static void test_bsearch_s(void)
 {
     int arr[7] = { 1, 3, 4, 8, 16, 23, 42 };
-    int *x, l, i, j = 1;
+    int *x, l = 0, i, j = 1;
 
     SET_EXPECT(invalid_parameter_handler);
     x = p_bsearch_s(NULL, NULL, 0, 0, NULL, NULL);

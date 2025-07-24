@@ -2399,7 +2399,7 @@ static void test_D3DX11CreateAsyncMemoryLoader(void)
 {
     ID3DX11DataLoader *loader;
     SIZE_T size;
-    DWORD data;
+    DWORD data = 0;
     HRESULT hr;
     void *ptr;
 
