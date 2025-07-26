@@ -503,6 +503,7 @@ struct _DMUS_IO_PATTERN {
 	BYTE            bGrooveTop;
 	WORD            wEmbellishment;
 	WORD            wNbrMeasures;
+        /* DX8 */
 	BYTE            bDestGrooveBottom;
 	BYTE            bDestGrooveTop;
 	DWORD           dwFlags;
@@ -516,6 +517,7 @@ struct _DMUS_IO_STYLEPART {
 	BYTE            bPlayModeFlags;
 	BYTE            bInvertUpper;
 	BYTE            bInvertLower;
+	/* DX8 */
 	BYTE            bPad[3];
 	DWORD           dwFlags;
 };
@@ -527,8 +529,9 @@ struct _DMUS_IO_PARTREF {
 	BYTE  bSubChordLevel;
 	BYTE  bPriority;
 	BYTE  bRandomVariation;
+	/* DX8 */
 	WORD  wPad;
-	DWORD dwPChannel;
+	DWORD dwPChannel;       /* Replaces wLogicalPartID */
 };
 
 

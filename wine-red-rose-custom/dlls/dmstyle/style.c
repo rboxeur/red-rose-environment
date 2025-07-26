@@ -442,7 +442,14 @@ static HRESULT parse_pref_list(struct style *This, IStream *stream, struct chunk
         switch (MAKE_IDTYPE(chunk.id, chunk.type))
         {
         case DMUS_FOURCC_PARTREF_CHUNK:
-            hr = stream_chunk_get_data(stream, &chunk, &part_ref->header, sizeof(part_ref->header));
+            if (chunk.size != sizeof(part_ref->header) &&
+                    chunk.size != offsetof(DMUS_IO_PARTREF, wPad)) /* DX7 */
+            {
+                WARN("Invalid size of %s\n", debugstr_chunk(&chunk));
+                hr = E_FAIL;
+                break;
+            }
+            hr = stream_chunk_get_data(stream, &chunk, &part_ref->header, chunk.size);
             break;
 
         case MAKE_IDTYPE(FOURCC_LIST, DMUS_FOURCC_UNFO_LIST):
@@ -482,7 +489,14 @@ static HRESULT parse_part_list(struct style *This, IStream *stream, struct chunk
         switch (MAKE_IDTYPE(chunk.id, chunk.type))
         {
         case DMUS_FOURCC_PART_CHUNK:
-            hr = stream_chunk_get_data(stream, &chunk, &part->header, sizeof(part->header));
+            if (chunk.size != sizeof(part->header) &&
+                    chunk.size != ((offsetof(DMUS_IO_STYLEPART, bPad) + 1 ) & ~1)) /* DX7 */
+            {
+                WARN("Invalid size of %s\n", debugstr_chunk(&chunk));
+                hr = E_FAIL;
+                break;
+            }
+            hr = stream_chunk_get_data(stream, &chunk, &part->header, chunk.size);
             break;
 
         case MAKE_IDTYPE(FOURCC_LIST, DMUS_FOURCC_UNFO_LIST):
@@ -490,13 +504,13 @@ static HRESULT parse_part_list(struct style *This, IStream *stream, struct chunk
             break;
 
         case DMUS_FOURCC_NOTE_CHUNK:
-            hr = stream_chunk_get_array(stream, &chunk, (void **)&part->notes,
-                    &part->notes_count, sizeof(*part->notes));
+            hr = stream_chunk_get_array_alt(stream, &chunk, (void **)&part->notes,
+                    &part->notes_count, sizeof(*part->notes), offsetof(DMUS_IO_STYLENOTE, bNoteFlags));
             break;
 
         case DMUS_FOURCC_CURVE_CHUNK:
-            hr = stream_chunk_get_array(stream, &chunk, (void **)&part->curves,
-                    &part->curves_count, sizeof(*part->curves));
+            hr = stream_chunk_get_array_alt(stream, &chunk, (void **)&part->curves,
+                    &part->curves_count, sizeof(*part->curves), offsetof(DMUS_IO_STYLECURVE, wParamType));
             break;
 
         case DMUS_FOURCC_MARKER_CHUNK:
@@ -552,7 +566,14 @@ static HRESULT parse_pttn_list(struct style *This, IStream *stream, struct chunk
             break;
 
         case DMUS_FOURCC_PATTERN_CHUNK:
-            hr = stream_chunk_get_data(stream, &chunk, &pattern->pattern, sizeof(pattern->pattern));
+            if (chunk.size != sizeof(pattern->pattern) &&
+                    chunk.size != offsetof(DMUS_IO_PATTERN, bDestGrooveBottom)) /* DX7 */
+            {
+                WARN("Invalid size of %s\n", debugstr_chunk(&chunk));
+                hr = E_FAIL;
+                break;
+            }
+            hr = stream_chunk_get_data(stream, &chunk, &pattern->pattern, chunk.size);
             break;
 
         case DMUS_FOURCC_RHYTHM_CHUNK:

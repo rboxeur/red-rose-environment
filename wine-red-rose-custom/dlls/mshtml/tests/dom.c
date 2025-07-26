@@ -5318,9 +5318,14 @@ static IHTMLDOMNode *_test_node_append_child(unsigned line, IUnknown *node_unk, 
 {
     IHTMLDOMNode *node = _get_node_iface(line, node_unk);
     IHTMLDOMNode *child = _get_node_iface(line, child_unk);
-    IHTMLDOMNode *new_child = NULL;
+    IHTMLDOMNode *new_child = (void*)0xdeadbeef;
     HRESULT hres;
 
+    hres = IHTMLDOMNode_appendChild(node, NULL, &new_child);
+    ok_(__FILE__,line) (hres == E_INVALIDARG, "appendChild returned: %08lx\n", hres);
+    ok_(__FILE__,line) (new_child == NULL, "new_child != NULL\n");
+
+    new_child = NULL;
     hres = IHTMLDOMNode_appendChild(node, child, &new_child);
     ok_(__FILE__,line) (hres == S_OK, "appendChild failed: %08lx\n", hres);
     ok_(__FILE__,line) (new_child != NULL, "new_child == NULL\n");
@@ -5343,9 +5348,14 @@ static void _test_node_append_child_discard(unsigned line, IUnknown *node_unk, I
 static IHTMLDOMNode *_test_node_insertbefore(unsigned line, IUnknown *node_unk, IHTMLDOMNode *child, VARIANT *var)
 {
     IHTMLDOMNode *node = _get_node_iface(line, node_unk);
-    IHTMLDOMNode *new_child = NULL;
+    IHTMLDOMNode *new_child = (void*)0xdeadbeef;
     HRESULT hres;
 
+    hres = IHTMLDOMNode_insertBefore(node, NULL, *var, &new_child);
+    ok_(__FILE__,line) (hres == E_INVALIDARG, "insertBefore returned: %08lx\n", hres);
+    ok_(__FILE__,line) (new_child == NULL, "new_child != NULL\n");
+
+    new_child = NULL;
     hres = IHTMLDOMNode_insertBefore(node, child, *var, &new_child);
     ok_(__FILE__,line) (hres == S_OK, "insertBefore failed: %08lx\n", hres);
     ok_(__FILE__,line) (new_child != NULL, "new_child == NULL\n");
@@ -5360,9 +5370,14 @@ static IHTMLDOMNode *_test_node_insertbefore(unsigned line, IUnknown *node_unk, 
 static void _test_node_remove_child(unsigned line, IUnknown *unk, IHTMLDOMNode *child)
 {
     IHTMLDOMNode *node = _get_node_iface(line, unk);
-    IHTMLDOMNode *new_node = NULL;
+    IHTMLDOMNode *new_node = (void*)0xdeadbeef;
     HRESULT hres;
 
+    hres = IHTMLDOMNode_removeChild(node, NULL, &new_node);
+    ok_(__FILE__,line) (hres == E_INVALIDARG, "removeChild returned: %08lx\n", hres);
+    ok_(__FILE__,line) (new_node == NULL, "new_node != NULL\n");
+
+    new_node = NULL;
     hres = IHTMLDOMNode_removeChild(node, child, &new_node);
     ok_(__FILE__,line) (hres == S_OK, "removeChild failed: %08lx\n", hres);
     ok_(__FILE__,line) (new_node != NULL, "new_node == NULL\n");
@@ -10835,6 +10850,16 @@ static void test_replacechild_elems(IHTMLDocument2 *doc)
     node3 = test_create_text(doc, L"replaced");
 
     nodeBody = _get_node_iface(__LINE__, (IUnknown *)body);
+
+    nodeNew = (void*)0xdeadbeef;
+    hres = IHTMLDOMNode_replaceChild(nodeBody, node3, NULL, &nodeNew);
+    ok(hres == E_INVALIDARG, "Expected E_INVALIDARG, got 0x%08lx\n", hres);
+    ok(nodeNew == NULL, "nodeNew != NULL\n");
+
+    nodeNew = (void*)0xdeadbeef;
+    hres = IHTMLDOMNode_replaceChild(nodeBody, NULL, node2, &nodeNew);
+    ok(hres == E_INVALIDARG, "Expected E_INVALIDARG, got 0x%08lx\n", hres);
+    ok(nodeNew == NULL, "nodeNew != NULL\n");
 
     hres = IHTMLDOMNode_replaceChild(nodeBody, node3, node2, &nodeNew);
     ok(hres == S_OK, "Expected S_OK, got 0x%08lx\n", hres);

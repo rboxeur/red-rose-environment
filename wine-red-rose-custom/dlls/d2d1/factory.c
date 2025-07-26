@@ -1348,6 +1348,27 @@ float WINAPI D2D1Vec3Length(float x, float y, float z)
     return sqrtf(x * x + y * y + z * z);
 }
 
+float WINAPI D2D1ComputeMaximumScaleFactor(const D2D1_MATRIX_3X2_F *mat)
+{
+    const float (*m)[2] = mat->m;
+    float a1, a2, c, e;
+
+    TRACE("mat %p stub.\n", mat);
+
+    /* 2x2 matrix, _31 and _32 are ignored. */
+    a1 = m[0][0] * m[0][0] + m[1][0] * m[1][0];
+    a2 = m[0][1] * m[0][1] + m[1][1] * m[1][1];
+    c = m[0][0] * m[0][1] + m[1][0] * m[1][1];
+
+    /* Maximum scale factor equals to the maximum of the singular values s1, s2 of the matrix M
+    * s_i^2 = e_i where e_i (e1, e2) are eugenvalues of (transpose(M) * M)
+    * e1 + e2 = trace(transpose(M) * M) = a1 + a2
+    * e1 * e2 = det(transpose(M) * M) = a1 * a2 - c ^ 2. */
+
+    e = a1 + a2 + sqrtf((a1 - a2) * (a1 - a2) + 4 * c * c);
+    return sqrtf(0.5f * e);
+}
+
 /* See IEC 61966-2-1:1999; also described in the EXT_texture_sRGB OpenGL
  * extension, among others. */
 static float srgb_transfer_function(float x)

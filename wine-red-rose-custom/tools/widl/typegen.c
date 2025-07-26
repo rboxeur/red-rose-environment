@@ -5052,7 +5052,7 @@ void write_client_call_routine( FILE *file, const type_t *iface, const var_t *fu
     if (needs_params)
     {
         if (has_ret) print_file( file, 1, "%s", "CLIENT_CALL_RETURN _RetVal;\n" );
-        write_func_param_struct( file, iface, func->declspec.type, "__params", FALSE );
+        write_func_param_struct( file, iface, func->declspec.type, "__params", TRUE );
         if (is_object( iface )) print_file( file, 1, "__params.This = This;\n" );
         if (args)
             LIST_FOR_EACH_ENTRY( arg, args, const var_t, entry )

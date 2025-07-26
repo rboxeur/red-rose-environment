@@ -3648,15 +3648,20 @@ static void test_GlobalMemoryStatus(void)
 static void get_valloc_info( void *mem, char **base, SIZE_T *alloc_size )
 {
     MEMORY_BASIC_INFORMATION info, info2;
+    SYSTEM_BASIC_INFORMATION si;
+    NTSTATUS status;
     SIZE_T size;
     char *p;
+
+    status = NtQuerySystemInformation(SystemBasicInformation, &si, sizeof(si), NULL);
+    ok( !status, "NtQuerySystemInformation returned %#lx\n", status );
 
     size = VirtualQuery( mem, &info, sizeof(info) );
     ok( size == sizeof(info), "got %Iu.\n", size );
 
     info2 = info;
     p = info.AllocationBase;
-    while (1)
+    while (p < (char *)si.HighestUserAddress)
     {
         size = VirtualQuery( p, &info2, sizeof(info2) );
         ok( size == sizeof(info), "got %Iu.\n", size );

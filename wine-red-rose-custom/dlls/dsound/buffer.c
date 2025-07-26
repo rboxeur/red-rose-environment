@@ -499,6 +499,15 @@ static HRESULT WINAPI IDirectSoundBufferImpl_Lock(IDirectSoundBuffer8 *iface, DW
         if (!audiobytes1)
             return DSERR_INVALIDPARAM;
 
+        if (lplpaudioptr1)
+            *(LPBYTE*)lplpaudioptr1 = NULL;
+        if (audiobytes1)
+            *audiobytes1 = 0;
+        if (lplpaudioptr2)
+            *(LPBYTE*)lplpaudioptr2 = NULL;
+        if (audiobytes2)
+            *audiobytes2 = 0;
+
         /* when this flag is set, writecursor is meaningless and must be calculated */
 	if (flags & DSBLOCK_FROMWRITECURSOR) {
 		/* GetCurrentPosition does too much magic to duplicate here */
@@ -534,10 +543,6 @@ static HRESULT WINAPI IDirectSoundBufferImpl_Lock(IDirectSoundBuffer8 *iface, DW
 			commit_next_chunk(This);
 		}
 		*audiobytes1 = writebytes;
-		if (lplpaudioptr2)
-			*(LPBYTE*)lplpaudioptr2 = NULL;
-		if (audiobytes2)
-			*audiobytes2 = 0;
 		TRACE("Locked %p(%li bytes) and %p(%li bytes) writecursor=%ld\n",
 		  *(LPBYTE*)lplpaudioptr1, *audiobytes1, lplpaudioptr2 ? *(LPBYTE*)lplpaudioptr2 : NULL, audiobytes2 ? *audiobytes2: 0, writecursor);
 		TRACE("->%ld.0\n",writebytes);
