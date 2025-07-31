@@ -205,7 +205,7 @@ static HRESULT STDMETHODCALLTYPE cryptobuffer_statics_EncodeToBase64String(
 {
     FIXME("iface %p, buffer %p, value %p stub!\n", iface, buffer, value);
 
-    return E_NOTIMPL;
+    return WindowsCreateString( NULL, 0, value );
 }
 
 static HRESULT STDMETHODCALLTYPE cryptobuffer_statics_ConvertStringToBinary(

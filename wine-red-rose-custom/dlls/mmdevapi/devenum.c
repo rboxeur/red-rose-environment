@@ -418,6 +418,18 @@ static MMDevice *MMDevice_Create(const WCHAR *name, GUID *id, EDataFlow flow, DW
                 PropVariantClear(&pv2);
             }
 
+            pv.vt = VT_LPWSTR;
+            pv.pwszVal = drvs.module_name;
+
+            MMDevice_SetPropValue(id, flow, (const PROPERTYKEY*)&DEVPKEY_Device_Driver, &pv);
+
+            if (!FAILED(IMMDevice_GetId(&(cur->IMMDevice_iface), &pv.pwszVal))) {
+                MMDevice_SetPropValue(id, flow, (const PROPERTYKEY*)&DEVPKEY_Device_InstanceId, &pv);
+                CoTaskMemFree(pv.pwszVal);
+                pv.vt = VT_EMPTY;
+                pv.pwszVal = NULL;
+            }
+
             RegCloseKey(keyprop);
         }
         RegCloseKey(key);
