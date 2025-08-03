@@ -601,6 +601,7 @@ struct dwritefactory
     IDWriteFontCollection1 *eudc_collection;
     IDWriteGdiInterop1 *gdiinterop;
     IDWriteFontFallback1 *fallback;
+    IDWriteFontDownloadQueue *download_queue;
 
     IDWriteFontFileLoader *localfontfileloader;
     struct list localfontfaces;
@@ -1705,11 +1706,160 @@ static HRESULT WINAPI dwritefactory3_GetSystemFontCollection(IDWriteFactory7 *if
             &IID_IDWriteFontCollection1, (void **)collection);
 }
 
+struct font_download_queue
+{
+    IDWriteFontDownloadQueue IDWriteFontDownloadQueue_iface;
+    LONG refcount;
+    IDWriteFactory7 *factory;
+};
+
+static inline struct font_download_queue *impl_from_IDWriteFontDownloadQueue(IDWriteFontDownloadQueue *iface)
+{
+    return CONTAINING_RECORD(iface, struct font_download_queue, IDWriteFontDownloadQueue_iface);
+}
+
+static HRESULT WINAPI font_download_queue_QueryInterface(IDWriteFontDownloadQueue *iface,
+                                                         REFIID iid, void **out)
+{
+    struct font_download_queue *impl = impl_from_IDWriteFontDownloadQueue(iface);
+
+    TRACE("iface %p, iid %s, out %p.\n", iface, debugstr_guid(iid), out);
+
+    if (IsEqualGUID(iid, &IID_IUnknown)
+        || IsEqualGUID(iid, &IID_IDWriteFontDownloadQueue))
+    {
+        *out = &impl->IDWriteFontDownloadQueue_iface;
+        IDWriteFontDownloadQueue_AddRef(&impl->IDWriteFontDownloadQueue_iface);
+        return S_OK;
+    }
+
+    *out = NULL;
+    FIXME("%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid(iid));
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI font_download_queue_AddRef(IDWriteFontDownloadQueue *iface)
+{
+    struct font_download_queue *impl = impl_from_IDWriteFontDownloadQueue(iface);
+    ULONG ref = InterlockedIncrement(&impl->refcount);
+    TRACE("iface %p, ref %lu.\n", iface, ref);
+    return ref;
+}
+
+static ULONG WINAPI font_download_queue_Release(IDWriteFontDownloadQueue *iface)
+{
+    struct font_download_queue *impl = impl_from_IDWriteFontDownloadQueue(iface);
+    struct dwritefactory *factory = impl_from_IDWriteFactory7(impl->factory);
+    ULONG ref = InterlockedDecrement(&impl->refcount);
+
+    TRACE("iface %p, ref %lu.\n", iface, ref);
+
+    if (!ref)
+    {
+        EnterCriticalSection(&factory->cs);
+        factory->download_queue = NULL;
+        LeaveCriticalSection(&factory->cs);
+        IDWriteFactory7_Release(impl->factory);
+        free(impl);
+    }
+    return ref;
+}
+
+static HRESULT WINAPI font_download_queue_AddListener(IDWriteFontDownloadQueue *iface,
+        IDWriteFontDownloadListener *listener, UINT32 *token)
+{
+    FIXME("%p, %p, %p stub!\n", iface, listener, token);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI font_download_queue_RemoveListener(IDWriteFontDownloadQueue *iface, UINT32 token)
+{
+    FIXME("%p, %#x stub!\n", iface, token);
+    return E_NOTIMPL;
+}
+
+static BOOL WINAPI font_download_queue_IsEmpty(IDWriteFontDownloadQueue *iface)
+{
+    FIXME("%p stub!\n", iface);
+    return TRUE;
+}
+
+static HRESULT WINAPI font_download_queue_BeginDownload(IDWriteFontDownloadQueue *iface, IUnknown *context)
+{
+    FIXME("%p, %p stub!\n", iface, context);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI font_download_queue_CancelDownload(IDWriteFontDownloadQueue *iface)
+{
+    FIXME("%p stub!\n", iface);
+    return E_NOTIMPL;
+}
+
+static UINT64 WINAPI font_download_queue_GetGenerationCount(IDWriteFontDownloadQueue *iface)
+{
+    FIXME("%p stub!\n", iface);
+    return 0;
+}
+
+static const struct IDWriteFontDownloadQueueVtbl font_download_queue_vtbl =
+{
+    font_download_queue_QueryInterface,
+    font_download_queue_AddRef,
+    font_download_queue_Release,
+    /* IDWriteFontDownloadQueue methods */
+    font_download_queue_AddListener,
+    font_download_queue_RemoveListener,
+    font_download_queue_IsEmpty,
+    font_download_queue_BeginDownload,
+    font_download_queue_CancelDownload,
+    font_download_queue_GetGenerationCount,
+};
+
+static HRESULT create_font_download_queue(IDWriteFactory7 *factory)
+{
+    struct dwritefactory *dwritefactory = impl_from_IDWriteFactory7(factory);
+    struct font_download_queue *impl;
+
+    if (!(impl = calloc(1, sizeof(*impl))))
+        return E_OUTOFMEMORY;
+
+    impl->IDWriteFontDownloadQueue_iface.lpVtbl = &font_download_queue_vtbl;
+    impl->refcount = 1;
+    impl->factory = factory;
+    IDWriteFactory7_AddRef(impl->factory);
+    dwritefactory->download_queue = &impl->IDWriteFontDownloadQueue_iface;
+    return S_OK;
+}
+
 static HRESULT WINAPI dwritefactory3_GetFontDownloadQueue(IDWriteFactory7 *iface, IDWriteFontDownloadQueue **queue)
 {
-    FIXME("%p, %p: stub\n", iface, queue);
+    struct dwritefactory *factory = impl_from_IDWriteFactory7(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, queue);
+
+    *queue = NULL;
+
+    EnterCriticalSection(&factory->cs);
+    if (!factory->download_queue)
+    {
+        HRESULT hr = create_font_download_queue(iface);
+        if (FAILED(hr))
+        {
+            LeaveCriticalSection(&factory->cs);
+            return hr;
+        }
+
+        *queue = factory->download_queue;
+    }
+    else
+    {
+        *queue = factory->download_queue;
+        IDWriteFontDownloadQueue_AddRef(*queue);
+    }
+
+    LeaveCriticalSection(&factory->cs);
+    return S_OK;
 }
 
 static HRESULT WINAPI dwritefactory4_TranslateColorGlyphRun(IDWriteFactory7 *iface, D2D1_POINT_2F origin,
