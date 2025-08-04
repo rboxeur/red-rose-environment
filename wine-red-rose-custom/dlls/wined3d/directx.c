@@ -1831,6 +1831,60 @@ HRESULT CDECL wined3d_output_get_raster_status(const struct wined3d_output *outp
     return WINED3D_OK;
 }
 
+static DWORD WINAPI wined3d_output_wait_for_vblank_worker(void* arg)
+{
+    static BOOL once = FALSE;
+    struct wined3d_output *output = arg;
+    struct wined3d_display_mode mode;
+    LARGE_INTEGER counter_start, counter_end, freq_per_sec;
+    LONGLONG ticks_per_frame;
+
+    if (!once++)
+        FIXME("output %p semi-stub!\n", output);
+    else
+        TRACE("output %p semi-stub!\n", output);
+
+    if (!QueryPerformanceCounter(&counter_start) || !QueryPerformanceFrequency(&freq_per_sec))
+        return WINED3DERR_INVALIDCALL;
+    if (FAILED(wined3d_output_get_display_mode(output, &mode, NULL)))
+        return WINED3DERR_INVALIDCALL;
+    if (mode.refresh_rate == DEFAULT_REFRESH_RATE)
+        mode.refresh_rate = 60;
+
+    ticks_per_frame = freq_per_sec.QuadPart / (mode.refresh_rate * 100);
+
+    do
+    {
+        QueryPerformanceCounter(&counter_end);
+    } while (counter_end.QuadPart - counter_start.QuadPart < ticks_per_frame);
+
+
+    return WINED3D_OK;
+}
+
+HRESULT CDECL wined3d_output_wait_for_vblank(struct wined3d_output *output)
+{
+    static BOOL once = FALSE;
+    HANDLE thread;
+    DWORD tid;
+    DWORD exit_code;
+
+    if (!once++)
+        FIXME("output %p semi-stub!\n", output);
+    else
+        TRACE("output %p semi-stub!\n", output);
+
+    thread = CreateThread(NULL, 0, wined3d_output_wait_for_vblank_worker, output, 0, &tid);
+
+    WaitForSingleObject(thread, INFINITE);
+
+    GetExitCodeThread(thread, &exit_code);
+
+    CloseHandle(thread);
+
+    return exit_code;
+}
+
 HRESULT CDECL wined3d_check_depth_stencil_match(const struct wined3d_adapter *adapter,
         enum wined3d_device_type device_type, enum wined3d_format_id adapter_format_id,
         enum wined3d_format_id render_target_format_id, enum wined3d_format_id depth_stencil_format_id)

@@ -24,6 +24,7 @@
 #include "winbase.h"
 #include "winerror.h"
 #include "winstring.h"
+#include "inspectable.h"
 
 #include "wine/test.h"
 
@@ -545,6 +546,202 @@ static void test_hstring_struct(void)
     ok(WindowsDeleteString(str) == S_OK, "Failed to delete string ref.\n");
 }
 
+static void * WINAPI user_allocate(SIZE_T size)
+{
+    ok(0, "unexpected user_allocate call\n");
+    return CoTaskMemAlloc(size);
+}
+
+static void WINAPI user_free(void *p)
+{
+    ok(0, "unexpected user_free call\n");
+    CoTaskMemFree(p);
+}
+
+static void init_user_marshal_cb(USER_MARSHAL_CB *umcb,
+                                 PMIDL_STUB_MESSAGE stub_msg,
+                                 PRPC_MESSAGE rpc_msg, unsigned char *buffer,
+                                 unsigned int size, MSHCTX context)
+{
+    memset(rpc_msg, 0, sizeof(*rpc_msg));
+    rpc_msg->Buffer = buffer;
+    rpc_msg->BufferLength = size;
+
+    memset(stub_msg, 0, sizeof(*stub_msg));
+    stub_msg->RpcMsg = rpc_msg;
+    stub_msg->Buffer = buffer;
+    stub_msg->pfnAllocate = user_allocate;
+    stub_msg->pfnFree = user_free;
+
+    memset(umcb, 0, sizeof(*umcb));
+    umcb->Flags = MAKELONG(context, NDR_LOCAL_DATA_REPRESENTATION);
+    umcb->pStubMsg = stub_msg;
+    umcb->Signature = USER_MARSHAL_CB_SIGNATURE;
+    umcb->CBType = buffer ? USER_MARSHAL_CB_UNMARSHALL : USER_MARSHAL_CB_BUFFER_SIZE;
+}
+
+#define ALIGNED_LENGTH(_Len, _Align) (((_Len)+(_Align))&~(_Align))
+#define ALIGNED_POINTER(_Ptr, _Align) ((LPVOID)ALIGNED_LENGTH((ULONG_PTR)(_Ptr), _Align))
+
+#pragma pack(push, 1)
+struct hstring_wire
+{
+    /* Marshaling context, either WDT_INPROC64_CALL or WDT_INPROC_CALL. */
+    ULONG context;
+    union {
+        struct {
+            ULONG size;
+            WCHAR data[];
+        } buf;
+        struct {
+#ifdef _WIN64
+            ULONG pad;
+#endif
+            HSTRING str;
+        };
+    };
+};
+#pragma pack(pop)
+
+static void test_marshal(void)
+{
+    static const WCHAR str_buf[] = L"marshal_test1";
+    static const ULONG str_len = ARRAY_SIZE(str_buf) - 1;
+    static const ULONG str_bytes = str_len * sizeof(WCHAR);
+#ifdef _WIN64
+    const ULONG exp_prefix = WDT_INPROC64_CALL;
+#else
+    const ULONG exp_prefix = WDT_INPROC_CALL;
+#endif
+    HSTRING str, str_empty = NULL, str2 = NULL;
+    const struct hstring_wire *wire;
+    BYTE *buffer = calloc(1, 80);
+    MIDL_STUB_MESSAGE stub_msg;
+    USER_MARSHAL_CB umcb;
+    ULONG size, exp_size;
+    RPC_MESSAGE rpc_msg;
+    INT32 order = -1;
+    BYTE *next;
+    HRESULT hr;
+
+    hr = WindowsCreateString(str_buf, wcslen(str_buf), &str);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+
+    /* INPROC marshaling */
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, NULL, 0, MSHCTX_INPROC);
+    size = HSTRING_UserSize(&umcb.Flags, 0, &str);
+    exp_size = sizeof(struct hstring_wire);
+    ok(size == exp_size, "got size %lu != %lu\n", size, exp_size);
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, buffer, size, MSHCTX_INPROC);
+    next = HSTRING_UserMarshal(&umcb.Flags, buffer, &str);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    wire = (struct hstring_wire *)buffer;
+    ok(wire->context == exp_prefix, "got unexpected prefix %#lx != %#lx\n", wire->context, exp_prefix);
+    /* INPROC marshaling just consists of increasing the refcount and copying the address. */
+    ok(wire->str == str, "got unexpected address %p\n", wire->str);
+    next = HSTRING_UserUnmarshal(&umcb.Flags, buffer, &str2);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    ok(str2 == str, "got str2 %p != %p\n", str2, str);
+    HSTRING_UserFree(&umcb.Flags, &str2);
+
+    /* Test alignment */
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, NULL, 0, MSHCTX_INPROC);
+    size = HSTRING_UserSize(&umcb.Flags, 1, &str);
+    exp_size = ALIGNED_LENGTH(1 + sizeof(struct hstring_wire), 7);
+    ok(size == exp_size, "got size %lu != %lu\n", size, exp_size);
+    memset(buffer, 0, 80);
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, buffer, size, MSHCTX_INPROC);
+    next = HSTRING_UserMarshal(&umcb.Flags, &buffer[1], &str);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    wire = ALIGNED_POINTER(&buffer[1], 7);
+    ok(wire->context == exp_prefix, "got unexpected prefix %#lx != %#lx\n", wire->context, exp_prefix);
+    ok(wire->str == str, "got unexpected address %p\n", wire->str);
+    next = HSTRING_UserUnmarshal(&umcb.Flags, &buffer[1], &str2);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    ok(str2 == str, "got str2 %p != %p\n", str2, str);
+    HSTRING_UserFree(&umcb.Flags, &str2);
+
+    /* INPROC marshaling with empty/NULL HSTRING */
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, NULL, 0, MSHCTX_INPROC);
+    size = HSTRING_UserSize(&umcb.Flags, 0, &str_empty);
+    exp_size = sizeof(struct hstring_wire);
+    ok(size == exp_size, "got size %lu != %lu\n", size, exp_size);
+    memset(buffer, 0xff, 80);
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, buffer, size, MSHCTX_INPROC);
+    next = HSTRING_UserMarshal(&umcb.Flags, buffer, &str_empty);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    wire = (struct hstring_wire *)buffer;
+    ok(wire->context == exp_prefix, "got unexpected prefix %#lx != %#lx\n", wire->context, exp_prefix);
+    ok(!wire->str, "got unexpected address %p\n", wire->str);
+    str2 = NULL;
+    next = HSTRING_UserUnmarshal(&umcb.Flags, buffer, &str2);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    ok(!str2, "got str2 %p\n", str2);
+    HSTRING_UserFree(&umcb.Flags, &str2);
+
+    /* Out of process marshaling */
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, NULL, 0, MSHCTX_LOCAL);
+    size = HSTRING_UserSize(&umcb.Flags, 0, &str);
+    exp_size = offsetof(struct hstring_wire, buf.data[str_len]);
+    ok(size == exp_size, "got size %lu != %lu\n", size, exp_size);
+    memset(buffer, 0, 80);
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, buffer, size, MSHCTX_LOCAL);
+    next = HSTRING_UserMarshal(&umcb.Flags, buffer, &str);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    wire = (struct hstring_wire *)buffer;
+    ok(wire->buf.size == str_bytes, "got buf.size %lu != %lu\n", wire->buf.size, str_bytes);
+    ok(!memcmp(wire->buf.data, str_buf, str_bytes), "got buf.data %s\n", debugstr_wn(wire->buf.data, str_bytes));
+    str2 = NULL;
+    next = HSTRING_UserUnmarshal(&umcb.Flags, buffer, &str2);
+    wire = (struct hstring_wire *)buffer;
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    /* A new HSTRING should be allocated */
+    ok(str2 != str, "got str2 %p\n", str2);
+    hr = WindowsCompareStringOrdinal(str2, str, &order);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(!order, "got str2 %s != %s\n", debugstr_hstring(str2), debugstr_hstring(str));
+    HSTRING_UserFree(&umcb.Flags, &str2);
+
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, NULL, 0, MSHCTX_LOCAL);
+    size = HSTRING_UserSize(&umcb.Flags, 1, &str);
+    exp_size = ALIGNED_LENGTH(1, 7) + offsetof(struct hstring_wire, buf.data[str_len]);
+    ok(size == exp_size, "got size %lu != %lu\n", size, exp_size);
+    memset(buffer, 0, 80);
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, buffer, size, MSHCTX_LOCAL);
+    next = HSTRING_UserMarshal(&umcb.Flags, &buffer[1], &str);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    wire = ALIGNED_POINTER(&buffer[1], 7);
+    ok(wire->buf.size == str_bytes, "got buf.size %lu != %lu\n", wire->buf.size, str_bytes);
+    ok(!memcmp(wire->buf.data, str_buf, str_bytes), "got buf.data %s\n", debugstr_wn(wire->buf.data, str_bytes));
+    next = HSTRING_UserUnmarshal(&umcb.Flags, &buffer[1], &str2);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    ok(str2 != str, "got str2 %p\n", str2);
+    order = -1;
+    hr = WindowsCompareStringOrdinal(str2, str, &order);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(!order, "got str2 %s != %s\n", debugstr_hstring(str2), debugstr_hstring(str));
+    HSTRING_UserFree(&umcb.Flags, &str2);
+
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, NULL, 0, MSHCTX_LOCAL);
+    size = HSTRING_UserSize(&umcb.Flags, 0, &str_empty);
+    exp_size = offsetof(struct hstring_wire, buf.data[0]);
+    ok(size == exp_size, "got size %lu != %lu\n", size, exp_size);
+    memset(buffer, 0xff, 80);
+    init_user_marshal_cb(&umcb, &stub_msg, &rpc_msg, buffer, size, MSHCTX_LOCAL);
+    next = HSTRING_UserMarshal(&umcb.Flags, buffer, &str_empty);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    wire = (struct hstring_wire *)buffer;
+    ok(!wire->buf.size, "got buf.size %lu\n", wire->buf.size);
+    str2 = NULL;
+    next = HSTRING_UserUnmarshal(&umcb.Flags, buffer, &str2);
+    ok(next == &buffer[size], "got next %p != %p\n", next, &buffer[size]);
+    ok(!str2, "got str2 %p\n", str2);
+    HSTRING_UserFree(&umcb.Flags, &str2);
+
+    WindowsDeleteString(str);
+    free(buffer);
+}
+
 START_TEST(string)
 {
     test_create_delete();
@@ -556,4 +753,5 @@ START_TEST(string)
     test_compare();
     test_trim();
     test_hstring_struct();
+    test_marshal();
 }

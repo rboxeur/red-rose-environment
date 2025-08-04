@@ -365,12 +365,19 @@ static HRESULT STDMETHODCALLTYPE dxgi_output_WaitForVBlank(IDXGIOutput6 *iface)
 {
     static BOOL once = FALSE;
 
+    struct dxgi_output *output = impl_from_IDXGIOutput6(iface);
+    HRESULT hr;
+
     if (!once++)
         FIXME("iface %p stub!\n", iface);
     else
         TRACE("iface %p stub!\n", iface);
 
-    return E_NOTIMPL;
+    wined3d_mutex_lock();
+    hr = wined3d_output_wait_for_vblank(output->wined3d_output);
+    wined3d_mutex_unlock();
+
+    return hr == WINED3D_OK ? S_OK : DXGI_ERROR_UNSUPPORTED;
 }
 
 static HRESULT STDMETHODCALLTYPE dxgi_output_TakeOwnership(IDXGIOutput6 *iface, IUnknown *device, BOOL exclusive)

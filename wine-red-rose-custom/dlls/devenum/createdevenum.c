@@ -715,7 +715,7 @@ static void register_vfw_codecs(void)
 
 static void register_avicap_devices(void)
 {
-    WCHAR friendlyname[32], version[32];
+    WCHAR friendlyname[32], version[32], device_path[32];
     IPropertyBag *prop_bag = NULL;
     REGFILTERPINS2 rgpins = {0};
     REGPINTYPES rgtypes;
@@ -754,6 +754,11 @@ static void register_avicap_devices(void)
         V_VT(&var) = VT_I4;
         V_I4(&var) = i;
         IPropertyBag_Write(prop_bag, L"VFWIndex", &var);
+
+        swprintf(device_path, ARRAY_SIZE(device_path), L"/dev/video%d", i);
+        V_VT(&var) = VT_BSTR;
+        V_BSTR(&var) = SysAllocString(device_path);
+        IPropertyBag_Write(prop_bag, L"DevicePath", &var);
 
         VariantClear(&var);
         IPropertyBag_Release(prop_bag);

@@ -244,6 +244,7 @@ struct agile_reference
     IStream *marshal_stream;
     CRITICAL_SECTION cs;
     IUnknown *obj;
+    BOOLEAN is_agile;
     LONG ref;
 };
 
@@ -330,6 +331,9 @@ static HRESULT WINAPI agile_ref_Resolve(IAgileReference *iface, REFIID riid, voi
 
     TRACE("(%p, %s, %p)\n", iface, debugstr_guid(riid), obj);
 
+    if (impl->is_agile)
+        return IUnknown_QueryInterface(impl->obj, riid, obj);
+
     EnterCriticalSection(&impl->cs);
     if (impl->option == AGILEREFERENCE_DELAYEDMARSHAL && impl->marshal_stream == NULL)
     {
@@ -399,7 +403,13 @@ HRESULT WINAPI RoGetAgileReference(enum AgileReferenceOptions option, REFIID rii
     impl->option = option;
     impl->ref = 1;
 
-    if (option == AGILEREFERENCE_DEFAULT)
+    hr = IUnknown_QueryInterface(obj, &IID_IAgileObject, (void **)&unknown);
+    if (SUCCEEDED(hr))
+    {
+        impl->obj = obj;
+        impl->is_agile = TRUE;
+    }
+    else if (option == AGILEREFERENCE_DEFAULT)
     {
         if (FAILED(hr = marshal_object_in_agile_reference(impl, riid, obj)))
         {

@@ -22,6 +22,8 @@
 #define COBJMACROS
 #include "ole2.h"
 
+#include "winstring.h"
+#include "inspectable.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ole);
@@ -1024,4 +1026,126 @@ void WINAPI WdtpInterfacePointer_UserFree(IUnknown *punk)
 {
     TRACE("%p.\n", punk);
     if (punk) IUnknown_Release(punk);
+}
+
+#pragma pack(push, 1)
+struct hstring_wire
+{
+    ULONG context;
+    union {
+        struct {
+            ULONG size;
+            WCHAR data[];
+        } buf;
+        struct {
+#ifdef _WIN64
+            ULONG pad;
+#endif
+            HSTRING str;
+        };
+    };
+};
+#pragma pack(pop)
+
+/******************************************************************************
+ *           HSTRING_UserSize (combase.@)
+ */
+ULONG __RPC_USER HSTRING_UserSize(ULONG *flags, ULONG start, HSTRING *str)
+{
+    TRACE("%s, %lu, %s.\n", debugstr_user_flags(flags), start, debugstr_hstring(*str));
+
+    ALIGN_LENGTH(start, 7);
+    if (LOWORD(*flags) == MSHCTX_INPROC)
+        start += sizeof(struct hstring_wire);
+    else
+        start += offsetof(struct hstring_wire, buf.data[WindowsGetStringLen(*str)]);
+    return start;
+}
+
+/******************************************************************************
+ *           HSTRING_UserMarshal (combase.@)
+ */
+BYTE * __RPC_USER HSTRING_UserMarshal(ULONG *flags, BYTE *buf, HSTRING *str)
+{
+    struct hstring_wire *wire;
+
+    TRACE("%s, %p, %s.\n", debugstr_user_flags(flags), buf, debugstr_hstring(*str));
+
+    if (LOWORD(*flags) == MSHCTX_DIFFERENTMACHINE)
+    {
+        FIXME("MSHCTX_DIFFERENTMACHINE is not supported yet.\n");
+        RpcRaiseException(RPC_S_INVALID_TAG);
+    }
+
+    wire = ALIGNED_POINTER(buf, 7);
+#ifdef _WIN64
+    wire->context = WDT_INPROC64_CALL;
+#else
+    wire->context = WDT_INPROC_CALL;
+#endif
+    if (LOWORD(*flags) == MSHCTX_INPROC)
+    {
+        WindowsDuplicateString(*str, &wire->str);
+        buf = (BYTE *)(&wire->str + 1);
+    }
+    else
+    {
+        const WCHAR *str_buf;
+        UINT32 len;
+
+        str_buf = WindowsGetStringRawBuffer(*str, &len);
+        wire->buf.size = len * sizeof(WCHAR);
+        memcpy(wire->buf.data, str_buf, wire->buf.size);
+        buf = (BYTE*)&wire->buf.data[len];
+    }
+
+    return buf;
+}
+
+/******************************************************************************
+ *           HSTRING_UserUnmarshal (combase.@)
+ */
+BYTE * __RPC_USER HSTRING_UserUnmarshal(ULONG *flags, BYTE *buf, HSTRING *str)
+{
+    const struct hstring_wire *wire;
+#ifdef _WIN64
+    static const ULONG prefix = WDT_INPROC64_CALL;
+#else
+    static const ULONG prefix = WDT_INPROC_CALL;
+#endif
+
+    TRACE("%p, %p, %p\n", debugstr_user_flags(flags), buf, str);
+
+    wire = ALIGNED_POINTER(buf, 7);
+    if (wire->context != prefix)
+        RpcRaiseException(RPC_S_INVALID_TAG);
+    if (LOWORD(*flags) == MSHCTX_INPROC)
+    {
+        *str = wire->str;
+        TRACE("str=%s\n", debugstr_hstring(*str));
+        buf = (BYTE *)(&wire->str + 1);
+    }
+    else
+    {
+        UINT32 len;
+
+        if (wire->buf.size % 2)
+            RpcRaiseException(RPC_S_INVALID_BOUND);
+        len = wire->buf.size/sizeof(WCHAR);
+        WindowsCreateString(wire->buf.data, len, str);
+        buf = (BYTE *)&wire->buf.data[len];
+    }
+
+    return buf;
+}
+
+/******************************************************************************
+ *           HSTRING_UserFree (combase.@)
+ */
+void __RPC_USER HSTRING_UserFree(ULONG *flags, HSTRING *str)
+{
+    TRACE("%s, %s.\n", debugstr_user_flags(flags), debugstr_hstring(*str));
+
+    if (LOWORD(*flags) == MSHCTX_INPROC)
+        WindowsDeleteString(*str);
 }
