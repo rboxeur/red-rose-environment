@@ -1193,7 +1193,7 @@ static type_t *replace_type_parameters_in_type(type_t *type, typeref_list_t *ori
         t = replace_type_parameters_in_type(type->details.array.elem.type, orig, repl);
         if (t == t->details.array.elem.type) return type;
         type = duptype(type, 0);
-        t->details.array.elem.type = t;
+        type->details.array.elem.type = t;
         return type;
     case TYPE_FUNCTION:
         t = duptype(type, 0);
