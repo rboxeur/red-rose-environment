@@ -64,11 +64,13 @@ enum alg_id
     ALG_ID_DH,
     ALG_ID_ECDH_P256,
     ALG_ID_ECDH_P384,
+    ALG_ID_ECDH_P521,
 
     /* signature */
     ALG_ID_RSA_SIGN,
     ALG_ID_ECDSA_P256,
     ALG_ID_ECDSA_P384,
+    ALG_ID_ECDSA_P521,
     ALG_ID_DSA,
 
     /* rng */
@@ -107,8 +109,7 @@ struct key_symmetric
 };
 
 #define KEY_FLAG_LEGACY_DSA_V2  0x00000001
-#define KEY_FLAG_DH_PARAMS_SET  0x00000002
-#define KEY_FLAG_FINALIZED      0x00000004
+#define KEY_FLAG_FINALIZED      0x00000002
 
 struct key_asymmetric
 {
@@ -117,11 +118,12 @@ struct key_asymmetric
     DSSSEED           dss_seed;
 };
 
+#define PRIVATE_DATA_SIZE 3
 struct key
 {
     struct object hdr;
     enum alg_id   alg_id;
-    UINT64        private[2];  /* private data for backend */
+    UINT64        private[PRIVATE_DATA_SIZE];  /* private data for backend */
     union
     {
         struct key_symmetric s;
@@ -173,10 +175,10 @@ struct key_asymmetric_decrypt_params
     struct key  *key;
     UCHAR       *input;
     unsigned     input_len;
+    void        *padding;
     UCHAR       *output;
     ULONG        output_len;
     ULONG       *ret_len;
-    void        *padding;
     ULONG        flags;
 };
 
@@ -184,11 +186,11 @@ struct key_asymmetric_encrypt_params
 {
     struct key  *key;
     UCHAR       *input;
-    unsigned    input_len;
-    UCHAR       *output;
-    ULONG       output_len;
-    ULONG       *ret_len;
+    unsigned     input_len;
     void        *padding;
+    UCHAR       *output;
+    ULONG        output_len;
+    ULONG       *ret_len;
     ULONG        flags;
 };
 
@@ -221,8 +223,8 @@ struct key_asymmetric_verify_params
     unsigned    flags;
 };
 
-#define KEY_EXPORT_FLAG_PUBLIC   0x00000001
-#define KEY_EXPORT_FLAG_RSA_FULL 0x00000002
+#define KEY_EXPORT_FLAG_PUBLIC        0x00000001
+#define KEY_EXPORT_FLAG_RSA_FULL      0x00000002
 #define KEY_EXPORT_FLAG_DH_PARAMETERS 0x00000004
 
 struct key_asymmetric_export_params
@@ -234,8 +236,9 @@ struct key_asymmetric_export_params
     ULONG       *ret_len;
 };
 
-#define KEY_IMPORT_FLAG_PUBLIC   0x00000001
+#define KEY_IMPORT_FLAG_PUBLIC        0x00000001
 #define KEY_IMPORT_FLAG_DH_PARAMETERS 0x00000002
+
 struct key_asymmetric_import_params
 {
     struct key  *key;
@@ -275,5 +278,10 @@ enum key_funcs
     unix_key_asymmetric_derive_key,
     unix_funcs_count,
 };
+
+static inline ULONG len_from_bitlen( ULONG bitlen )
+{
+    return (bitlen + 7) / 8;
+}
 
 #endif /* __BCRYPT_INTERNAL_H */

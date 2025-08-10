@@ -603,6 +603,14 @@ VOID WINAPI RtlFillMemoryUlong(ULONG* lpDest, ULONG ulCount, ULONG ulValue)
 }
 
 /*********************************************************************
+ *           RtlAreLongPathsEnabled [NTDLL.@]
+ */
+BOOL WINAPI RtlAreLongPathsEnabled(void)
+{
+    return NtCurrentTeb()->Peb->IsLongPathAwareProcess;
+}
+
+/*********************************************************************
  *                  RtlComputeCrc32   [NTDLL.@]
  *
  * Calculate the CRC32 checksum of a block of bytes
