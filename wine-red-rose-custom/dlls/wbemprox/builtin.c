@@ -341,6 +341,7 @@ static const struct column col_process[] =
     { L"Name",            CIM_STRING|COL_FLAG_DYNAMIC },
     { L"ParentProcessID", CIM_UINT32 },
     { L"ProcessID",       CIM_UINT32 },
+    { L"Status",          CIM_STRING },
     { L"ThreadCount",     CIM_UINT32 },
     { L"WorkingSetSize",  CIM_UINT64 },
     /* methods */
@@ -810,6 +811,7 @@ struct record_process
     const WCHAR *name;
     UINT32       pprocess_id;
     UINT32       process_id;
+    const WCHAR *status;
     UINT32       thread_count;
     UINT64       workingsetsize;
     /* methods */
@@ -3402,6 +3404,7 @@ static enum fill_status fill_process( struct table *table, const struct expr *co
         rec->name           = wcsdup( entry.szExeFile );
         rec->process_id     = entry.th32ProcessID;
         rec->pprocess_id    = entry.th32ParentProcessID;
+        rec->status         = L"OK";
         rec->thread_count   = entry.cntThreads;
         rec->workingsetsize = 0;
         /* methods */

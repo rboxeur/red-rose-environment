@@ -21,4 +21,5 @@ SOURCES = \
 	shlfolder.c \
 	shlview.c \
 	string.c \
-	systray.c
+	systray.c \
+	dialogs.c
