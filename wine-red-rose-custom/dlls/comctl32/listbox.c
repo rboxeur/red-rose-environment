@@ -624,7 +624,10 @@ static void LISTBOX_PaintItem( LB_DESCR *descr, HDC hdc, const RECT *rect,
 	if (index >= descr->nb_items)
 	{
 	    if (action == ODA_FOCUS)
-		DrawFocusRect( hdc, rect );
+	    {
+	        if (COMCTL32_keyboard_cues_enabled)
+	            DrawFocusRect( hdc, rect );
+	    }
 	    else
 	        ERR("called with an out of bounds index %d(%d) in owner draw, Not good.\n",index,descr->nb_items);
 	    return;
@@ -664,7 +667,8 @@ static void LISTBOX_PaintItem( LB_DESCR *descr, HDC hdc, const RECT *rect,
 
         if (action == ODA_FOCUS)
         {
-            DrawFocusRect( hdc, rect );
+            if (COMCTL32_keyboard_cues_enabled)
+                DrawFocusRect( hdc, rect );
             return;
         }
         if (selected)
@@ -697,7 +701,7 @@ static void LISTBOX_PaintItem( LB_DESCR *descr, HDC hdc, const RECT *rect,
             SetBkColor( hdc, oldBk );
             SetTextColor( hdc, oldText );
         }
-        if (focused)
+        if (COMCTL32_keyboard_cues_enabled && focused)
             DrawFocusRect( hdc, rect );
     }
 }

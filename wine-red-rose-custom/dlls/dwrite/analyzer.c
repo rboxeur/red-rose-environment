@@ -265,6 +265,7 @@ system_fallback_config[] =
     { "10A0-10FF, 2D00-2D2F",   L"Noto Sans Georgian" },
 
     /* Hangul Jamo               - 1100-11FF
+       Dingbats                  - 2700-27BF
        Hangul Compatibility Jamo - 3130-318F
        Enc. CJK (Paren Hangul)   - 3200-321F
        Enc. CJK (Circled Hangul) - 3260-327F
@@ -298,6 +299,8 @@ system_fallback_config[] =
     { "1BC0-1BFF",              L"Noto Sans Batak" },
     { "1C00-1C4F",              L"Noto Sans Lepcha" },
     { "1C50-1C7F",              L"Noto Sans Ol Chiki" },
+
+    { "2700-27BF",              L"Noto Sans Symbols2"},
 
     { "2C80-2CFF",              L"Noto Sans Coptic" },
     { "2D30-2D7F",              L"Noto Sans Tifinagh" },

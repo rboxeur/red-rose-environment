@@ -716,7 +716,7 @@ static void CBPaintText(HEADCOMBO *lphc, HDC hdc_paint)
 		    &rectEdit,
 		    pText ? pText : L"" , size, NULL );
 
-       if(lphc->wState & CBF_FOCUSED && !(lphc->wState & CBF_DROPPED))
+       if(COMCTL32_keyboard_cues_enabled && lphc->wState & CBF_FOCUSED && !(lphc->wState & CBF_DROPPED))
 	 DrawFocusRect( hdc, &rectEdit );
      }
 

@@ -83,6 +83,7 @@ HMODULE COMCTL32_hModule = 0;
 static LANGID COMCTL32_uiLang = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
 HBRUSH  COMCTL32_hPattern55AABrush = NULL;
 COMCTL32_SysColor  comctl32_color;
+BOOL COMCTL32_keyboard_cues_enabled = FALSE;
 
 static HBITMAP COMCTL32_hPattern55AABitmap = NULL;
 
@@ -172,6 +173,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
             DisableThreadLibraryCalls(hinstDLL);
 
             COMCTL32_hModule = hinstDLL;
+
+            SystemParametersInfoW (SPI_GETKEYBOARDCUES, 0, &COMCTL32_keyboard_cues_enabled, 0);
 
             /* add global subclassing atom (used by 'tooltip' and 'updown') */
             COMCTL32_wSubclass = (LPWSTR)(DWORD_PTR)GlobalAddAtomW (strCC32SubclassInfo);

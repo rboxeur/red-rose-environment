@@ -1949,7 +1949,7 @@ static void PB_Paint( const BUTTON_INFO *infoPtr, HDC hDC, UINT action )
     }
     if ((cdrf & CDRF_SKIPPOSTPAINT) || dtFlags == (UINT)-1L) goto cleanup;
 
-    if (action == ODA_FOCUS || (state & BST_FOCUS))
+    if (COMCTL32_keyboard_cues_enabled && (action == ODA_FOCUS || (state & BST_FOCUS)))
     {
         InflateRect( &rc, -2, -2 );
         DrawFocusRect( hDC, &rc );
@@ -2122,7 +2122,7 @@ static void CB_Paint( const BUTTON_INFO *infoPtr, HDC hDC, UINT action )
     if ((cdrf & CDRF_SKIPPOSTPAINT) || dtFlags == (UINT)-1L) goto cleanup;
 
     /* ... and focus */
-    if (action == ODA_FOCUS || (state & BST_FOCUS))
+    if (COMCTL32_keyboard_cues_enabled && (action == ODA_FOCUS || (state & BST_FOCUS)))
     {
         labelRect.left--;
         labelRect.right++;
@@ -2263,7 +2263,7 @@ static void UB_Paint( const BUTTON_INFO *infoPtr, HDC hDC, UINT action )
             SendMessageW(parent, WM_NOTIFY, nmcd.hdr.idFrom, (LPARAM)&nmcd);
         }
 
-        if (!(cdrf & CDRF_SKIPPOSTPAINT))
+        if (COMCTL32_keyboard_cues_enabled && !(cdrf & CDRF_SKIPPOSTPAINT))
             DrawFocusRect( hDC, &rc );
     }
 
@@ -2448,7 +2448,7 @@ static void SB_Paint( const BUTTON_INFO *infoPtr, HDC hDC, UINT action )
     }
     if ((cdrf & CDRF_SKIPPOSTPAINT) || dtFlags == (UINT)-1L) goto cleanup;
 
-    if (action == ODA_FOCUS || (state & BST_FOCUS))
+    if (COMCTL32_keyboard_cues_enabled && (action == ODA_FOCUS || (state & BST_FOCUS)))
         DrawFocusRect(hDC, &push_rect);
 
 cleanup:
@@ -2721,7 +2721,7 @@ static void CL_Paint( const BUTTON_INFO *infoPtr, HDC hDC, UINT action )
     }
     if (cdrf & CDRF_SKIPPOSTPAINT) goto cleanup;
 
-    if (action == ODA_FOCUS || (state & BST_FOCUS))
+    if (COMCTL32_keyboard_cues_enabled && (action == ODA_FOCUS || (state & BST_FOCUS)))
     {
         InflateRect(&rc, -2, -2);
         DrawFocusRect(hDC, &rc);
@@ -2799,7 +2799,7 @@ static void PB_ThemedPaint(HTHEME theme, const BUTTON_INFO *infoPtr, HDC hDC, in
     }
     if (cdrf & CDRF_SKIPPOSTPAINT) return;
 
-    if (focused) DrawFocusRect(hDC, &focusRect);
+    if (COMCTL32_keyboard_cues_enabled && focused) DrawFocusRect(hDC, &focusRect);
 }
 
 static void CB_ThemedPaint(HTHEME theme, const BUTTON_INFO *infoPtr, HDC hDC, int state, UINT dtFlags, BOOL focused)
@@ -2906,7 +2906,7 @@ static void CB_ThemedPaint(HTHEME theme, const BUTTON_INFO *infoPtr, HDC hDC, in
     }
     if ((cdrf & CDRF_SKIPPOSTPAINT) || dtFlags == (UINT)-1L) goto cleanup;
 
-    if (focused)
+    if (COMCTL32_keyboard_cues_enabled && focused)
     {
         label_rect.left--;
         label_rect.right++;
@@ -3097,7 +3097,7 @@ static void SB_ThemedPaint(HTHEME theme, const BUTTON_INFO *infoPtr, HDC hDC, in
     }
     if (cdrf & CDRF_SKIPPOSTPAINT) return;
 
-    if (focused) DrawFocusRect(hDC, &focus_rect);
+    if (COMCTL32_keyboard_cues_enabled && focused) DrawFocusRect(hDC, &focus_rect);
 }
 
 static void CL_ThemedPaint(HTHEME theme, const BUTTON_INFO *infoPtr, HDC hDC, int state, UINT dtFlags, BOOL focused)
@@ -3206,7 +3206,7 @@ static void CL_ThemedPaint(HTHEME theme, const BUTTON_INFO *infoPtr, HDC hDC, in
     }
     if (cdrf & CDRF_SKIPPOSTPAINT) return;
 
-    if (focused)
+    if (COMCTL32_keyboard_cues_enabled && focused)
     {
         MARGINS margins;
 

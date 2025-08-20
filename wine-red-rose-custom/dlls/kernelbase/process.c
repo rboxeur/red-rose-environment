@@ -29,6 +29,7 @@
 #include "winver.h"
 #include "wincontypes.h"
 #include "winternl.h"
+#include "processsnapshot.h"
 
 #include "kernelbase.h"
 #include "wine/debug.h"
@@ -2170,4 +2171,13 @@ void WINAPI DECLSPEC_HOTPATCH DeleteProcThreadAttributeList( struct _PROC_THREAD
 BOOL WINAPI DECLSPEC_HOTPATCH CompareObjectHandles( HANDLE first, HANDLE second )
 {
     return set_ntstatus( NtCompareObjects( first, second ));
+}
+
+/***********************************************************************
+ *           PssQuerySnapshot   (kernelbase.@)
+ */
+DWORD WINAPI PssQuerySnapshot( HPSS handle, PSS_QUERY_INFORMATION_CLASS class, void *buffer, DWORD len )
+{
+    FIXME( "(%p %u %p %lu)\n", handle ,class, buffer, len );
+    return ERROR_NOT_FOUND;
 }

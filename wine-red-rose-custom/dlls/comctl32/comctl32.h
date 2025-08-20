@@ -37,6 +37,7 @@
 
 extern HMODULE COMCTL32_hModule;
 extern HBRUSH  COMCTL32_hPattern55AABrush;
+extern BOOL    COMCTL32_keyboard_cues_enabled;
 
 /* Property sheet / Wizard */
 #define IDD_PROPSHEET 1006

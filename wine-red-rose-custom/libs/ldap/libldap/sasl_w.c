@@ -1,6 +1,5 @@
 /*
  * Copyright 2022 Hans Leidekker for CodeWeavers
- * Copyright 2023 Dmitry Timoshkov
  *
  * SSPI based replacement for Cyrus SASL
  *
@@ -31,15 +30,12 @@
 
 struct connection
 {
-    char *target;
+    char *servername;
     CredHandle cred_handle;
     CtxtHandle ctxt_handle;
     sasl_interact_t prompts[4];
     unsigned int max_token;
     unsigned int trailer_size;
-    unsigned int flags;
-    unsigned int qop;
-    unsigned short package_id;
     sasl_ssf_t ssf;
     char *buf;
     unsigned buf_size;
@@ -68,41 +64,28 @@ int sasl_decode( sasl_conn_t *handle, const char *input, unsigned int inputlen, 
     unsigned int len;
     SecBuffer bufs[2] =
     {
-        { 0, SECBUFFER_DATA, NULL },
-        { conn->trailer_size, SECBUFFER_TOKEN, NULL }
+        { conn->trailer_size, SECBUFFER_TOKEN, NULL },
+        { inputlen - conn->trailer_size - sizeof(len), SECBUFFER_DATA, NULL }
     };
     SecBufferDesc buf_desc = { SECBUFFER_VERSION, ARRAYSIZE(bufs), bufs };
     SECURITY_STATUS status;
     int ret;
 
     if (inputlen < sizeof(len) + conn->trailer_size) return SASL_FAIL;
-    len = ntohl( *(unsigned int *)input );
-    if (inputlen < sizeof(len) + len) return SASL_FAIL;
 
-    if ((ret = grow_buffer( conn, len )) < 0) return ret;
-    memcpy( conn->buf, input + sizeof(len), len );
-
-    bufs[0].cbBuffer = len - conn->trailer_size;
-    if (conn->package_id == RPC_C_AUTHN_GSS_KERBEROS)
-    {
-        bufs[0].pvBuffer = conn->buf;
-        bufs[1].pvBuffer = conn->buf + bufs[0].cbBuffer;
-    }
-    else
-    {
-        bufs[0].pvBuffer = conn->buf + conn->trailer_size;
-        bufs[1].pvBuffer = conn->buf;
-    }
+    if ((ret = grow_buffer( conn, inputlen - sizeof(len) )) < 0) return ret;
+    memcpy( conn->buf, input + sizeof(len), inputlen - sizeof(len) );
+    bufs[0].pvBuffer = conn->buf;
+    bufs[1].pvBuffer = conn->buf + conn->trailer_size;
 
     status = DecryptMessage( &conn->ctxt_handle, &buf_desc, 0, NULL );
     if (status == SEC_E_OK)
     {
-        *output = bufs[0].pvBuffer;
-        *outputlen = bufs[0].cbBuffer;
-        return SASL_OK;
+        *output = bufs[1].pvBuffer;
+        *outputlen = bufs[1].cbBuffer;
     }
 
-    return SASL_FAIL;
+    return (status == SEC_E_OK) ? SASL_OK : SASL_FAIL;
 }
 
 int sasl_encode( sasl_conn_t *handle, const char *input, unsigned int inputlen, const char **output,
@@ -120,30 +103,20 @@ int sasl_encode( sasl_conn_t *handle, const char *input, unsigned int inputlen, 
     int ret;
 
     if ((ret = grow_buffer( conn, sizeof(len) + inputlen + conn->trailer_size )) < 0) return ret;
-    if (conn->package_id == RPC_C_AUTHN_GSS_KERBEROS)
-    {
-        memcpy( conn->buf + sizeof(len), input, inputlen );
-        bufs[0].pvBuffer = conn->buf + sizeof(len);
-        bufs[1].pvBuffer = conn->buf + sizeof(len) + inputlen;
-    }
-    else
-    {
-        memcpy( conn->buf + sizeof(len) + conn->trailer_size, input, inputlen );
-        bufs[0].pvBuffer = conn->buf + sizeof(len) + conn->trailer_size;
-        bufs[1].pvBuffer = conn->buf + sizeof(len);
-    }
+    memcpy( conn->buf + sizeof(len) + conn->trailer_size, input, inputlen );
+    bufs[0].pvBuffer = conn->buf + sizeof(len) + conn->trailer_size;
+    bufs[1].pvBuffer = conn->buf + sizeof(len);
 
-    status = EncryptMessage( &conn->ctxt_handle, (conn->qop & ISC_RET_CONFIDENTIALITY) ? 0 : SECQOP_WRAP_NO_ENCRYPT, &buf_desc, 0 );
+    status = EncryptMessage( &conn->ctxt_handle, 0, &buf_desc, 0 );
     if (status == SEC_E_OK)
     {
         len = htonl( bufs[0].cbBuffer + bufs[1].cbBuffer );
         memcpy( conn->buf, &len, sizeof(len) );
         *output = conn->buf;
         *outputlen = sizeof(len) + bufs[0].cbBuffer + bufs[1].cbBuffer;
-        return SASL_OK;
     }
 
-    return SASL_FAIL;
+    return (status == SEC_E_OK) ? SASL_OK : SASL_FAIL;
 }
 
 const char *sasl_errstring( int saslerr, const char *langlist, const char **outlang )
@@ -172,35 +145,21 @@ int sasl_client_new( const char *service, const char *server, const char *localp
     struct connection *conn;
     SECURITY_STATUS status;
     SecPkgInfoA *info;
-    int len;
 
     if (!check_callback( prompt, SASL_CB_AUTHNAME ) || !check_callback( prompt, SASL_CB_GETREALM ) ||
         !check_callback( prompt, SASL_CB_PASS )) return SASL_BADPARAM;
 
     if (!(conn = calloc( 1, sizeof(*conn) ))) return SASL_NOMEM;
-
-    if (service && !*service) service = NULL;
-
-    len =  strlen( server ) + 1; /* '\0' */;
-    if (service) len += strlen( service ) + 1; /* '/' */
-    if (!(conn->target = malloc( len )))
+    if (!(conn->servername = strdup( server )))
     {
         free( conn );
         return SASL_NOMEM;
     }
-    if (service)
-    {
-        strcpy( conn->target, service );
-        strcat( conn->target, "/" );
-        strcat( conn->target, server );
-    }
-    else
-        strcpy( conn->target, server );
 
     status = QuerySecurityPackageInfoA( (SEC_CHAR *)"Negotiate", &info );
     if (status != SEC_E_OK)
     {
-        free( conn->target );
+        free( conn->servername );
         free( conn );
         return SASL_FAIL;
     }
@@ -209,7 +168,7 @@ int sasl_client_new( const char *service, const char *server, const char *localp
 
     if (!(conn->buf = malloc( conn->buf_size )))
     {
-        free( conn->target );
+        free( conn->servername );
         free( conn );
         return SASL_NOMEM;
     }
@@ -229,7 +188,7 @@ void sasl_dispose( sasl_conn_t **handle_ptr )
 
     DeleteSecurityContext( &conn->ctxt_handle );
     FreeCredentialsHandle( &conn->cred_handle );
-    free( conn->target );
+    free( conn->servername );
     free( conn->buf );
     free( conn );
 }
@@ -277,18 +236,6 @@ static ULONG get_trailer_size( CtxtHandle *ctx )
     return sizes.cbSecurityTrailer;
 }
 
-static unsigned short get_package_id( CtxtHandle *ctx )
-{
-    SecPkgContext_NegotiationInfoW info;
-    unsigned short id;
-
-    memset( &info, 0, sizeof(info) );
-    if (QueryContextAttributesW( ctx, SECPKG_ATTR_NEGOTIATION_INFO, &info )) return 0;
-    id = info.PackageInfo->wRPCID;
-    FreeContextBuffer( info.PackageInfo );
-    return id;
-}
-
 int sasl_client_start( sasl_conn_t *handle, const char *mechlist, sasl_interact_t **prompts,
                        const char **clientout, unsigned int *clientoutlen, const char **mech )
 {
@@ -300,7 +247,7 @@ int sasl_client_start( sasl_conn_t *handle, const char *mechlist, sasl_interact_
         { 0, SECBUFFER_ALERT, NULL }
     };
     SecBufferDesc out_buf_desc = { SECBUFFER_VERSION, ARRAYSIZE(out_bufs), out_bufs };
-    ULONG attrs;
+    ULONG attrs, flags = ISC_REQ_INTEGRITY | ISC_REQ_CONFIDENTIALITY;
     SECURITY_STATUS status;
     int ret;
 
@@ -315,9 +262,7 @@ int sasl_client_start( sasl_conn_t *handle, const char *mechlist, sasl_interact_
                                         (SEC_WINNT_AUTH_IDENTITY_A *)&id, NULL, NULL, &conn->cred_handle, NULL );
     if (status != SEC_E_OK) return SASL_FAIL;
 
-    /* FIXME: flags probably should depend on LDAP_OPT_SSPI_FLAGS */
-    conn->flags = ISC_REQ_INTEGRITY | ISC_REQ_CONFIDENTIALITY | ISC_REQ_MUTUAL_AUTH | ISC_REQ_EXTENDED_ERROR;
-    status = InitializeSecurityContextA( &conn->cred_handle, NULL, conn->target, conn->flags,
+    status = InitializeSecurityContextA( &conn->cred_handle, NULL, (SEC_CHAR *)conn->servername, flags,
                                          0, 0, NULL, 0, &conn->ctxt_handle, &out_buf_desc, &attrs, NULL );
     if (status == SEC_E_OK || status == SEC_I_CONTINUE_NEEDED)
     {
@@ -329,8 +274,6 @@ int sasl_client_start( sasl_conn_t *handle, const char *mechlist, sasl_interact_
         {
             conn->ssf = get_key_size( &conn->ctxt_handle );
             conn->trailer_size = get_trailer_size( &conn->ctxt_handle );
-            conn->qop = attrs;
-            conn->package_id = get_package_id( &conn->ctxt_handle );
             return SASL_OK;
         }
     }
@@ -354,10 +297,10 @@ int sasl_client_step( sasl_conn_t *handle, const char *serverin, unsigned int se
     };
     SecBufferDesc in_buf_desc = { SECBUFFER_VERSION, ARRAYSIZE(in_bufs), in_bufs };
     SecBufferDesc out_buf_desc = { SECBUFFER_VERSION, ARRAYSIZE(out_bufs), out_bufs };
-    ULONG attrs;
+    ULONG attrs, flags = ISC_REQ_INTEGRITY | ISC_REQ_CONFIDENTIALITY;
     SECURITY_STATUS status;
 
-    status = InitializeSecurityContextA( NULL, &conn->ctxt_handle, conn->target, conn->flags, 0, 0,
+    status = InitializeSecurityContextA( NULL, &conn->ctxt_handle, (SEC_CHAR *)conn->servername, flags, 0, 0,
                                          &in_buf_desc, 0, &conn->ctxt_handle, &out_buf_desc, &attrs, NULL );
     if (status == SEC_E_OK || status == SEC_I_CONTINUE_NEEDED)
     {
@@ -368,7 +311,6 @@ int sasl_client_step( sasl_conn_t *handle, const char *serverin, unsigned int se
         {
             conn->ssf = get_key_size( &conn->ctxt_handle );
             conn->trailer_size = get_trailer_size( &conn->ctxt_handle );
-            conn->package_id = get_package_id( &conn->ctxt_handle );
             return SASL_OK;
         }
     }

@@ -165,3 +165,104 @@ void __stdcall __std_release_shared_mutex_for_instance(void *ptr)
     }
     LeaveCriticalSection(&shared_mutex_cs);
 }
+
+struct tzdb_time_zones
+{
+    ULONG_PTR unk;
+    char *ver;
+    unsigned int count;
+    char **names;
+    char **links;
+};
+
+struct tzdb_current_zone
+{
+    ULONG_PTR unk;
+    char *name;
+};
+
+struct tzdb_time_zones * __stdcall __std_tzdb_get_time_zones(void)
+{
+    DYNAMIC_TIME_ZONE_INFORMATION tzd;
+    static char ver[] = "2022g";
+    struct tzdb_time_zones *z;
+    unsigned int i, j;
+
+    FIXME("returning Windows time zone names.\n");
+
+    z = calloc(1, sizeof(*z));
+    while (!EnumDynamicTimeZoneInformation(z->count, &tzd))
+        ++z->count;
+
+    z->ver = ver;
+    z->names = calloc(z->count, sizeof(*z->names));
+    z->links = calloc(z->count, sizeof(*z->links));
+
+    for (i = 0; i < z->count; ++i)
+    {
+        if (EnumDynamicTimeZoneInformation(i, &tzd))
+            break;
+        z->names[i] = malloc(wcslen(tzd.StandardName) + 1);
+        j = 0;
+        while ((z->names[i][j] = tzd.StandardName[j]))
+            ++j;
+    }
+    z->count = i;
+    return z;
+}
+
+void __stdcall __std_tzdb_delete_time_zones(struct tzdb_time_zones *z)
+{
+    unsigned int i;
+
+    TRACE("(%p)\n", z);
+
+    for (i = 0; i < z->count; ++i)
+    {
+        free(z->names[i]);
+        free(z->links[i]);
+    }
+    free(z);
+}
+
+struct tzdb_current_zone * __stdcall __std_tzdb_get_current_zone(void)
+{
+    DYNAMIC_TIME_ZONE_INFORMATION tzd;
+    struct tzdb_current_zone *c;
+    unsigned int i;
+
+    FIXME("returning Windows time zone name.\n");
+
+    if (GetDynamicTimeZoneInformation(&tzd) == TIME_ZONE_ID_INVALID)
+        return NULL;
+
+    c = calloc(1, sizeof(*c));
+    c->name = malloc(wcslen(tzd.StandardName) + 1);
+    i = 0;
+    while ((c->name[i] = tzd.StandardName[i]))
+        ++i;
+    return c;
+}
+
+void __stdcall __std_tzdb_delete_current_zone(struct tzdb_current_zone *c)
+{
+    TRACE("(%p)\n", c);
+
+    free(c->name);
+    free(c);
+}
+
+void * __stdcall __std_tzdb_get_leap_seconds(ULONG_PTR arg1, ULONG_PTR *arg2)
+{
+    FIXME("(%#Ix %p) stub\n", arg1, arg2);
+
+    *arg2 = 0;
+    return NULL;
+}
+
+void __stdcall __std_tzdb_delete_leap_seconds(void *l)
+{
+    TRACE("(%p)\n", l);
+
+    free(l);
+}

@@ -963,7 +963,7 @@ const unsigned char * CDECL pcap_next( struct pcap *pcap, struct pcap_pkthdr_win
 }
 
 int CDECL pcap_dispatch( struct pcap *pcap, int count,
-                         void (CDECL *callback)(unsigned char *, const struct pcap_pkthdr_win32 *, const unsigned char *),
+                         void (CALLBACK *callback)(unsigned char *, const struct pcap_pkthdr_win32 *, const unsigned char *),
                          unsigned char *user )
 {
     int processed = 0;
@@ -996,7 +996,7 @@ int CDECL pcap_dispatch( struct pcap *pcap, int count,
 }
 
 int CDECL pcap_loop( struct pcap *pcap, int count,
-                     void (CDECL *callback)(unsigned char *, const struct pcap_pkthdr_win32 *, const unsigned char *),
+                     void (CALLBACK *callback)(unsigned char *, const struct pcap_pkthdr_win32 *, const unsigned char *),
                      unsigned char *user)
 {
     int processed = 0;
@@ -1161,18 +1161,6 @@ int CDECL pcap_set_datalink( struct pcap *pcap, int link )
     params.handle = pcap->handle;
     params.link   = link;
     return PCAP_CALL( set_datalink, &params );
-}
-
-int CDECL pcap_set_immediate_mode( struct pcap *pcap, int mode )
-{
-    struct set_immediate_mode_params params;
-
-    TRACE( "%p, %d\n", pcap, mode );
-
-    if (!pcap) return PCAP_ERROR;
-    params.handle = pcap->handle;
-    params.mode = mode;
-    return PCAP_CALL( set_immediate_mode, &params );
 }
 
 int CDECL pcap_set_promisc( struct pcap *pcap, int enable )

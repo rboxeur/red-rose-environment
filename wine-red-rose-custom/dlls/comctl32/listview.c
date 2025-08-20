@@ -1738,7 +1738,7 @@ static inline BOOL LISTVIEW_GetItemW(const LISTVIEW_INFO *infoPtr, LPLVITEMW lpL
 /* used to handle collapse main item column case */
 static inline BOOL LISTVIEW_DrawFocusRect(const LISTVIEW_INFO *infoPtr, HDC hdc)
 {
-    return (infoPtr->rcFocus.left < infoPtr->rcFocus.right) ?
+    return (COMCTL32_keyboard_cues_enabled && infoPtr->rcFocus.left < infoPtr->rcFocus.right) ?
             DrawFocusRect(hdc, &infoPtr->rcFocus) : FALSE;
 }
 
@@ -5324,7 +5324,7 @@ enddraw:
         LISTVIEW_RefreshReportGrid(infoPtr, hdc);
 
     /* Draw marquee rectangle if appropriate */
-    if (infoPtr->bMarqueeSelect)
+    if (COMCTL32_keyboard_cues_enabled && infoPtr->bMarqueeSelect)
         DrawFocusRect(hdc, &infoPtr->marqueeDrawRect);
 
     if (cdmode & CDRF_NOTIFYPOSTPAINT)

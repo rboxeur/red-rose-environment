@@ -1044,12 +1044,44 @@ static void start_binding_task_destr(task_t *_task)
     IBindStatusCallback_Release(&task->bscallback->bsc.IBindStatusCallback_iface);
 }
 
+static HRESULT fire_beforenavigate2(HTMLOuterWindow *window)
+{
+    BSTR frame_name = NULL;
+    BOOL cancel = FALSE;
+    HRESULT hres;
+    IServiceProvider *service_provider = NULL;
+    IWebBrowser2 *web_browser = NULL;
+
+    hres = IHTMLWindow2_get_name(&window->base.IHTMLWindow2_iface, &frame_name);
+    if (FAILED(hres))
+        return NS_ERROR_UNEXPECTED;
+
+    hres = IHTMLWindow2_QueryInterface(&window->base.IHTMLWindow2_iface, &IID_IServiceProvider, (void**)&service_provider);
+    if (SUCCEEDED(hres))
+    {
+        hres = IServiceProvider_QueryService(service_provider, &SID_SWebBrowserApp, &IID_IWebBrowser2, (void**)&web_browser);
+        IServiceProvider_Release(service_provider);
+    }
+    if (FAILED(hres))
+    {
+        SysFreeString(frame_name);
+        return NS_ERROR_UNEXPECTED;
+    }
+    hres = IDocObjectService_FireBeforeNavigate2(window->browser->doc->doc_object_service, (IDispatch*)web_browser, window->url, 0, frame_name, NULL, 0, NULL, FALSE, &cancel);
+    IWebBrowser2_Release(web_browser);
+    SysFreeString(frame_name);
+    if (cancel)
+        return NS_BINDING_ABORTED;
+    return S_OK;
+}
+
 static nsresult async_open(nsChannel *This, HTMLOuterWindow *window, BOOL is_doc_channel, UINT32 load_type,
         nsIStreamListener *listener, nsISupports *context)
 {
     nsChannelBSC *bscallback;
     IMoniker *mon = NULL;
     HRESULT hres;
+    BOOL gecko_initiated;
 
     hres = CreateURLMonikerEx2(NULL, This->uri->uri, &mon, 0);
     if(FAILED(hres)) {
@@ -1065,9 +1097,17 @@ static nsresult async_open(nsChannel *This, HTMLOuterWindow *window, BOOL is_doc
     if(FAILED(hres))
         return NS_ERROR_UNEXPECTED;
 
+    gecko_initiated = !This->uri->channel_bsc;
+
     channelbsc_set_channel(bscallback, This, listener, context);
 
     if(is_doc_channel) {
+        if (gecko_initiated && window->browser->doc->doc_object_service) /* only fire for gecko calls */
+        {
+            hres = fire_beforenavigate2(window);
+            if (FAILED(hres))
+                return hres;
+        }
         hres = create_pending_window(window, bscallback);
         if(SUCCEEDED(hres))
             async_start_doc_binding(window, window->pending_window, (load_type & LOAD_CMD_RELOAD) ? BINDING_REFRESH : BINDING_NAVIGATED);

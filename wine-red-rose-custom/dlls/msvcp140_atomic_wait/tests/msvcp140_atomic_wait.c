@@ -28,6 +28,21 @@ typedef struct
     SRWLOCK srwlock;
 } shared_mutex;
 
+struct tzdb_time_zones
+{
+    ULONG_PTR unk;
+    char *ver;
+    unsigned int count;
+    char **names;
+    char **links;
+};
+
+struct tzdb_current_zone
+{
+    ULONG_PTR unk;
+    char *name;
+};
+
 static unsigned int (__stdcall *p___std_parallel_algorithms_hw_threads)(void);
 
 static void (__stdcall *p___std_bulk_submit_threadpool_work)(PTP_WORK, size_t);
@@ -39,6 +54,12 @@ static BOOL (__stdcall *p___std_atomic_wait_direct)(volatile void*, void*, size_
 static void (__stdcall *p___std_atomic_notify_one_direct)(void*);
 static shared_mutex* (__stdcall *p___std_acquire_shared_mutex_for_instance)(void*);
 static void (__stdcall *p___std_release_shared_mutex_for_instance)(void*);
+static struct tzdb_time_zones * (__stdcall *p___std_tzdb_get_time_zones)(void);
+static void (__stdcall *p___std_tzdb_delete_time_zones)(struct tzdb_time_zones *);
+static struct tzdb_current_zone * (__stdcall *p___std_tzdb_get_current_zone)(void);
+static void (__stdcall *p___std_tzdb_delete_current_zone)(struct tzdb_current_zone *);
+static void * (__stdcall *p___std_tzdb_get_leap_seconds)(ULONG_PTR arg1, ULONG_PTR *);
+static void (__stdcall *p___std_tzdb_delete_leap_seconds)(void *);
 
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(msvcp,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
@@ -60,6 +81,12 @@ static HMODULE init(void)
     SET(p___std_atomic_notify_one_direct, "__std_atomic_notify_one_direct");
     SET(p___std_acquire_shared_mutex_for_instance, "__std_acquire_shared_mutex_for_instance");
     SET(p___std_release_shared_mutex_for_instance, "__std_release_shared_mutex_for_instance");
+    SET(p___std_tzdb_get_time_zones, "__std_tzdb_get_time_zones");
+    SET(p___std_tzdb_delete_time_zones, "__std_tzdb_delete_time_zones");
+    SET(p___std_tzdb_get_current_zone, "__std_tzdb_get_current_zone");
+    SET(p___std_tzdb_delete_current_zone, "__std_tzdb_delete_current_zone");
+    SET(p___std_tzdb_get_leap_seconds, "__std_tzdb_get_leap_seconds");
+    SET(p___std_tzdb_delete_leap_seconds, "__std_tzdb_delete_leap_seconds");
     return msvcp;
 }
 
@@ -269,6 +296,55 @@ static void test___std_acquire_shared_mutex_for_instance(void)
     p___std_release_shared_mutex_for_instance(NULL);
 }
 
+static void test___std_tzdb(void)
+{
+    struct tzdb_current_zone *c;
+    struct tzdb_time_zones *z;
+    void *leap_seconds;
+    unsigned int i;
+    ULONG_PTR arg2;
+
+    if (!p___std_tzdb_get_time_zones)
+    {
+        win_skip("__std_tzdb_get_time_zones is not available, skipping tests.\n");
+        return;
+    }
+
+    z = p___std_tzdb_get_time_zones();
+    ok(!!z, "got NULL.\n");
+    ok(!z->unk || broken(z->unk == 1 && !z->ver && !z->count), "got %#Ix.\n", z->unk);
+    if (z->unk)
+    {
+        win_skip("__std_tzdb_get_time_zones empty result, skipping remaining tests.\n");
+        p___std_tzdb_delete_time_zones(z);
+        return;
+    }
+    ok(!!z->ver, "got NULL.\n");
+    ok(z->count, "got 0.\n");
+    *(volatile char *)z->ver |= 0;
+
+    trace("ver %s.\n", debugstr_a(z->ver));
+    c = p___std_tzdb_get_current_zone();
+    ok(!!c, "got NULL.\n");
+    ok(!!c->name, "got NULL.\n");
+    ok(!c->unk, "got %#Ix.\n", c->unk);
+    for (i = 0; i < z->count; ++i)
+    {
+        if (!strcmp(c->name, z->names[i]))
+            break;
+    }
+    ok(i < z->count, "current zone %s not found.\n", c->name);
+
+    p___std_tzdb_delete_current_zone(c);
+    p___std_tzdb_delete_time_zones(z);
+
+    arg2 = 0xdeadbeef;
+    leap_seconds = p___std_tzdb_get_leap_seconds(100, &arg2);
+    ok(!leap_seconds, "got %p.\n", leap_seconds);
+    ok(!arg2, "got %#Ix.\n", arg2);
+    p___std_tzdb_delete_leap_seconds(leap_seconds);
+}
+
 START_TEST(msvcp140_atomic_wait)
 {
     HMODULE msvcp;
@@ -281,5 +357,6 @@ START_TEST(msvcp140_atomic_wait)
     test_threadpool_work();
     test___std_atomic_wait_direct();
     test___std_acquire_shared_mutex_for_instance();
+    test___std_tzdb();
     FreeLibrary(msvcp);
 }
