@@ -2532,6 +2532,69 @@ static void test_video_window_autoshow(IVideoWindow *window, IFilterGraph2 *grap
     IMediaControl_Release(control);
 }
 
+static void test_video_window_visibility(IVideoWindow *window, IFilterGraph2 *graph, HWND our_hwnd)
+{
+    IMediaControl *control;
+    HRESULT hr;
+    LONG l;
+
+    IFilterGraph2_QueryInterface(graph, &IID_IMediaControl, (void **)&control);
+
+    hr = IVideoWindow_put_AutoShow(window, OATRUE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_put_Visible(window, OAFALSE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IMediaControl_Pause(control);
+    ok(hr == S_FALSE, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_put_WindowStyle(window, WS_CAPTION);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_get_Visible(window, &l);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    ok(l == OATRUE, "Got %ld.\n", l);
+
+    hr = IVideoWindow_put_Visible(window, OAFALSE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_put_AutoShow(window, OAFALSE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_put_Visible(window, OATRUE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_put_WindowStyle(window, WS_CAPTION);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_get_Visible(window, &l);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    ok(l == OATRUE, "Got %ld.\n", l);
+
+    hr = IVideoWindow_put_Owner(window, (OAHWND)our_hwnd);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    ShowWindow(our_hwnd, SW_HIDE);
+
+    hr = IVideoWindow_put_WindowStyle(window, WS_CAPTION);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_get_Visible(window, &l);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    ok(l == OAFALSE, "Got %ld.\n", l);
+
+    ShowWindow(our_hwnd, SW_SHOW);
+
+    hr = IVideoWindow_put_Owner(window, 0);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IMediaControl_Stop(control);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    IMediaControl_Release(control);
+}
+
 static void test_video_window(void)
 {
     ALLOCATOR_PROPERTIES req_props = {1, 600 * 400 * 4, 1, 0}, ret_props;
@@ -2665,6 +2728,7 @@ static void test_video_window(void)
     test_video_window_state(window, hwnd, our_hwnd);
     test_video_window_position(window, hwnd, our_hwnd);
     test_video_window_autoshow(window, graph, hwnd);
+    test_video_window_visibility(window, graph, our_hwnd);
     test_video_window_owner(window, hwnd, our_hwnd);
     test_video_window_messages(window, hwnd, our_hwnd);
 

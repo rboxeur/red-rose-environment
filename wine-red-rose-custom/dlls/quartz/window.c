@@ -226,6 +226,7 @@ HRESULT WINAPI BaseControlWindowImpl_get_Caption(IVideoWindow *iface, BSTR *capt
 HRESULT WINAPI BaseControlWindowImpl_put_WindowStyle(IVideoWindow *iface, LONG style)
 {
     struct video_window *window = impl_from_IVideoWindow(iface);
+    UINT flags = SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED;
 
     TRACE("window %p, style %#lx.\n", window, style);
 
@@ -234,9 +235,11 @@ HRESULT WINAPI BaseControlWindowImpl_put_WindowStyle(IVideoWindow *iface, LONG s
     if (!window->pPin->peer)
         return VFW_E_NOT_CONNECTED;
 
+    if (IsWindowVisible(window->hwnd))
+        flags |= SWP_SHOWWINDOW;
+
     SetWindowLongW(window->hwnd, GWL_STYLE, style);
-    SetWindowPos(window->hwnd, 0, 0, 0, 0, 0,
-            SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    SetWindowPos(window->hwnd, 0, 0, 0, 0, 0, flags);
     return S_OK;
 }
 
