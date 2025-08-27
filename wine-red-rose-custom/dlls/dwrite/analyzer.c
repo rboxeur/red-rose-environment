@@ -302,6 +302,9 @@ system_fallback_config[] =
 
     { "2700-27BF",              L"Noto Sans Symbols2"},
 
+    /* Dingbats - 2700-27BF */
+    { "2700-27BF",              L"Noto Sans Symbols2"},
+
     { "2C80-2CFF",              L"Noto Sans Coptic" },
     { "2D30-2D7F",              L"Noto Sans Tifinagh" },
 

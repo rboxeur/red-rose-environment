@@ -29,12 +29,27 @@
 #include "prsht.h"
 #include "wine/debug.h"
 #include "resource.h"
+#include "shlobj.h"
+#include "commdlg.h"
+
+#include "cfg.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(twain);
 
-#define ID_BASE 0x100
-#define ID_EDIT_BASE 0x1000
-#define ID_STATIC_BASE 0x2000
+#define ID_BASE             0x100
+#define ID_EDIT_BASE        0x1000
+#define ID_STATIC_BASE      0x2000
+#define ID_APPLY_NOW        0x3021
+
+#define ID_BUTTON_SAVE      0x8339
+#define ID_BUTTON_LOAD      0x8340
+
+WCHAR path[MAX_PATH];
+HWND currentHWND;
+
+int optionsExist[128];
+int cntOptionsExist;
+int gOptCount;
 
 static INT_PTR CALLBACK DialogProc (HWND , UINT , WPARAM , LPARAM );
 static INT CALLBACK PropSheetProc(HWND, UINT,LPARAM);
@@ -425,6 +440,8 @@ static LPDLGTEMPLATEW create_options_page(HDC hdc, int *from_index,
         }
 
         control_len += len + padding;
+        optionsExist[cntOptionsExist] = opt.optno;
+        cntOptionsExist++;
     }
 
     if ( group_offset && !split_tabs )
@@ -474,6 +491,10 @@ BOOL DoScannerUI(void)
     UINT psrc;
     LPWSTR szCaption;
     DWORD len;
+    WCHAR path_app_data[MAX_PATH];
+
+    cntOptionsExist = 0;
+    memset(optionsExist, 0, sizeof(optionsExist));
 
     memset(psp,0,sizeof(psp));
     rc = sane_option_get_value( 0, &optcount );
@@ -484,6 +505,8 @@ BOOL DoScannerUI(void)
     }
 
     hdc = CreateCompatibleDC(0);
+
+    gOptCount = optcount;
 
     while (index < optcount)
     {
@@ -508,13 +531,25 @@ BOOL DoScannerUI(void)
             psp[page_count].lParam = (LPARAM)&activeDS;
             page_count ++;
         }
-       
+
         index ++;
     }
- 
+
     len = lstrlenA(activeDS.identity.Manufacturer)
          + lstrlenA(activeDS.identity.ProductName) + 2;
     szCaption = malloc(len *sizeof(WCHAR));
+
+    GetEnvironmentVariableW(L"LOCALAPPDATA", path_app_data, MAX_PATH);
+    for (int i = 0; activeDS.identity.ProductFamily[i]; i++)
+    {
+        if (activeDS.identity.ProductFamily[i] == L'/')
+        {
+            activeDS.identity.ProductFamily[i] = L'_';
+        }
+    }
+    swprintf(path, MAX_PATH, L"%s\\%S\\%S_%S.sc", path_app_data,
+             activeDS.identity.Manufacturer, activeDS.identity.ProductFamily,activeDS.identity.ProductName);
+
     MultiByteToWideChar(CP_ACP,0,activeDS.identity.Manufacturer,-1,
             szCaption,len);
     szCaption[lstrlenA(activeDS.identity.Manufacturer)] = ' ';
@@ -546,6 +581,91 @@ BOOL DoScannerUI(void)
         return TRUE;
     else
         return FALSE;
+}
+
+static void get_option(struct option_descriptor* opt, ScannerOption* option)
+{
+    CHAR title[64];
+    WideCharToMultiByte(CP_UTF8, 0, opt->title, -1, title, sizeof(title), NULL, NULL);
+    lstrcpynA(option->name, title, 64);
+    option->is_enabled = opt->is_active;
+    option->optno = opt->optno;
+
+    if (opt->type ==TYPE_STRING && opt->constraint_type != CONSTRAINT_NONE)
+    {
+        sane_option_get_value(opt->optno, option->value.str_val);
+        option->type = opt->type;
+    }
+    else if (opt->type == TYPE_BOOL)
+    {
+        option->type = opt->type;
+        sane_option_get_value(opt->optno, &option->value.bool_val);
+    }
+    else if (opt->type == TYPE_INT && opt->constraint_type == CONSTRAINT_WORD_LIST)
+    {
+        option->type = opt->type;
+        sane_option_get_value(opt->optno, &option->value.int_val);
+    }
+    else if (opt->constraint_type == CONSTRAINT_RANGE)
+    {
+        if (opt->type == TYPE_INT)
+        {
+            int si;
+            option->type = opt->type;
+            sane_option_get_value(opt->optno, &si);
+            if (opt->constraint.range.quant)
+            {
+                si = si / opt->constraint.range.quant;
+            }
+            option->value.int_val = si;
+        }
+        else if (opt->type == TYPE_FIXED)
+        {
+            int pos, *sf;
+            sf = calloc( opt->size, sizeof(int) );
+            sane_option_get_value(opt->optno, sf );
+            if (opt->constraint.range.quant)
+                pos = *sf / opt->constraint.range.quant;
+            else
+                pos = MulDiv( *sf, 100, 65536 );
+            option->type = opt->type;
+            option->value.int_val = pos;
+            free(sf);
+        }
+    }
+}
+
+static BOOL save_option(int optno)
+{
+    ScannerOption option;
+    struct option_descriptor opt;
+
+    opt.optno = optno;
+    SANE_CALL( option_get_descriptor, &opt);
+
+    get_option(&opt, &option);
+    return save_to_file(path, &option);;
+}
+
+static BOOL save_options(void)
+{
+    ScannerOption *options = malloc(cntOptionsExist * sizeof(ScannerOption));
+    if (!options) {
+        ERR("Failed to allocate memory for options array\n");
+        return FALSE;
+    }
+
+    for(int i = 0; i < cntOptionsExist; i++)
+    {
+        struct option_descriptor opt;
+        opt.optno = optionsExist[i];
+        SANE_CALL( option_get_descriptor, &opt);
+        get_option(&opt, &options[i]);
+        save_to_file(path, &options[i]);
+    }
+
+    free(options);
+    return TRUE;
 }
 
 static void UpdateRelevantEdit(HWND hwnd, const struct option_descriptor *opt, int position)
@@ -607,6 +727,7 @@ static BOOL UpdateSaneScrollOption(const struct option_descriptor *opt, DWORD po
             si = position;
 
         sane_option_set_value( opt->optno, &si, &result );
+        save_option(opt->optno);
         break;
     }
     case TYPE_FIXED:
@@ -616,6 +737,7 @@ static BOOL UpdateSaneScrollOption(const struct option_descriptor *opt, DWORD po
             si = MulDiv( position, 65536, 100 );
 
         sane_option_set_value( opt->optno, &si, &result );
+        save_option(opt->optno);
         break;
     default:
         break;
@@ -635,19 +757,27 @@ static INT_PTR InitializeDialog(HWND hwnd)
     if (rc != TWCC_SUCCESS)
     {
         ERR("Unable to read number of options\n");
-        return FALSE;
+        optcount = gOptCount;
+    }
+    else
+        gOptCount = optcount;
+
+    if (!is_exist_file(path))
+    {
+        save_options();
     }
 
     for ( i = 1; i < optcount; i++)
     {
+        CHAR title[64];
         struct option_descriptor opt;
-
         control = GetDlgItem(hwnd,i+ID_BASE);
 
         if (!control)
             continue;
 
         opt.optno = i;
+
         SANE_CALL( option_get_descriptor, &opt );
 
         TRACE("%i %s %i %i\n",i,debugstr_w(opt.title),opt.type,opt.constraint_type);
@@ -655,34 +785,77 @@ static INT_PTR InitializeDialog(HWND hwnd)
 
         SendMessageA(control,CB_RESETCONTENT,0,0);
         /* initialize values */
+
+        WideCharToMultiByte(CP_UTF8, 0, opt.title, -1, title, sizeof(title), NULL, NULL);
+
         if (opt.type == TYPE_STRING && opt.constraint_type != CONSTRAINT_NONE)
         {
             CHAR buffer[255];
             WCHAR *p;
 
+            BOOL is_exist = load_from_file(path, opt.type, title, buffer);
+            BOOL is_correct = FALSE;
+
             for (p = opt.constraint.strings; *p; p += lstrlenW(p) + 1)
+            {
+                CHAR param[256];
                 SendMessageW( control,CB_ADDSTRING,0, (LPARAM)p );
+                WideCharToMultiByte(CP_UTF8, 0, p, -1, param, sizeof(param), NULL, NULL);
+                if (is_exist && !strcmp(param, buffer))
+                {
+                     is_correct = TRUE;
+                }
+            }
+
+            if (is_exist && is_correct)
+            {
+                sane_option_set_value(opt.optno, buffer, NULL);
+            }
+
+            if (!is_correct)
+            {
+                ERR("%s=%s is incorrect. The default value is set!", title, buffer);
+            }
+
             sane_option_get_value( i, buffer );
             SendMessageA(control,CB_SELECTSTRING,0,(LPARAM)buffer);
         }
         else if (opt.type == TYPE_BOOL)
         {
             BOOL b;
-            sane_option_get_value( i, &b );
-            if (b)
-                SendMessageA(control,BM_SETCHECK,BST_CHECKED,0);
+            BOOL is_exist = load_from_file(path, opt.type, title, &b);
 
+            if (is_exist)
+            {
+                sane_option_set_value( i, &b, NULL );
+            }
+
+            sane_option_get_value( i, &b );
+            SendMessageA(control,BM_SETCHECK, b ? BST_CHECKED : BST_UNCHECKED,0);
         }
         else if (opt.type == TYPE_INT && opt.constraint_type == CONSTRAINT_WORD_LIST)
         {
             int j, count = opt.constraint.word_list[0];
             CHAR buffer[16];
             int val;
+            BOOL is_exist = load_from_file(path, opt.type, title, &val);
+            BOOL is_correct = FALSE;
+
             for (j=1; j<=count; j++)
             {
+                if (opt.constraint.word_list[j] == val)
+                {
+                    is_correct = TRUE;
+                }
                 sprintf(buffer, "%d", opt.constraint.word_list[j]);
                 SendMessageA(control, CB_ADDSTRING, 0, (LPARAM)buffer);
             }
+            if (is_exist && is_correct)
+                sane_option_set_value( i, &val, NULL );
+
+            if (!is_correct)
+                ERR("%s=%d is incorrect. The default value is set!\n", title, val);
+
             sane_option_get_value( i, &val );
             sprintf(buffer, "%d", val);
             SendMessageA(control,CB_SELECTSTRING,0,(LPARAM)buffer);
@@ -693,6 +866,8 @@ static INT_PTR InitializeDialog(HWND hwnd)
             {
                 int si;
                 int min,max;
+                BOOL is_exist = load_from_file(path, opt.type, title, &si);
+                BOOL is_correct = FALSE;
 
                 min = opt.constraint.range.min /
                     (opt.constraint.range.quant ? opt.constraint.range.quant : 1);
@@ -702,7 +877,16 @@ static INT_PTR InitializeDialog(HWND hwnd)
 
                 SendMessageA(control,SBM_SETRANGE,min,max);
 
+                if (si >= min && si <= max)
+                    is_correct = TRUE;
+                else
+                    ERR("%s=%d is out of range [%d..%d]. The default value is used!\n", title, si, min, max);
+
+                if (is_correct && is_exist)
+                    sane_option_set_value( i, &si, NULL);
+
                 sane_option_get_value( i, &si );
+
                 if (opt.constraint.range.quant)
                     si = si / opt.constraint.range.quant;
 
@@ -711,8 +895,8 @@ static INT_PTR InitializeDialog(HWND hwnd)
             }
             else if (opt.type == TYPE_FIXED)
             {
-                int pos, min, max, *sf;
-
+                int pos, min, max, *sf, val;
+                BOOL is_exist, is_correct = FALSE;
                 if (opt.constraint.range.quant)
                 {
                     min = opt.constraint.range.min / opt.constraint.range.quant;
@@ -725,6 +909,23 @@ static INT_PTR InitializeDialog(HWND hwnd)
                 }
 
                 SendMessageA(control,SBM_SETRANGE,min,max);
+
+                is_exist = load_from_file(path, opt.type, title, &val);
+
+                if (val >= min && val <= max)
+                    is_correct = TRUE;
+                else
+                    ERR("%s = %d is out of range [%d..%d]. The default value is used!\n", title, val, min, max);
+
+                if (is_exist && is_correct)
+                {
+                     int valSet;
+                     if (opt.constraint.range.quant)
+                          valSet = val * opt.constraint.range.quant;
+                     else
+                          valSet = MulDiv(val, 65536, 100);
+                     sane_option_set_value(i, &valSet, NULL);
+                }
 
 
                 sf = calloc( opt.size, sizeof(int) );
@@ -817,7 +1018,12 @@ static void ButtonClicked(HWND hwnd, INT id, HWND control)
     {
         BOOL r = SendMessageW(control,BM_GETCHECK,0,0)==BST_CHECKED;
         sane_option_set_value( opt.optno, &r, &changed );
-        if (changed) InitializeDialog(hwnd);
+
+        if (changed)
+        {
+            save_option(opt.optno);
+            InitializeDialog(hwnd);
+        }
     }
 }
 
@@ -851,10 +1057,45 @@ static void ComboChanged(HWND hwnd, INT id, HWND control)
         int val = atoi( value );
         sane_option_set_value( opt.optno, &val, &changed );
     }
-    if (changed) InitializeDialog(hwnd);
+
+    if (changed)
+    {
+        save_option(opt.optno);
+        InitializeDialog(hwnd);
+    }
     free( value );
 }
 
+static BOOL show_dialog_window(HWND hwndDlg, int dialog_type, WCHAR *file_path, DWORD out_file_size)
+{
+    OPENFILENAMEW ofn;
+    WCHAR initial_dir[MAX_PATH];
+    WCHAR* last_slash;
+    lstrcpynW(initial_dir, path, MAX_PATH);
+    last_slash = wcsrchr(initial_dir, L'\\');
+    if (last_slash) *last_slash = L'\0';
+
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = hwndDlg;
+    ofn.lpstrFile = file_path;
+    ofn.nMaxFile = out_file_size;
+    ofn.lpstrFilter = L"Scanner Config Files\0*.sc\0All Files\0*.*\0";
+    ofn.lpstrInitialDir = initial_dir;
+    ofn.nFilterIndex = 1;
+
+    switch(dialog_type)
+    {
+        case ID_BUTTON_SAVE:
+            ofn.Flags = OFN_OVERWRITEPROMPT;
+            return GetSaveFileNameW(&ofn);
+        case ID_BUTTON_LOAD:
+            ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+            return GetOpenFileNameW(&ofn);
+    }
+
+    return FALSE;
+}
 
 static INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -889,7 +1130,33 @@ static INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM
             switch (HIWORD(wParam))
             {
                 case BN_CLICKED:
-                    ButtonClicked(hwndDlg,LOWORD(wParam), (HWND)lParam);
+                    switch(LOWORD(wParam))
+                    {
+                        case ID_BUTTON_SAVE:
+                        {
+                            WCHAR file_path[128] = L"";
+                            if (show_dialog_window(hwndDlg, ID_BUTTON_SAVE, file_path, MAX_PATH))
+                            {
+                                lstrcpynW(path, file_path, MAX_PATH);
+                                save_options();
+                            }
+                            break;
+                        }
+                        case ID_BUTTON_LOAD:
+                        {
+                            WCHAR file_path[128] = L"";
+
+                            if (show_dialog_window(hwndDlg, ID_BUTTON_LOAD, file_path, MAX_PATH))
+                            {
+                                memset(path, 0, sizeof(path));
+                                lstrcpynW(path, file_path, MAX_PATH);
+                                InitializeDialog(hwndDlg);
+                            }
+                            break;
+                        }
+                        default:
+                            ButtonClicked(hwndDlg,LOWORD(wParam), (HWND)lParam);
+                    }
                     break;
                 case CBN_SELCHANGE:
                     ComboChanged(hwndDlg,LOWORD(wParam), (HWND)lParam);
@@ -903,11 +1170,59 @@ static int CALLBACK PropSheetProc(HWND hwnd, UINT msg, LPARAM lParam)
 {
     if (msg == PSCB_INITIALIZED)
     {
-        /* rename OK button to Scan */
-        HWND scan = GetDlgItem(hwnd,IDOK);
-        SetWindowTextA(scan,"Scan");
+        HWND button_scan = GetDlgItem(hwnd, IDOK);
+        HWND button_cancel = GetDlgItem(hwnd, IDCANCEL);
+        HWND button_save_old = GetDlgItem(hwnd, ID_APPLY_NOW);
+        HWND button_load, button_save;
+        RECT rc_save_old, rc_scan, rc_cancel;
+        POINT pt;
+        int button_width, button_height;
+        int spacing = 6;
+
+        SetWindowTextA(button_scan, "Scan");
+
+        GetWindowRect(button_save_old, &rc_save_old);
+        ScreenToClient(hwnd, (LPPOINT)&rc_save_old.left);
+        ScreenToClient(hwnd, (LPPOINT)&rc_save_old.right);
+
+        button_width = rc_save_old.right - rc_save_old.left;
+        button_height = rc_save_old.bottom - rc_save_old.top;
+
+        pt.x = rc_save_old.left;
+        pt.y = rc_save_old.top;
+
+        GetWindowRect(button_scan, &rc_scan);
+        GetWindowRect(button_cancel, &rc_cancel);
+
+        MapWindowPoints(HWND_DESKTOP, hwnd, (LPPOINT)&rc_scan, 2);
+        MapWindowPoints(HWND_DESKTOP, hwnd, (LPPOINT)&rc_cancel, 2);
+
+        SetWindowPos(button_scan, NULL, pt.x - 3 * (button_width + spacing), pt.y, rc_scan.right - rc_scan.left, rc_scan.bottom - rc_scan.top, SWP_NOZORDER);
+        SetWindowPos(button_cancel, NULL, pt.x - 2 * (button_width + spacing), pt.y, rc_cancel.right - rc_cancel.left, rc_cancel.bottom - rc_cancel.top, SWP_NOZORDER);
+
+        button_load = CreateWindowExW(
+            0, L"BUTTON", L"Load",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            pt.x - (button_width + spacing), pt.y, button_width, button_height,
+            hwnd,
+            (HMENU)(INT_PTR)ID_BUTTON_LOAD,
+            SANE_instance,
+            NULL);
+        SendMessageW(button_load, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+
+        button_save = CreateWindowExW(
+            0, L"BUTTON", L"Save",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            pt.x, pt.y, button_width, button_height,
+            hwnd,
+            (HMENU)(INT_PTR)ID_BUTTON_SAVE,
+            SANE_instance,
+            NULL);
+
+        SendMessageW(button_save, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
     }
-    return TRUE;
+
+     return TRUE;
 }
 
 

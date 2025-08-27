@@ -363,6 +363,9 @@ static void hook_nav_complete(HHInfo *info, BOOL init)
     if (!info->web_browser || !info->web_browser->web_browser)
         return;
 
+    if (!info->web_browser || !info->web_browser->web_browser)
+        return;
+
     hres = IWebBrowser2_QueryInterface(info->web_browser->web_browser, &IID_IConnectionPointContainer, (void **)&container);
     if (FAILED(hres))
         return;
