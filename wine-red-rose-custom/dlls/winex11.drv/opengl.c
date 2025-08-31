@@ -1153,9 +1153,10 @@ static BOOL check_fbconfig_bitmap_capability(Display *display, GLXFBConfig fbcon
     pglXGetFBConfigAttrib(display, fbconfig, GLX_DOUBLEBUFFER, &dbuf);
     pglXGetFBConfigAttrib(gdi_display, fbconfig, GLX_DRAWABLE_TYPE, &value);
 
-    /* Windows only supports bitmap rendering on single buffered formats, further the fbconfig needs to have
-     * the GLX_PIXMAP_BIT set. */
-    return !dbuf && (value & GLX_PIXMAP_BIT);
+    /* Windows only supports bitmap rendering on single buffered formats. The fbconfig also needs to
+     * have the GLX_PBUFFER_BIT set, because Wine's implementation of bitmap rendering uses
+     * pbuffers. */
+    return !dbuf && (value & GLX_PBUFFER_BIT);
 }
 
 static void init_pixel_formats( Display *display )

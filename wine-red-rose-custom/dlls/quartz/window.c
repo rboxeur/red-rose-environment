@@ -238,6 +238,9 @@ HRESULT WINAPI BaseControlWindowImpl_put_WindowStyle(IVideoWindow *iface, LONG s
     if (IsWindowVisible(window->hwnd))
         flags |= SWP_SHOWWINDOW;
 
+    /* Preserve the current visibility. */
+    style = (style & ~WS_VISIBLE) | (GetWindowLongW(window->hwnd, GWL_STYLE) & WS_VISIBLE);
+
     SetWindowLongW(window->hwnd, GWL_STYLE, style);
     SetWindowPos(window->hwnd, 0, 0, 0, 0, 0, flags);
     return S_OK;

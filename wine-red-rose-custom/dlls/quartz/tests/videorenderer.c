@@ -1713,15 +1713,31 @@ static void test_video_window_style(IVideoWindow *window, HWND hwnd, HWND our_hw
     hr = IVideoWindow_put_WindowStyle(window, style | WS_MINIMIZE);
     ok(hr == E_INVALIDARG, "Got hr %#lx.\n", hr);
 
-    hr = IVideoWindow_put_WindowStyle(window, style & ~WS_CLIPCHILDREN);
+    hr = IVideoWindow_put_WindowStyle(window,
+            (style | WS_VISIBLE | WS_POPUP | WS_GROUP | WS_TABSTOP) & ~WS_CLIPCHILDREN);
     ok(hr == S_OK, "Got hr %#lx.\n", hr);
 
     hr = IVideoWindow_get_WindowStyle(window, &style);
     ok(hr == S_OK, "Got hr %#lx.\n", hr);
-    ok(style == (WS_CLIPSIBLINGS | WS_OVERLAPPEDWINDOW), "Got style %#lx.\n", style);
+    ok(style == (WS_CLIPSIBLINGS | WS_OVERLAPPEDWINDOW | WS_POPUP | WS_GROUP | WS_TABSTOP),
+            "Got style %#lx.\n", style);
 
     style = GetWindowLongA(hwnd, GWL_STYLE);
-    ok(style == (WS_CLIPSIBLINGS | WS_OVERLAPPEDWINDOW), "Got style %#lx.\n", style);
+    ok(style == (WS_CLIPSIBLINGS | WS_OVERLAPPEDWINDOW | WS_POPUP | WS_GROUP | WS_TABSTOP),
+            "Got style %#lx.\n", style);
+
+    hr = IVideoWindow_put_WindowStyle(window, 0);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_get_WindowStyle(window, &style);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    ok(style == WS_CLIPSIBLINGS, "Got style %#lx.\n", style);
+
+    style = GetWindowLongA(hwnd, GWL_STYLE);
+    ok(style == WS_CLIPSIBLINGS, "Got style %#lx.\n", style);
+
+    hr = IVideoWindow_put_WindowStyle(window, WS_OVERLAPPEDWINDOW);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
 
     flaky_wine
     ok(GetActiveWindow() == our_hwnd, "Got active window %p.\n", GetActiveWindow());
@@ -1765,8 +1781,8 @@ static HWND get_top_window(void)
 
 static void test_video_window_state(IVideoWindow *window, HWND hwnd, HWND our_hwnd)
 {
+    LONG state, style;
     HRESULT hr;
-    LONG state;
     HWND top;
 
     SetWindowPos(our_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
@@ -1813,6 +1829,14 @@ static void test_video_window_state(IVideoWindow *window, HWND hwnd, HWND our_hw
     ok(IsIconic(hwnd), "Window should be minimized.\n");
     ok(!IsZoomed(hwnd), "Window should not be maximized.\n");
     ok(GetActiveWindow() == our_hwnd, "Got active window %p.\n", GetActiveWindow());
+
+    hr = IVideoWindow_put_WindowStyle(window, WS_OVERLAPPEDWINDOW);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IVideoWindow_get_WindowStyle(window, &style);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    ok(style == (WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_VISIBLE | WS_MINIMIZE),
+            "Got style %#lx.\n", style);
 
     hr = IVideoWindow_put_WindowState(window, SW_RESTORE);
     ok(hr == S_OK, "Got hr %#lx.\n", hr);
