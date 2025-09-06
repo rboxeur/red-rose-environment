@@ -3199,6 +3199,7 @@ HKLM,Software\Wow6432Node\lucasarts entertainment company llc\Star Wars: Episode
 HKLM,Software\Wow6432Node\lucasarts entertainment company llc\Star Wars: Episode I Racer\v1.0,"Display Width",0x10001,640
 ;; DXVK, VKD3D-Proton, DXVK-NVAPI, OpenAL, DSOAL
 HKCU,Software\Wine\DllOverrides,"d3dcompiler_47",0x2,"native,builtin"
+HKCU,Software\Wine\DllOverrides,"d3dcompiler_46",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"d3d10core",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"d3d11",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"d3d12",0x2,"native,builtin"

@@ -4522,9 +4522,11 @@ void WCMD_type (WCHAR *args) {
   while (argN) {
     WCHAR *thisArg = WCMD_parameter (args, argno++, &argN, FALSE, FALSE);
 
-    HANDLE h;
-    WCHAR buffer[512];
+    HANDLE h, hOut;
+    char buffer[1024];
     DWORD count;
+    BOOL output_redirected;
+    char *eof;
 
     if (!argN) break;
 
@@ -4539,10 +4541,24 @@ void WCMD_type (WCHAR *args) {
       if (writeHeaders) {
         WCMD_output_stderr(L"\n%1\n\n\n", thisArg);
       }
-      while (WCMD_ReadFile(h, buffer, ARRAY_SIZE(buffer) - 1, &count)) {
+
+      hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+      output_redirected = (GetFileType(hOut) != FILE_TYPE_CHAR);
+
+      while (ReadFile(h, buffer, ARRAY_SIZE(buffer) - 1, &count, NULL)) {
         if (count == 0) break;	/* ReadFile reports success on EOF! */
         buffer[count] = 0;
-        WCMD_output_asis (buffer);
+        /* If output is not redirected then TYPE terminates at the EOF character. */
+        if (!output_redirected) {
+          eof = (char *)memchr((void *)buffer, '\x1A', count);
+          if (eof) {
+            count = (DWORD)(eof - buffer);
+          }
+        }
+        WriteFile(hOut, buffer, count, &count, NULL);
+        if (!output_redirected && eof) {
+          break;
+        }
       }
       CloseHandle (h);
     }

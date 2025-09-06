@@ -893,6 +893,10 @@ echo ---6
 type foobaw
 echo ---7
 del foobaz foobay foobax foobaw
+echo ---8
+type c:\windows\winhelp.exe >foo
+call :CompareFileSizes c:\windows\winhelp.exe foo
+del foo
 
 echo ------------ Testing NUL ------------
 md foobar & cd foobar
@@ -2799,6 +2803,24 @@ if "%WINE_filesize%"=="%2" (
 shift
 shift
 if not "%1"=="" goto :CheckFileSize
+goto :eof
+
+:CompareFileSizes
+if not exist "%1" (
+  echo Failed: File missing in CompareFileSizes [%1]
+  goto :eof
+)
+if not exist "%2" (
+  echo Failed: File missing in CompareFileSizes [%2]
+  goto :eof
+)
+for %%i in (%1) do set WINE_filesize1=%%~zi
+for %%j in (%2) do set WINE_filesize2=%%~zj
+if "%WINE_filesize1%"=="%WINE_filesize2%" (
+  echo Passed: file sizes are equal %1 %2
+) else (
+  echo Failed: file sizes are not equal %1 %2
+)
 goto :eof
 
 :testcopy

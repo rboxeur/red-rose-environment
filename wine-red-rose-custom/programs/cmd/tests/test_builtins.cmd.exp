@@ -679,6 +679,8 @@ foobay
 
 
 ---7
+---8
+Passed: file sizes are equal c:\windows\winhelp.exe foo
 ------------ Testing NUL ------------
 bar
 bar
