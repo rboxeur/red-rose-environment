@@ -111,7 +111,7 @@ static ULONG WINAPI domattr_Release(
     if ( ref == 0 )
     {
         destroy_xmlnode(&This->node);
-        if ( This->floating )
+        if ( This->floating /*&& FALSE */)
         {
             xmlFreeNs( This->node.node->ns );
             xmlFreeNode( This->node.node );

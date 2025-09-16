@@ -501,7 +501,7 @@ struct process
     DWORD64                     reg_user;
 
     struct module*              lmodules;
-    ULONG_PTR                   dbg_hdr_addr;
+    DWORD64                     dbg_hdr_addr;
 
     IMAGEHLP_STACK_FRAME        ctx_frame;
     DWORD64                     localscope_pc;
@@ -516,6 +516,9 @@ struct process
 
 static inline BOOL read_process_memory(const struct process *process, UINT64 addr, void *buf, size_t size)
 {
+    if (addr != (UINT_PTR)addr)
+        return FALSE;
+
     return ReadProcessMemory(process->handle, (void*)(UINT_PTR)addr, buf, size, NULL);
 }
 
@@ -712,7 +715,7 @@ struct elf_thunk_area;
 extern int          elf_is_in_thunk_area(ULONG_PTR addr, const struct elf_thunk_area* thunks);
 
 /* macho_module.c */
-extern BOOL         macho_read_wine_loader_dbg_info(struct process* pcs, ULONG_PTR addr);
+extern BOOL         macho_read_wine_loader_dbg_info(struct process* pcs, ULONG64 addr);
 
 /* minidump.c */
 void minidump_add_memory_block(struct dump_context* dc, ULONG64 base, ULONG size, ULONG rva);

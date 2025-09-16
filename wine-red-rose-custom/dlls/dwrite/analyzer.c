@@ -810,6 +810,12 @@ enum linebreaking_classes {
     b_EB,
     b_EM,
     b_ZWJ,
+    b_AK,
+    b_AP,
+    b_AS,
+    b_VF,
+    b_VI,
+    b_HH,
 };
 
 static BOOL has_strong_condition(DWRITE_BREAK_CONDITION old_condition, DWRITE_BREAK_CONDITION new_condition)
@@ -1032,7 +1038,7 @@ static HRESULT analyze_linebreaks(IDWriteTextAnalysisSource *source, UINT32 posi
             /* LB12a */
                 if (i > 0)
                 {
-                    if (break_class[i-1] != b_SP && break_class[i-1] != b_BA && break_class[i-1] != b_HY)
+                    if (break_class[i-1] != b_SP && break_class[i-1] != b_BA && break_class[i-1] != b_HY && break_class[i-1] != b_HH)
                         set_break_condition(i, BreakConditionBefore, DWRITE_BREAK_CONDITION_MAY_NOT_BREAK, &state);
                 }
                 break;
@@ -1101,6 +1107,7 @@ static HRESULT analyze_linebreaks(IDWriteTextAnalysisSource *source, UINT32 posi
             /* LB21 */
             case b_BA:
             case b_HY:
+            case b_HH:
             case b_NS:
                 set_break_condition(i, BreakConditionBefore, DWRITE_BREAK_CONDITION_MAY_NOT_BREAK, &state);
                 break;
@@ -1115,6 +1122,7 @@ static HRESULT analyze_linebreaks(IDWriteTextAnalysisSource *source, UINT32 posi
                     switch (break_class[i+1])
                     {
                     case b_HY:
+                    case b_HH:
                     case b_BA:
                         set_break_condition(i+1, BreakConditionAfter, DWRITE_BREAK_CONDITION_MAY_NOT_BREAK, &state);
                     }

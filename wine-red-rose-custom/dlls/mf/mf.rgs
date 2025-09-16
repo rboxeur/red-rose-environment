@@ -12,6 +12,27 @@ HKLM
                     {
                         val '{477ec299-1421-4bdd-971f-7ccb933f21ad}' = s 'File Scheme Handler'
                     }
+                    'http:'
+                    {
+                        val '{44cb442b-9da9-49df-b3fd-023777b16e50}' = s 'Http Scheme Handler'
+                    }
+                    'https:'
+                    {
+                        val '{9ec4b4f9-3029-45ad-947b-344de2a249e2}' = s 'Urlmon Scheme Handler
+                        val '{44cb442b-9da9-49df-b3fd-023777b16e50}' = s 'Http Scheme Handler'
+                    }
+                    'httpd:'
+                    {
+                        val '{44cb442b-9da9-49df-b3fd-023777b16e50}' = s 'Http Scheme Handler'
+                    }
+                    'httpsd:'
+                    {
+                        val '{44cb442b-9da9-49df-b3fd-023777b16e50}' = s 'Http Scheme Handler'
+                    }
+                    'mms:'
+                    {
+                        val '{44cb442b-9da9-49df-b3fd-023777b16e50}' = s 'Http Scheme Handler'
+                    }
                 }
             }
         }

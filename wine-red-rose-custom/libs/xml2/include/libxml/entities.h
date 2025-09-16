@@ -11,12 +11,10 @@
 #ifndef __XML_ENTITIES_H__
 #define __XML_ENTITIES_H__
 
-/** DOC_DISABLE */
 #include <libxml/xmlversion.h>
 #define XML_TREE_INTERNALS
 #include <libxml/tree.h>
 #undef XML_TREE_INTERNALS
-/** DOC_ENABLE */
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,7 +57,7 @@ struct _xmlEntity {
 
     struct _xmlEntity     *nexte;	/* unused */
     const xmlChar           *URI;	/* the full URI as computed */
-    int                    owner;	/* unused */
+    int                    owner;	/* does the entity own the childrens */
     int                    flags;       /* various flags */
     unsigned long   expandedSize;       /* expanded size */
 };
@@ -91,15 +89,6 @@ XMLPUBFUN xmlEntityPtr
 						 const xmlChar *content);
 XMLPUBFUN void
 			xmlFreeEntity		(xmlEntityPtr entity);
-XMLPUBFUN int
-			xmlAddEntity		(xmlDocPtr doc,
-						 int extSubset,
-						 const xmlChar *name,
-						 int type,
-						 const xmlChar *ExternalID,
-						 const xmlChar *SystemID,
-						 const xmlChar *content,
-						 xmlEntityPtr *out);
 XMLPUBFUN xmlEntityPtr
 			xmlAddDocEntity		(xmlDocPtr doc,
 						 const xmlChar *name,

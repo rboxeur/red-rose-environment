@@ -354,7 +354,7 @@ LPWSTR __cdecl wcsncpy( LPWSTR s1, LPCWSTR s2, size_t n )
 {
     WCHAR *ret = s1;
     for ( ; n; n--) if (!(*s1++ = *s2++)) break;
-    for ( ; n; n--) *s1++ = 0;
+    for ( ; n > 1; n--) *s1++ = 0;
     return ret;
 }
 

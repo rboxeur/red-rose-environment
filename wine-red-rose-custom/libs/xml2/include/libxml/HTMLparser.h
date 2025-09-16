@@ -80,17 +80,22 @@ struct _htmlEntityDesc {
     const char *desc;   /* the description */
 };
 
+/** DOC_DISABLE */
 #ifdef LIBXML_SAX1_ENABLED
-
-XML_DEPRECATED
-XMLPUBVAR const xmlSAXHandlerV1 htmlDefaultSAXHandler;
-
-#ifdef LIBXML_THREAD_ENABLED
-XML_DEPRECATED
-XMLPUBFUN const xmlSAXHandlerV1 *__htmlDefaultSAXHandler(void);
+  #define XML_GLOBALS_HTML \
+    XML_OP(htmlDefaultSAXHandler, xmlSAXHandlerV1, XML_DEPRECATED)
+#else
+  #define XML_GLOBALS_HTML
 #endif
 
-#endif /* LIBXML_SAX1_ENABLED */
+#define XML_OP XML_DECLARE_GLOBAL
+XML_GLOBALS_HTML
+#undef XML_OP
+
+#if defined(LIBXML_THREAD_ENABLED) && !defined(XML_GLOBALS_NO_REDEFINITION)
+  #define htmlDefaultSAXHandler XML_GLOBAL_MACRO(htmlDefaultSAXHandler)
+#endif
+/** DOC_ENABLE */
 
 /*
  * There is only few public functions.
@@ -168,7 +173,6 @@ XMLPUBFUN int
 					 int *inlen, int quoteChar);
 XMLPUBFUN int
 			htmlIsScriptAttribute(const xmlChar *name);
-XML_DEPRECATED
 XMLPUBFUN int
 			htmlHandleOmittedElem(int val);
 
@@ -248,9 +252,6 @@ XMLPUBFUN htmlDocPtr
 					 const char *encoding,
 					 int options);
 XMLPUBFUN htmlDocPtr
-		htmlCtxtParseDocument	(htmlParserCtxtPtr ctxt,
-					 xmlParserInputPtr input);
-XMLPUBFUN htmlDocPtr
 		htmlCtxtReadDoc		(xmlParserCtxtPtr ctxt,
 					 const xmlChar *cur,
 					 const char *URL,
@@ -299,7 +300,7 @@ typedef enum {
 XMLPUBFUN htmlStatus htmlAttrAllowed(const htmlElemDesc*, const xmlChar*, int) ;
 XMLPUBFUN int htmlElementAllowedHere(const htmlElemDesc*, const xmlChar*) ;
 XMLPUBFUN htmlStatus htmlElementStatusHere(const htmlElemDesc*, const htmlElemDesc*) ;
-XMLPUBFUN htmlStatus htmlNodeStatus(htmlNodePtr, int) ;
+XMLPUBFUN htmlStatus htmlNodeStatus(const htmlNodePtr, int) ;
 /**
  * htmlDefaultSubelement:
  * @elt: HTML element
@@ -331,6 +332,12 @@ XMLPUBFUN htmlStatus htmlNodeStatus(htmlNodePtr, int) ;
 #ifdef __cplusplus
 }
 #endif
+
+#else /* LIBXML_HTML_ENABLED */
+
+/** DOC_DISABLE */
+#define XML_GLOBALS_HTML
+/** DOC_ENABLE */
 
 #endif /* LIBXML_HTML_ENABLED */
 #endif /* __HTML_PARSER_H__ */

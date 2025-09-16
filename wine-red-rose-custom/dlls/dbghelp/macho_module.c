@@ -175,7 +175,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(dbghelp_macho);
 struct macho_module_info
 {
     struct image_file_map       file_map;
-    ULONG_PTR                   load_addr;
+    UINT64                      load_addr;
     unsigned short              in_use : 1,
                                 is_loader : 1;
 };
@@ -635,8 +635,8 @@ static int macho_load_section_info(struct image_file_map* ifm, const struct mach
     struct section_info*            info = user;
     BOOL                            ignore;
     int                             i;
-    ULONG_PTR                       tmp, page_mask = sysinfo.dwPageSize - 1;
-    UINT64 vmaddr, vmsize;
+    ULONG_PTR                       page_mask = sysinfo.dwPageSize - 1;
+    UINT64 tmp, vmaddr, vmsize;
     char segname[16];
     size_t nsects;
     const void *sections;
@@ -660,10 +660,10 @@ static int macho_load_section_info(struct image_file_map* ifm, const struct mach
         sections = (const void *)(sc + 1);
     }
 
-    TRACE("(%p/%p, %p, %p) before: 0x%08Ix - 0x%08Ix\n", fmap, fmap->handle, lc, user,
-            (ULONG_PTR)fmap->segs_start, (ULONG_PTR)fmap->segs_size);
-    TRACE("Segment command vm: 0x%08Ix - 0x%08Ix\n", (ULONG_PTR)vmaddr,
-            (ULONG_PTR)(vmaddr + vmsize));
+    TRACE("(%p/%p, %p, %p) before: %#08I64x - %#08I64x\n", fmap, fmap->handle, lc, user,
+            fmap->segs_start, fmap->segs_size);
+    TRACE("Segment command vm: %#08I64x - %#08I64x\n", vmaddr,
+            (UINT64)(vmaddr + vmsize));
 
     /* Images in the dyld shared cache have their segments mapped non-contiguously.
        We don't know how to properly locate any of the segments other than __TEXT,
@@ -686,7 +686,7 @@ static int macho_load_section_info(struct image_file_map* ifm, const struct mach
         tmp = (vmaddr + vmsize + page_mask) & ~page_mask;
         if (fmap->segs_size < tmp) fmap->segs_size = tmp;
 
-        TRACE("after: 0x%08Ix - 0x%08Ix\n", (ULONG_PTR)fmap->segs_start, (ULONG_PTR)fmap->segs_size);
+        TRACE("after: %#08I64x - %#08I64x\n", fmap->segs_start, fmap->segs_size);
     }
 
     for (i = 0; i < nsects; i++)
@@ -871,8 +871,7 @@ static BOOL macho_map_file(struct process *pcs, const WCHAR *filenameW,
     }
 
     fmap->segs_size -= fmap->segs_start;
-    TRACE("segs_start: 0x%08Ix, segs_size: 0x%08Ix\n", (ULONG_PTR)fmap->segs_start,
-            (ULONG_PTR)fmap->segs_size);
+    TRACE("segs_start: %#08I64x, segs_size: %#08I64x\n", fmap->segs_start, fmap->segs_size);
 
     if (macho_enum_load_commands(ifm, MACHO_LC_UUID, find_uuid, NULL) < 0)
         goto done;
@@ -1345,7 +1344,7 @@ found:
  * The image header has to be loaded from the process's memory
  * because the relevant flag is only set in memory, not in the file.
  */
-static BOOL image_uses_split_segs(struct process* process, ULONG_PTR load_addr)
+static BOOL image_uses_split_segs(struct process* process, UINT64 load_addr)
 {
     BOOL split_segs = FALSE;
 
@@ -1372,7 +1371,7 @@ static BOOL image_uses_split_segs(struct process* process, ULONG_PTR load_addr)
  * For a module identified by its load address, return the machine field
  * of the (loaded) Macho header.
  */
-static USHORT image_get_machine(struct process *process, ULONG_PTR load_addr)
+static USHORT image_get_machine(struct process *process, UINT64 load_addr)
 {
     if (load_addr)
     {
@@ -1492,13 +1491,13 @@ static void macho_module_remove(struct process* pcs, struct module_format* modfm
  *      TRUE on success
  */
 static BOOL macho_load_file(struct process* pcs, const WCHAR* filename,
-                            ULONG_PTR load_addr, struct macho_info* macho_info, BOOL with_image)
+                            UINT64 load_addr, struct macho_info* macho_info, BOOL with_image)
 {
     BOOL                    ret = TRUE;
     BOOL                    split_segs;
     struct image_file_map   fmap;
 
-    TRACE("(%p/%p, %s, 0x%08Ix, %p/0x%08x, %u)\n", pcs, pcs->handle, debugstr_w(filename),
+    TRACE("(%p/%p, %s, %#08I64x, %p/%#08x, %u)\n", pcs, pcs->handle, debugstr_w(filename),
           load_addr, macho_info, macho_info->flags, with_image);
 
     split_segs = image_uses_split_segs(pcs, load_addr);
@@ -1964,7 +1963,7 @@ static const struct loader_ops macho_loader_ops =
  *
  * Try to find a decent wine executable which could have loaded the debuggee
  */
-BOOL macho_read_wine_loader_dbg_info(struct process* pcs, ULONG_PTR addr)
+BOOL macho_read_wine_loader_dbg_info(struct process* pcs, ULONG64 addr)
 {
     struct macho_info     macho_info;
 
@@ -1975,6 +1974,6 @@ BOOL macho_read_wine_loader_dbg_info(struct process* pcs, ULONG_PTR addr)
     macho_info.module->format_info[DFI_MACHO]->u.macho_info->is_loader = 1;
     module_set_module(macho_info.module, S_WineLoaderW);
     pcs->loader = &macho_loader_ops;
-    TRACE("Found macho debug header %#Ix\n", pcs->dbg_hdr_addr);
+    TRACE("Found macho debug header %#I64x\n", pcs->dbg_hdr_addr);
     return TRUE;
 }

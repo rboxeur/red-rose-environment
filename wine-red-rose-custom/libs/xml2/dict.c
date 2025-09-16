@@ -19,13 +19,11 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#include <errno.h>
 #include <limits.h>
-#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "private/dict.h"
-#include "private/globals.h"
 #include "private/threads.h"
 
 #include <libxml/parser.h>
@@ -510,15 +508,6 @@ xmlDictHashQName(unsigned seed, const xmlChar *prefix, const xmlChar *name,
     return(h2 | MAX_HASH_SIZE);
 }
 
-/**
- * xmlDictComputeHash:
- * @dict:  dictionary
- * @string:  C string
- *
- * Compute the hash value of a C string.
- *
- * Returns the hash value.
- */
 unsigned
 xmlDictComputeHash(const xmlDict *dict, const xmlChar *string) {
     size_t len;
@@ -527,15 +516,6 @@ xmlDictComputeHash(const xmlDict *dict, const xmlChar *string) {
 
 #define HASH_ROL31(x,n) ((x) << (n) | ((x) & 0x7FFFFFFF) >> (31 - (n)))
 
-/**
- * xmlDictCombineHash:
- * @v1:  first hash value
- * @v2: second hash value
- *
- * Combine two hash values.
- *
- * Returns the combined hash value.
- */
 ATTRIBUTE_NO_SANITIZE_INTEGER
 unsigned
 xmlDictCombineHash(unsigned v1, unsigned v2) {
@@ -924,88 +904,30 @@ xmlDictQLookup(xmlDictPtr dict, const xmlChar *prefix, const xmlChar *name) {
  * Pseudo-random generator
  */
 
-#ifdef _WIN32
-  #define WIN32_LEAN_AND_MEAN
-  #include <windows.h>
-  #include <bcrypt.h>
-#else
-  #if defined(HAVE_GETENTROPY)
-    #ifdef HAVE_UNISTD_H
-      #include <unistd.h>
-    #endif
-    #ifdef HAVE_SYS_RANDOM_H
-      #include <sys/random.h>
-    #endif
-  #endif
-  #include <time.h>
-#endif
-
 static xmlMutex xmlRngMutex;
 
 static unsigned globalRngState[2];
 
-/*
- * xmlInitRandom:
- *
- * Initialize the PRNG.
- */
+#ifdef XML_THREAD_LOCAL
+static XML_THREAD_LOCAL int localRngInitialized = 0;
+static XML_THREAD_LOCAL unsigned localRngState[2];
+#endif
+
 ATTRIBUTE_NO_SANITIZE_INTEGER
 void
 xmlInitRandom(void) {
+    int var;
+
     xmlInitMutex(&xmlRngMutex);
 
-    {
-#ifdef _WIN32
-        NTSTATUS status;
+    /* TODO: Get seed values from system PRNG */
 
-        status = BCryptGenRandom(NULL, (unsigned char *) globalRngState,
-                                 sizeof(globalRngState),
-                                 BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-        if (!BCRYPT_SUCCESS(status)) {
-            fprintf(stderr, "libxml2: BCryptGenRandom failed with "
-                    "error code %lu\n", GetLastError());
-            abort();
-        }
-#else
-        int var;
-
-#if defined(HAVE_GETENTROPY)
-        while (1) {
-            if (getentropy(globalRngState, sizeof(globalRngState)) == 0)
-                return;
-
-            /*
-             * This most likely means that libxml2 was compiled on
-             * a system supporting certain system calls and is running
-             * on a system that doesn't support these calls, as can
-             * be the case on Linux.
-             */
-            if (errno == ENOSYS)
-                break;
-
-            if (errno != EINTR) {
-                fprintf(stderr, "libxml2: getentropy failed with "
-                        "error code %d\n", errno);
-                abort();
-            }
-        }
-#endif
-
-        globalRngState[0] =
-                (unsigned) time(NULL) ^
-                HASH_ROL((unsigned) ((size_t) &xmlInitRandom & 0xFFFFFFFF), 8);
-        globalRngState[1] =
-                HASH_ROL((unsigned) ((size_t) &xmlRngMutex & 0xFFFFFFFF), 16) ^
-                HASH_ROL((unsigned) ((size_t) &var & 0xFFFFFFFF), 24);
-#endif
-    }
+    globalRngState[0] = (unsigned) time(NULL) ^
+                        HASH_ROL((unsigned) (size_t) &xmlInitRandom, 8);
+    globalRngState[1] = HASH_ROL((unsigned) (size_t) &xmlRngMutex, 16) ^
+                        HASH_ROL((unsigned) (size_t) &var, 24);
 }
 
-/*
- * xmlCleanupRandom:
- *
- * Clean up PRNG globals.
- */
 void
 xmlCleanupRandom(void) {
     xmlCleanupMutex(&xmlRngMutex);
@@ -1025,15 +947,19 @@ xoroshiro64ss(unsigned *s) {
     return(result & 0xFFFFFFFF);
 }
 
-/*
- * xmlGlobalRandom:
- *
- * Generate a pseudo-random value using the global PRNG.
- *
- * Returns a random value.
- */
 unsigned
-xmlGlobalRandom(void) {
+xmlRandom(void) {
+#ifdef XML_THREAD_LOCAL
+    if (!localRngInitialized) {
+        xmlMutexLock(&xmlRngMutex);
+        localRngState[0] = xoroshiro64ss(globalRngState);
+        localRngState[1] = xoroshiro64ss(globalRngState);
+        localRngInitialized = 1;
+        xmlMutexUnlock(&xmlRngMutex);
+    }
+
+    return(xoroshiro64ss(localRngState));
+#else
     unsigned ret;
 
     xmlMutexLock(&xmlRngMutex);
@@ -1041,20 +967,5 @@ xmlGlobalRandom(void) {
     xmlMutexUnlock(&xmlRngMutex);
 
     return(ret);
-}
-
-/*
- * xmlRandom:
- *
- * Generate a pseudo-random value using the thread-local PRNG.
- *
- * Returns a random value.
- */
-unsigned
-xmlRandom(void) {
-#ifdef LIBXML_THREAD_ENABLED
-    return(xoroshiro64ss(xmlGetLocalRngState()));
-#else
-    return(xmlGlobalRandom());
 #endif
 }

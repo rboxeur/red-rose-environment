@@ -1639,7 +1639,7 @@ HRESULT node_get_base_name(xmlnode *This, BSTR *name)
 
 void destroy_xmlnode(xmlnode *This)
 {
-    if(This->node)
+    if(This->node /*&& This->node->type != 18*/)
     {
         xmlnode_release(This->node);
         xmldoc_release(This->node->doc);
@@ -1648,7 +1648,7 @@ void destroy_xmlnode(xmlnode *This)
 
 void init_xmlnode(xmlnode *This, xmlNodePtr node, IXMLDOMNode *node_iface, dispex_static_data_t *dispex_data)
 {
-    if(node)
+    if(node /*&& node->type != 18*/)
     {
         xmlnode_add_ref(node);
         xmldoc_add_ref(node->doc);
@@ -2239,6 +2239,7 @@ IXMLDOMNode *create_node( xmlNodePtr node )
     case XML_ELEMENT_NODE:
         pUnk = create_element( node );
         break;
+    //case 18:
     case XML_ATTRIBUTE_NODE:
         pUnk = create_attribute( node, FALSE );
         break;

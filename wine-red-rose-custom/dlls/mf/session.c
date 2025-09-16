@@ -3414,6 +3414,41 @@ static HRESULT transform_get_external_output_sample(const struct media_session *
     return hr;
 }
 
+/* For H.264, the sink's input media type must be set to the aligned frame size before
+ * the sink receives the first sample. The decoder sends MF_E_TRANSFORM_STREAM_CHANGE
+ * to trigger a refresh of its output type once the aligned frame size is known. This
+ * occurs before any call to ProcessOutput() can succeed on the transform.
+ * Satisfactory is known to use the sink frame size. */
+static void transform_node_update_sink_input(struct topo_node *node, IMFMediaType *output_type)
+{
+    struct media_session *session = node->session;
+    IMFMediaTypeHandler *handler;
+    struct topo_node *down_node;
+    DWORD i, input;
+    HRESULT hr;
+
+    for (i = 0; i < node->u.transform.output_count; ++i)
+    {
+        if (!(down_node = session_get_topo_node_output(session, node, i, &input)))
+        {
+            WARN("Failed to get node %p/%lu output.\n", node, i);
+            continue;
+        }
+
+        if (down_node->type == MF_TOPOLOGY_OUTPUT_NODE)
+        {
+            if (FAILED(hr = IMFStreamSink_GetMediaTypeHandler(down_node->object.sink_stream, &handler)))
+            {
+                WARN("Failed to get type handler, hr %#lx.\n", hr);
+                continue;
+            }
+            if (FAILED(hr = IMFMediaTypeHandler_SetCurrentMediaType(handler, output_type)))
+                WARN("Failed to set type, hr %#lx.\n", hr);
+            IMFMediaTypeHandler_Release(handler);
+        }
+    }
+}
+
 /* update the transform output type while keeping subtype which matches the old output type */
 static HRESULT transform_stream_update_output_type(struct topo_node *node, struct transform_stream *stream,
         UINT id, IMFMediaType *old_output_type, IMFMediaType **new_output_type)
@@ -3439,6 +3474,7 @@ static HRESULT transform_stream_update_output_type(struct topo_node *node, struc
                 IMFMediaType_Release(*new_output_type);
                 break;
             }
+            transform_node_update_sink_input(node, *new_output_type);
             return S_OK;
         }
         IMFMediaType_Release(*new_output_type);

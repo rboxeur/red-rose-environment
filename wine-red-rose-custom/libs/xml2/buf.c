@@ -89,9 +89,10 @@ struct _xmlBuf {
  * To be improved...
  */
 static void
-xmlBufMemoryError(xmlBufPtr buf)
+xmlBufMemoryError(xmlBufPtr buf, const char *extra)
 {
-    if (buf->error == 0)
+    __xmlSimpleError(XML_FROM_BUFFER, XML_ERR_NO_MEMORY, NULL, NULL, extra);
+    if ((buf) && (buf->error == 0))
         buf->error = XML_ERR_NO_MEMORY;
 }
 
@@ -103,9 +104,10 @@ xmlBufMemoryError(xmlBufPtr buf)
  * To be improved...
  */
 static void
-xmlBufOverflowError(xmlBufPtr buf)
+xmlBufOverflowError(xmlBufPtr buf, const char *extra)
 {
-    if (buf->error == 0)
+    __xmlSimpleError(XML_FROM_BUFFER, XML_BUF_OVERFLOW, NULL, NULL, extra);
+    if ((buf) && (buf->error == 0))
         buf->error = XML_BUF_OVERFLOW;
 }
 
@@ -121,8 +123,10 @@ xmlBufCreate(void) {
     xmlBufPtr ret;
 
     ret = (xmlBufPtr) xmlMalloc(sizeof(xmlBuf));
-    if (ret == NULL)
+    if (ret == NULL) {
+	xmlBufMemoryError(NULL, "creating buffer");
         return(NULL);
+    }
     ret->use = 0;
     ret->error = 0;
     ret->buffer = NULL;
@@ -131,6 +135,7 @@ xmlBufCreate(void) {
     ret->alloc = xmlBufferAllocScheme;
     ret->content = (xmlChar *) xmlMallocAtomic(ret->size);
     if (ret->content == NULL) {
+	xmlBufMemoryError(ret, "creating buffer");
 	xmlFree(ret);
         return(NULL);
     }
@@ -153,8 +158,10 @@ xmlBufCreateSize(size_t size) {
     if (size == SIZE_MAX)
         return(NULL);
     ret = (xmlBufPtr) xmlMalloc(sizeof(xmlBuf));
-    if (ret == NULL)
+    if (ret == NULL) {
+	xmlBufMemoryError(NULL, "creating buffer");
         return(NULL);
+    }
     ret->use = 0;
     ret->error = 0;
     ret->buffer = NULL;
@@ -164,6 +171,7 @@ xmlBufCreateSize(size_t size) {
     if (ret->size){
         ret->content = (xmlChar *) xmlMallocAtomic(ret->size);
         if (ret->content == NULL) {
+	    xmlBufMemoryError(ret, "creating buffer");
             xmlFree(ret);
             return(NULL);
         }
@@ -195,16 +203,8 @@ xmlBufDetach(xmlBufPtr buf) {
     if (buf->error)
         return(NULL);
 
-    if ((buf->alloc == XML_BUFFER_ALLOC_IO) &&
-        (buf->content != buf->contentIO)) {
-        ret = xmlStrndup(buf->content, buf->use);
-        xmlFree(buf->contentIO);
-    } else {
-        ret = buf->content;
-    }
-
+    ret = buf->content;
     buf->content = NULL;
-    buf->contentIO = NULL;
     buf->size = 0;
     buf->use = 0;
     UPDATE_COMPAT(buf);
@@ -383,7 +383,7 @@ xmlBufGrowInternal(xmlBufPtr buf, size_t len) {
     if (len < buf->size - buf->use)
         return(buf->size - buf->use - 1);
     if (len >= SIZE_MAX - buf->use) {
-        xmlBufMemoryError(buf);
+        xmlBufMemoryError(buf, "growing buffer past SIZE_MAX");
         return(0);
     }
 
@@ -400,7 +400,7 @@ xmlBufGrowInternal(xmlBufPtr buf, size_t len) {
 	 */
         if ((buf->use + len + 1 >= XML_MAX_TEXT_LENGTH) ||
 	    (buf->size >= XML_MAX_TEXT_LENGTH)) {
-	    xmlBufMemoryError(buf);
+	    xmlBufMemoryError(buf, "buffer error: text too long\n");
 	    return(0);
 	}
 	if (size >= XML_MAX_TEXT_LENGTH)
@@ -411,7 +411,7 @@ xmlBufGrowInternal(xmlBufPtr buf, size_t len) {
 
 	newbuf = (xmlChar *) xmlRealloc(buf->contentIO, start_buf + size);
 	if (newbuf == NULL) {
-	    xmlBufMemoryError(buf);
+	    xmlBufMemoryError(buf, "growing buffer");
 	    return(0);
 	}
 	buf->contentIO = newbuf;
@@ -419,7 +419,7 @@ xmlBufGrowInternal(xmlBufPtr buf, size_t len) {
     } else {
 	newbuf = (xmlChar *) xmlRealloc(buf->content, size);
 	if (newbuf == NULL) {
-	    xmlBufMemoryError(buf);
+	    xmlBufMemoryError(buf, "growing buffer");
 	    return(0);
 	}
 	buf->content = newbuf;
@@ -641,7 +641,7 @@ xmlBufResize(xmlBufPtr buf, size_t size)
 	 * Used to provide parsing limits
 	 */
         if (size >= XML_MAX_TEXT_LENGTH) {
-	    xmlBufMemoryError(buf);
+	    xmlBufMemoryError(buf, "buffer error: text too long\n");
 	    return(0);
 	}
     }
@@ -662,7 +662,7 @@ xmlBufResize(xmlBufPtr buf, size_t size)
             }
 	    while (size > newSize) {
 	        if (newSize > SIZE_MAX / 2) {
-	            xmlBufMemoryError(buf);
+	            xmlBufMemoryError(buf, "growing buffer");
 	            return 0;
 	        }
 	        newSize *= 2;
@@ -678,7 +678,7 @@ xmlBufResize(xmlBufPtr buf, size_t size)
                 newSize = buf->size;
                 while (size > newSize) {
                     if (newSize > SIZE_MAX / 2) {
-                        xmlBufMemoryError(buf);
+                        xmlBufMemoryError(buf, "growing buffer");
                         return 0;
                     }
                     newSize *= 2;
@@ -703,7 +703,7 @@ xmlBufResize(xmlBufPtr buf, size_t size)
 	} else {
 	    rebuf = (xmlChar *) xmlRealloc(buf->contentIO, start_buf + newSize);
 	    if (rebuf == NULL) {
-		xmlBufMemoryError(buf);
+		xmlBufMemoryError(buf, "growing buffer");
 		return 0;
 	    }
 	    buf->contentIO = rebuf;
@@ -731,7 +731,7 @@ xmlBufResize(xmlBufPtr buf, size_t size)
 	    }
 	}
 	if (rebuf == NULL) {
-	    xmlBufMemoryError(buf);
+	    xmlBufMemoryError(buf, "growing buffer");
 	    return 0;
 	}
 	buf->content = rebuf;
@@ -751,7 +751,8 @@ xmlBufResize(xmlBufPtr buf, size_t size)
  * Add a string range to an XML buffer. if len == -1, the length of
  * str is recomputed.
  *
- * Returns 0 if successful, -1 in case of error.
+ * Returns 0 successful, a positive error code number otherwise
+ *         and -1 in case of internal or API error.
  */
 int
 xmlBufAdd(xmlBufPtr buf, const xmlChar *str, int len) {
@@ -775,7 +776,7 @@ xmlBufAdd(xmlBufPtr buf, const xmlChar *str, int len) {
     /* Note that both buf->size and buf->use can be zero here. */
     if ((size_t) len >= buf->size - buf->use) {
         if ((size_t) len >= SIZE_MAX - buf->use) {
-            xmlBufMemoryError(buf);
+            xmlBufMemoryError(buf, "growing buffer past SIZE_MAX");
             return(-1);
         }
         needSize = buf->use + len + 1;
@@ -784,12 +785,14 @@ xmlBufAdd(xmlBufPtr buf, const xmlChar *str, int len) {
 	     * Used to provide parsing limits
 	     */
 	    if (needSize >= XML_MAX_TEXT_LENGTH) {
-		xmlBufMemoryError(buf);
+		xmlBufMemoryError(buf, "buffer error: text too long\n");
 		return(-1);
 	    }
 	}
-        if (!xmlBufResize(buf, needSize))
-            return(-1);
+        if (!xmlBufResize(buf, needSize)){
+	    xmlBufMemoryError(buf, "growing buffer");
+            return XML_ERR_NO_MEMORY;
+        }
     }
 
     memmove(&buf->content[buf->use], str, len);
@@ -819,6 +822,72 @@ xmlBufCat(xmlBufPtr buf, const xmlChar *str) {
 }
 
 /**
+ * xmlBufCCat:
+ * @buf:  the buffer to dump
+ * @str:  the C char string
+ *
+ * Append a zero terminated C string to an XML buffer.
+ *
+ * Returns 0 successful, a positive error code number otherwise
+ *         and -1 in case of internal or API error.
+ */
+int
+xmlBufCCat(xmlBufPtr buf, const char *str) {
+    return xmlBufCat(buf, (const xmlChar *) str);
+}
+
+/**
+ * xmlBufWriteQuotedString:
+ * @buf:  the XML buffer output
+ * @string:  the string to add
+ *
+ * routine which manage and grows an output buffer. This one writes
+ * a quoted or double quoted #xmlChar string, checking first if it holds
+ * quote or double-quotes internally
+ *
+ * Returns 0 if successful, a positive error code number otherwise
+ *         and -1 in case of internal or API error.
+ */
+int
+xmlBufWriteQuotedString(xmlBufPtr buf, const xmlChar *string) {
+    const xmlChar *cur, *base;
+    if ((buf == NULL) || (buf->error))
+        return(-1);
+    CHECK_COMPAT(buf)
+    if (xmlStrchr(string, '\"')) {
+        if (xmlStrchr(string, '\'')) {
+	    xmlBufCCat(buf, "\"");
+            base = cur = string;
+            while(*cur != 0){
+                if(*cur == '"'){
+                    if (base != cur)
+                        xmlBufAdd(buf, base, cur - base);
+                    xmlBufAdd(buf, BAD_CAST "&quot;", 6);
+                    cur++;
+                    base = cur;
+                }
+                else {
+                    cur++;
+                }
+            }
+            if (base != cur)
+                xmlBufAdd(buf, base, cur - base);
+	    xmlBufCCat(buf, "\"");
+	}
+        else{
+	    xmlBufCCat(buf, "\'");
+            xmlBufCat(buf, string);
+	    xmlBufCCat(buf, "\'");
+        }
+    } else {
+        xmlBufCCat(buf, "\"");
+        xmlBufCat(buf, string);
+        xmlBufCCat(buf, "\"");
+    }
+    return(0);
+}
+
+/**
  * xmlBufFromBuffer:
  * @buffer: incoming old buffer to convert to a new one
  *
@@ -838,6 +907,7 @@ xmlBufFromBuffer(xmlBufferPtr buffer) {
 
     ret = (xmlBufPtr) xmlMalloc(sizeof(xmlBuf));
     if (ret == NULL) {
+	xmlBufMemoryError(NULL, "creating buffer");
         return(NULL);
     }
     ret->use = buffer->use;
@@ -871,19 +941,12 @@ xmlBufBackToBuffer(xmlBufPtr buf) {
     if (buf == NULL)
         return(NULL);
     CHECK_COMPAT(buf)
-    ret = buf->buffer;
-
-    if ((buf->error) || (ret == NULL)) {
+    if ((buf->error) || (buf->buffer == NULL)) {
         xmlBufFree(buf);
-        if (ret != NULL) {
-            ret->content = NULL;
-            ret->contentIO = NULL;
-            ret->use = 0;
-            ret->size = 0;
-        }
         return(NULL);
     }
 
+    ret = buf->buffer;
     /*
      * What to do in case of error in the buffer ???
      */
@@ -893,7 +956,7 @@ xmlBufBackToBuffer(xmlBufPtr buf) {
          * maximum allowed memory for an xmlBuffer on this architecture.
          * Keep the buffer but provide a truncated size value.
          */
-        xmlBufOverflowError(buf);
+        xmlBufOverflowError(buf, "Used size too big for xmlBuffer");
         ret->use = INT_MAX;
         ret->size = INT_MAX;
     } else if (buf->size > INT_MAX) {
@@ -903,7 +966,7 @@ xmlBufBackToBuffer(xmlBufPtr buf) {
          * limit.
          * Keep the buffer but provide a truncated size value.
          */
-        xmlBufOverflowError(buf);
+        xmlBufOverflowError(buf, "Allocated size too big for xmlBuffer");
         ret->use = buf->use;
         ret->size = INT_MAX;
     } else {
@@ -918,6 +981,32 @@ xmlBufBackToBuffer(xmlBufPtr buf) {
 }
 
 /**
+ * xmlBufMergeBuffer:
+ * @buf: an xmlBufPtr
+ * @buffer: the buffer to consume into @buf
+ *
+ * The content of @buffer is appended to @buf and @buffer is freed
+ *
+ * Returns -1 in case of error, 0 otherwise, in any case @buffer is freed
+ */
+int
+xmlBufMergeBuffer(xmlBufPtr buf, xmlBufferPtr buffer) {
+    int ret = 0;
+
+    if ((buf == NULL) || (buf->error)) {
+	xmlBufferFree(buffer);
+        return(-1);
+    }
+    CHECK_COMPAT(buf)
+    if ((buffer != NULL) && (buffer->content != NULL) &&
+             (buffer->use > 0)) {
+        ret = xmlBufAdd(buf, buffer->content, buffer->use);
+    }
+    xmlBufferFree(buffer);
+    return(ret);
+}
+
+/**
  * xmlBufResetInput:
  * @buf: an xmlBufPtr
  * @input: an xmlParserInputPtr
@@ -928,7 +1017,16 @@ xmlBufBackToBuffer(xmlBufPtr buf) {
  */
 int
 xmlBufResetInput(xmlBufPtr buf, xmlParserInputPtr input) {
-    return(xmlBufUpdateInput(buf, input, 0));
+    if (input == NULL)
+        return(-1);
+    if ((buf == NULL) || (buf->error)) {
+        input->base = input->cur = input->end = BAD_CAST "";
+        return(-1);
+    }
+    CHECK_COMPAT(buf)
+    input->base = input->cur = buf->content;
+    input->end = &buf->content[buf->use];
+    return(0);
 }
 
 /**
@@ -944,8 +1042,16 @@ xmlBufResetInput(xmlBufPtr buf, xmlParserInputPtr input) {
  */
 int
 xmlBufUpdateInput(xmlBufPtr buf, xmlParserInputPtr input, size_t pos) {
-    if ((buf == NULL) || (input == NULL))
+    if (input == NULL)
         return(-1);
+    /*
+     * TODO: It might be safer to keep using the buffer content if there
+     * was an error.
+     */
+    if ((buf == NULL) || (buf->error)) {
+        input->base = input->cur = input->end = BAD_CAST "";
+        return(-1);
+    }
     CHECK_COMPAT(buf)
     input->base = buf->content;
     input->cur = input->base + pos;

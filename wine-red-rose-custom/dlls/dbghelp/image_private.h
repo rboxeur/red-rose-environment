@@ -124,8 +124,8 @@ struct image_file_map
         } elf;
         struct macho_file_map
         {
-            size_t                      segs_size;
-            size_t                      segs_start;
+            UINT64                      segs_size;
+            UINT64                      segs_start;
             HANDLE                      handle;
             struct image_file_map*      dsym;   /* the debug symbols file associated with this one */
             size_t                      header_size; /* size of real header in file */

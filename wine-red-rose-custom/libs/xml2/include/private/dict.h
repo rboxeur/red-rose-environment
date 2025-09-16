@@ -67,8 +67,6 @@ xmlInitRandom(void);
 XML_HIDDEN void
 xmlCleanupRandom(void);
 XML_HIDDEN unsigned
-xmlGlobalRandom(void);
-XML_HIDDEN unsigned
 xmlRandom(void);
 
 #endif /* XML_DICT_H_PRIVATE__ */
