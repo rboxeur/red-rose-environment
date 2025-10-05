@@ -457,56 +457,6 @@ BOOL WINAPI RegisterShellHook(
 	return TRUE;
 }
 
-/*************************************************************************
- * ShellMessageBoxW				[SHELL32.182]
- *
- * See ShellMessageBoxA.
- *
- * NOTE:
- * shlwapi.ShellMessageBoxWrapW is a duplicate of shell32.ShellMessageBoxW
- * because we can't forward to it in the .spec file since it's exported by
- * ordinal. If you change the implementation here please update the code in
- * shlwapi as well.
- */
-int WINAPIV ShellMessageBoxW(
-	HINSTANCE hInstance,
-	HWND hWnd,
-	LPCWSTR lpText,
-	LPCWSTR lpCaption,
-	UINT uType,
-	...)
-{
-	WCHAR	szText[100],szTitle[100];
-	LPCWSTR pszText = szText, pszTitle = szTitle;
-	LPWSTR  pszTemp;
-	va_list args;
-	int	ret;
-
-	va_start(args, uType);
-	/* wvsprintfA(buf,fmt, args); */
-
-	TRACE("(%p,%p,%p,%p,%08x)\n",
-	    hInstance,hWnd,lpText,lpCaption,uType);
-
-	if (IS_INTRESOURCE(lpCaption))
-	  LoadStringW(hInstance, LOWORD(lpCaption), szTitle, ARRAY_SIZE(szTitle));
-	else
-	  pszTitle = lpCaption;
-
-	if (IS_INTRESOURCE(lpText))
-	  LoadStringW(hInstance, LOWORD(lpText), szText, ARRAY_SIZE(szText));
-	else
-	  pszText = lpText;
-
-	FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_STRING,
-		       pszText, 0, 0, (LPWSTR)&pszTemp, 0, &args);
-
-	va_end(args);
-
-	ret = MessageBoxW(hWnd,pszTemp,pszTitle,uType);
-        LocalFree(pszTemp);
-	return ret;
-}
 
 /*************************************************************************
  * ShellMessageBoxA				[SHELL32.183]

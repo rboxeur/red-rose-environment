@@ -294,3 +294,5 @@
 @ stub RxNetServerEnum
 @ stub RxNetUserPasswordSet
 @ stub RxRemoteApi
+@ stdcall NetValidatePasswordPolicy(wstr ptr long ptr ptr)
+@ stdcall NetValidatePasswordPolicyFree(ptr)

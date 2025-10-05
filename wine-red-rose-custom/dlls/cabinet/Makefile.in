@@ -7,4 +7,7 @@ SOURCES = \
 	cabinet.rc \
 	cabinet_main.c \
 	fci.c \
-	fdi.c
+	fdi.c \
+	liblzx_compress_common.c \
+	liblzx_lzx_common.c \
+	liblzx_lzx_compress.c

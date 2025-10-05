@@ -1369,10 +1369,10 @@ ULONG WINAPI DECLSPEC_HOTPATCH GetAdaptersAddresses( ULONG family, ULONG flags, 
  */
 DWORD WINAPI GetBestInterface(IPAddr dwDestAddr, PDWORD pdwBestIfIndex)
 {
-    struct sockaddr_in sa_in;
+    SOCKADDR_INET sa_in;
     memset(&sa_in, 0, sizeof(sa_in));
-    sa_in.sin_family = AF_INET;
-    sa_in.sin_addr.S_un.S_addr = dwDestAddr;
+    sa_in.si_family = AF_INET;
+    sa_in.Ipv4.sin_addr.S_un.S_addr = dwDestAddr;
     return GetBestInterfaceEx((struct sockaddr *)&sa_in, pdwBestIfIndex);
 }
 
@@ -3618,19 +3618,16 @@ static void unicast_row_fill( MIB_UNICASTIPADDRESS_ROW *row, USHORT fam, void *k
     struct nsi_ipv4_unicast_key *key4 = (struct nsi_ipv4_unicast_key *)key;
     struct nsi_ipv6_unicast_key *key6 = (struct nsi_ipv6_unicast_key *)key;
 
+    memset( &row->Address, 0, sizeof(row->Address) );
     if (fam == AF_INET)
     {
         row->Address.Ipv4.sin_family = fam;
-        row->Address.Ipv4.sin_port = 0;
         row->Address.Ipv4.sin_addr = key4->addr;
-        memset( row->Address.Ipv4.sin_zero, 0, sizeof(row->Address.Ipv4.sin_zero) );
         row->InterfaceLuid.Value = key4->luid.Value;
     }
     else
     {
         row->Address.Ipv6.sin6_family = fam;
-        row->Address.Ipv6.sin6_port = 0;
-        row->Address.Ipv6.sin6_flowinfo = 0;
         row->Address.Ipv6.sin6_addr = key6->addr;
         row->Address.Ipv6.sin6_scope_id = dyn->scope_id;
         row->InterfaceLuid.Value = key6->luid.Value;

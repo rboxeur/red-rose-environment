@@ -1990,6 +1990,11 @@ static void create_port_devices( DRIVER_OBJECT *driver, const char *devices )
     WCHAR port[7];
     DWORD port_len, type, size;
     int i, n;
+    HKEY hKey;
+    BOOL user_defined_ports;
+
+    /*If no devices do not create registry entry*/
+    if (strlen(devices)==0) return;
 
     if (driver == serial_driver)
     {
@@ -2003,6 +2008,26 @@ static void create_port_devices( DRIVER_OBJECT *driver, const char *devices )
         windows_ports_key_name = L"HARDWARE\\DEVICEMAP\\PARALLEL PORTS";
         port_prefix = L"LPT";
     }
+
+    /* Check for user defined ports*/
+    user_defined_ports=TRUE;
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"Software\\Wine\\Ports" , 0, KEY_READ , &hKey)==ERROR_SUCCESS)
+    {
+        i=0;             
+        port_len = ARRAY_SIZE(port);
+        user_defined_ports=FALSE;
+        while ((RegEnumValueW(hKey, i, port, &port_len, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)) {
+            if (wcsnicmp( port, port_prefix, 3)==0){
+                user_defined_ports=TRUE;
+                break;
+            }
+            i++;
+            port_len = ARRAY_SIZE(port);
+         }
+	    RegCloseKey(hKey);
+    }
+    /*If no user defined ports and no devices do not create registry entry*/
+    if(!user_defined_ports && strlen(devices)==0) return;
 
     /* @@ Wine registry key: HKLM\Software\Wine\Ports */
 

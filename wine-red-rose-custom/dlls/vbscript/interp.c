@@ -1387,7 +1387,9 @@ static HRESULT interp_redim_preserve(exec_ctx_t *ctx)
         return hres;
     }
 
-    if(ref.type != REF_VAR) {
+    if(ref.type == REF_NONE) {
+        add_dynamic_var(ctx, identifier, FALSE, &ref.u.v);
+    }else if(ref.type != REF_VAR) {
         FIXME("got ref.type = %d\n", ref.type);
         return E_FAIL;
     }

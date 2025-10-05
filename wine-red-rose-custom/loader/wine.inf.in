@@ -287,6 +287,8 @@ FontsNT="Software\Microsoft\Windows NT\CurrentVersion\Fonts"
 Packages="Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\PackageRepository\Packages"
 
 [Classes]
+HKCR,AppID\{B8C54A54-355E-11D3-83EB-00A0C92A2F2D},,2,"Windows Media Player"
+HKCR,Applications\wmplayer.exe,,16
 HKCR,.chm,,2,"chm.file"
 HKCR,.cpl,,2,"cplfile"
 HKCR,.hlp,,2,"hlpfile"

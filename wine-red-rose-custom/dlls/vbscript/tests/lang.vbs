@@ -1728,6 +1728,11 @@ err.clear
 on error goto 0
 
 
+redim undeclared_array(3)
+ok ubound(undeclared_array) = 3, "ubound(undeclared_array) = " & ubound(undeclared_array)
+undeclared_array(3) = 10
+ok undeclared_array(3) = 10, "undeclared_array(3) = " & undeclared_array(3)
+
 sub TestReDimFixed
     on error resume next
 

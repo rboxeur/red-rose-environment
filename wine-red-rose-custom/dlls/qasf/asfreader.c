@@ -307,8 +307,32 @@ static inline struct asf_stream *impl_from_IMediaSeeking(IMediaSeeking *iface)
 
 static HRESULT WINAPI media_seeking_ChangeCurrent(IMediaSeeking *iface)
 {
-    FIXME("iface %p stub!\n", iface);
-    return S_OK;
+    struct asf_stream *stream = impl_from_IMediaSeeking(iface);
+    struct asf_reader *filter = asf_reader_from_asf_stream(stream);
+    SourceSeeking *seek = &stream->seek;
+    HRESULT hr;
+    UINT i;
+
+    TRACE("iface %p.\n", iface);
+
+    for (i = 0; i < filter->stream_count; ++i)
+    {
+        if (FAILED(IPin_BeginFlush(stream->source.pin.peer)))
+            WARN("Failed to BeginFlush for stream %u.\n", i);
+    }
+
+    hr = IBaseFilter_Stop(&filter->filter.IBaseFilter_iface);
+
+    for (i = 0; i < filter->stream_count; ++i)
+    {
+        if (FAILED(IPin_EndFlush(stream->source.pin.peer)))
+            WARN("Failed to EndFlush for stream %u.\n", i);
+    }
+
+    if (hr == S_OK)
+        hr = IWMReader_Start(filter->reader, seek->llCurrent, seek->llDuration, seek->dRate, NULL);
+
+    return hr;
 }
 
 static HRESULT WINAPI media_seeking_ChangeStop(IMediaSeeking *iface)
