@@ -1099,3 +1099,17 @@ sync_test("importNode", function() {
     ok(node2.hasChildNodes() === false, "node2 has child nodes");
     ok(node2.parentNode === null, "node2.parentNode = " + node2.parentNode);
 });
+
+sync_test("document.open", function() {
+    document.body.innerHTML = '<iframe id="test"></iframe>';
+    var elem = document.getElementById("test");
+    var doc = elem.contentDocument;
+    var f = function() {};
+    doc.onclick = f;
+    ok(doc.onclick === f, "doc.onclick != f");
+    doc.open();
+    ok(doc.onclick === null, "doc.onclick != null");
+    doc.onclick = f;
+    doc.close();
+    ok(doc.onclick === f, "doc.onclick != f");
+});

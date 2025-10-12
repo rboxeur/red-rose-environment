@@ -406,8 +406,8 @@ C_ASSERT( sizeof(struct callback_stack_layout) == 0x58 );
 
 static unsigned int syscall_flags;
 
-#define RESTORE_FLAGS_INSTRUMENTATION CONTEXT_i386
-#define RESTORE_FLAGS_INVALID_FPSTATE CONTEXT_ARM
+#define RESTORE_FLAGS_INSTRUMENTATION          0x00010000
+#define RESTORE_FLAGS_INCOMPLETE_FRAME_CONTEXT 0x00020000
 
 struct syscall_frame
 {
@@ -947,6 +947,28 @@ static void save_context( struct xcontext *xcontext, const ucontext_t *sigcontex
             assert( xcontext->c_ex.XState.Offset == (BYTE *)xs - (BYTE *)&xcontext->c_ex );
         }
     }
+}
+
+
+/***********************************************************************
+ *           fixup_frame_fpu_state
+ *
+ * Set FP frame state not saved in __wine_unix_call_dispatcher from sigcontext.
+ */
+static void fixup_frame_fpu_state( struct syscall_frame *frame, const ucontext_t *sigcontext )
+{
+    XSAVE_FORMAT xsave;
+
+    memset( &frame->xstate, 0, sizeof(frame->xstate) );
+    if (xstate_compaction_enabled)
+        frame->xstate.CompactionMask = 0x8000000000000000 | xstate_supported_features_mask;
+
+    if (!FPU_sig(sigcontext)) return;
+    xsave = *FPU_sig(sigcontext);
+    memcpy( &xsave.XmmRegisters[6], &frame->xsave.XmmRegisters[6], 10 * sizeof(*xsave.XmmRegisters) );
+    xsave.MxCsr = frame->xsave.MxCsr;
+    frame->xsave = xsave;
+    frame->xstate.Mask = XSTATE_MASK_LEGACY;
 }
 
 
@@ -1656,15 +1678,13 @@ __ASM_GLOBAL_FUNC( call_user_mode_callback,
                    "andq $~63,%rsp\n\t"
                    "leaq 0x10(%rbp),%rax\n\t"
                    "movq %rax,0xa8(%rsp)\n\t"  /* frame->syscall_cfa */
+                   "movw %cs,0x78(%rsp)\n\t"   /* frame->cs */
+                   "movw %ss,0x90(%rsp)\n\t"   /* frame->ss */
                    "movq 0x328(%r8),%r10\n\t"  /* amd64_thread_data()->syscall_frame */
                    "movq (%r8),%rax\n\t"       /* NtCurrentTeb()->Tib.ExceptionList */
                    "movq %rax,0x300(%rsp,%rsi)\n\t"
                    "movl 0xb0(%r10),%r14d\n\t" /* prev_frame->syscall_flags */
                    "movl %r14d,0xb0(%rsp)\n\t" /* frame->syscall_flags */
-                   "movq 0x78(%r10),%rax\n\t"  /* prev_frame->cs */
-                   "movq %rax,0x78(%rsp)\n\t"  /* frame->cs */
-                   "movq 0x90(%r10),%rax\n\t"  /* prev_frame->ss */
-                   "movq %rax,0x90(%rsp)\n\t"  /* frame->ss */
                    "movq %r10,0xa0(%rsp)\n\t"  /* frame->prev_frame */
                    "movq %rsp,0x328(%r8)\n\t"  /* amd64_thread_data()->syscall_frame */
                    /* switch to user stack */
@@ -2286,7 +2306,6 @@ static BOOL handle_syscall_trap( ucontext_t *sigcontext, siginfo_t *siginfo )
         extern const void *__wine_syscall_dispatcher_prolog_end_ptr;
 
         RIP_sig( sigcontext ) = (ULONG64)__wine_syscall_dispatcher_prolog_end_ptr;
-        frame->restore_flags = CONTEXT_CONTROL;
     }
     else if ((void *)RIP_sig( sigcontext ) == __wine_unix_call_dispatcher)
     {
@@ -2294,7 +2313,7 @@ static BOOL handle_syscall_trap( ucontext_t *sigcontext, siginfo_t *siginfo )
 
         RIP_sig( sigcontext ) = (ULONG64)__wine_unix_call_dispatcher_prolog_end_ptr;
         R10_sig( sigcontext ) = RCX_sig( sigcontext );
-        frame->restore_flags = CONTEXT_CONTROL | RESTORE_FLAGS_INVALID_FPSTATE;
+        fixup_frame_fpu_state( frame, sigcontext );
     }
     else if (siginfo->si_code == 4 /* TRAP_HWBKPT */ && is_inside_syscall( sigcontext ))
     {
@@ -2308,6 +2327,7 @@ static BOOL handle_syscall_trap( ucontext_t *sigcontext, siginfo_t *siginfo )
 
     frame->rip = *(ULONG64 *)RSP_sig( sigcontext );
     frame->eflags = EFL_sig(sigcontext);
+    frame->restore_flags = CONTEXT_CONTROL;
     if (instrumentation_callback) frame->restore_flags |= RESTORE_FLAGS_INSTRUMENTATION;
 
     RCX_sig( sigcontext ) = (ULONG64)frame;
@@ -2561,22 +2581,11 @@ static void usr1_handler( int signal, siginfo_t *siginfo, void *sigcontext )
             return;
         }
         context->c.ContextFlags = CONTEXT_FULL | CONTEXT_SEGMENTS | CONTEXT_EXCEPTION_REQUEST;
-        if (frame->restore_flags & RESTORE_FLAGS_INVALID_FPSTATE)
+        if (frame->restore_flags & RESTORE_FLAGS_INCOMPLETE_FRAME_CONTEXT)
         {
-            /* frame FP state is not fully filled, fill in the missing state from the current Unix side context. */
-            frame->restore_flags &= ~RESTORE_FLAGS_INVALID_FPSTATE;
-            memset( &frame->xstate, 0, sizeof(frame->xstate) );
-            if (xstate_compaction_enabled)
-                frame->xstate.CompactionMask = 0x8000000000000000 | xstate_supported_features_mask;
-            if (FPU_sig(ucontext))
-            {
-                XSAVE_FORMAT xsave;
-
-                xsave = *FPU_sig(ucontext);
-                memcpy( &xsave.XmmRegisters[6], &frame->xsave.XmmRegisters[6], 10 * sizeof(*xsave.XmmRegisters) );
-                frame->xsave = xsave;
-                frame->xstate.Mask = XSTATE_MASK_LEGACY;
-            }
+            frame->restore_flags &= ~RESTORE_FLAGS_INCOMPLETE_FRAME_CONTEXT;
+            frame->eflags = 0x200;
+            fixup_frame_fpu_state( frame, ucontext );
         }
         NtGetContextThread( GetCurrentThread(), &context->c );
         if (xstate_extended_features())
@@ -3363,12 +3372,8 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
 #endif
                    "popq 0x70(%rcx)\n\t"           /* frame->rip */
                    __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t")
-                   "pushfq\n\t"
-                   __ASM_CFI(".cfi_adjust_cfa_offset 8\n\t")
-                   "popq 0x80(%rcx)\n\t"           /* frame->eflags */
-                   __ASM_CFI(".cfi_adjust_cfa_offset -8\n\t")
                    __ASM_CFI_REG_IS_AT2(rip, rcx, 0xf0,0x00)
-                   "movl $0x200000,0xb4(%rcx)\n\t" /* frame->restore_flags <- RESTORE_FLAGS_INVALID_FPSTATE */
+                   "movl $0x20000,0xb4(%rcx)\n\t"  /* frame->restore_flags <- RESTORE_FLAGS_INCOMPLETE_FRAME_CONTEXT */
                    __ASM_LOCAL_LABEL("__wine_unix_call_dispatcher_prolog_end") ":\n\t"
                    "movq %rbx,0x08(%rcx)\n\t"
                    __ASM_CFI_REG_IS_AT1(rbx, rcx, 0x08)

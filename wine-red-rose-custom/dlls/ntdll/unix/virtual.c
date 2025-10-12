@@ -383,6 +383,26 @@ static inline BOOL is_beyond_limit( const void *addr, size_t size, const void *l
     return (addr >= limit || (const char *)addr + size > (const char *)limit);
 }
 
+#ifdef __APPLE__
+static void *mac_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset)
+{
+    /* macOS since 10.15 fails to map files with PROT_EXEC
+     * (and will show the user an annoying warning if the file has a quarantine xattr set).
+     * But it works to map without PROT_EXEC and then use mprotect().
+     */
+    if (!(flags & MAP_ANON) && fd >= 0 && prot & PROT_EXEC)
+    {
+        void *ret = mmap(addr, len, prot & ~PROT_EXEC, flags, fd, offset);
+
+        if (ret != MAP_FAILED && mprotect(ret, len, prot))
+            WARN("failed to mprotect region: %d\n", errno);
+        return ret;
+    }
+    return mmap(addr, len, prot, flags, fd, offset);
+}
+#define mmap(...) mac_mmap(__VA_ARGS__)
+#endif
+
 /* mmap() anonymous memory at a fixed address */
 void *anon_mmap_fixed( void *start, size_t size, int prot, int flags )
 {

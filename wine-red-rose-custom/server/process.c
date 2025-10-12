@@ -654,6 +654,7 @@ struct process *create_process( int fd, struct process *parent, unsigned int fla
                                 unsigned int handle_count, struct token *token )
 {
     struct process *process;
+    struct job *job;
 
     if (!(process = alloc_object( &process_ops )))
     {
@@ -730,9 +731,12 @@ struct process *create_process( int fd, struct process *parent, unsigned int fla
     {
         obj_handle_t std_handles[3];
 
-        std_handles[0] = info->hstdin;
-        std_handles[1] = info->hstdout;
-        std_handles[2] = info->hstderr;
+        if (flags & PROCESS_CREATE_FLAGS_INHERIT_HANDLES)
+        {
+            std_handles[0] = info->hstdin;
+            std_handles[1] = info->hstdout;
+            std_handles[2] = info->hstderr;
+        }
 
         process->parent_id = parent->id;
         if (flags & PROCESS_CREATE_FLAGS_INHERIT_HANDLES)
@@ -760,6 +764,22 @@ struct process *create_process( int fd, struct process *parent, unsigned int fla
         process->esync_fd = esync_create_fd( 0, 0 );
 
     set_fd_events( process->msg_fd, POLLIN );  /* start listening to events */
+
+    if (!parent) return process;
+    job = parent->job;
+    while (job)
+    {
+        if (!(job->limit_flags & JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK)
+                && !(flags & PROCESS_CREATE_FLAGS_BREAKAWAY
+                && job->limit_flags & JOB_OBJECT_LIMIT_BREAKAWAY_OK))
+        {
+            add_job_process( job, process );
+            assert( !get_error() );
+            break;
+        }
+        job = job->parent;
+    }
+
     return process;
 
  error:
@@ -1341,20 +1361,6 @@ DECL_HANDLER(new_process)
     process->machine = req->machine;
     process->startup_info = (struct startup_info *)grab_object( info );
 
-    job = parent->job;
-    while (job)
-    {
-        if (!(job->limit_flags & JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK)
-                && !(req->flags & PROCESS_CREATE_FLAGS_BREAKAWAY
-                && job->limit_flags & JOB_OBJECT_LIMIT_BREAKAWAY_OK))
-        {
-            add_job_process( job, process );
-            assert( !get_error() );
-            break;
-        }
-        job = job->parent;
-    }
-
     for (i = 0; i < job_handle_count; ++i)
     {
         job = get_job_obj( current->process, job_handles[i], JOB_OBJECT_ASSIGN_PROCESS );
@@ -1867,11 +1873,16 @@ DECL_HANDLER(process_in_job)
 /* retrieve information about a job */
 DECL_HANDLER(get_job_info)
 {
-    struct job *job = get_job_obj( current->process, req->handle, JOB_OBJECT_QUERY );
+    struct job *job;
     process_id_t *pids;
     data_size_t len;
 
-    if (!job) return;
+    if (!req->handle && current->process->job) job = (struct job *)grab_object( current->process->job );
+    else
+    {
+        job = get_job_obj( current->process, req->handle, JOB_OBJECT_QUERY );
+        if (!job) return;
+    }
 
     reply->total_processes = job->total_processes;
     reply->active_processes = job->num_processes;
