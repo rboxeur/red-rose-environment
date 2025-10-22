@@ -440,7 +440,9 @@ extern "C" {
 
 /* Compile time assertion */
 
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
+#define C_ASSERT(e) static_assert(e, #e)
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 #define C_ASSERT(e) _Static_assert(e, #e)
 #else
 #define C_ASSERT(e) extern void __C_ASSERT__(int [(e)?1:-1])
@@ -4333,7 +4335,7 @@ typedef struct _ACL {
 
 typedef enum _ACL_INFORMATION_CLASS
 {
-  AclRevisionInformation = 1, 
+  AclRevisionInformation = 1,
   AclSizeInformation
 } ACL_INFORMATION_CLASS;
 
@@ -7093,9 +7095,32 @@ static FORCEINLINE LONG ReadAcquire( LONG const volatile *src )
     return value;
 }
 
+static FORCEINLINE void* ReadPointerAcquire( void* const volatile *src )
+{
+    void *value;
+#ifdef _WIN64
+    value = (void *)__WINE_LOAD64_NO_FENCE( (INT64 const volatile *)src );
+#else
+    value = (void *)__WINE_LOAD32_NO_FENCE( (INT32 const volatile *)src );
+#endif
+    __wine_memory_barrier_acq_rel();
+    return value;
+}
+
 static FORCEINLINE LONG ReadNoFence( LONG const volatile *src )
 {
     LONG value = __WINE_LOAD32_NO_FENCE( (int const volatile *)src );
+    return value;
+}
+
+static FORCEINLINE void* ReadPointerNoFence( void* const volatile *src )
+{
+    void *value;
+#ifdef _WIN64
+    value = (void *)__WINE_LOAD64_NO_FENCE( (INT64 const volatile *)src );
+#else
+    value = (void *)__WINE_LOAD32_NO_FENCE( (INT32 const volatile *)src );
+#endif
     return value;
 }
 
@@ -7105,9 +7130,28 @@ static FORCEINLINE void WriteRelease( LONG volatile *dest, LONG value )
     __WINE_STORE32_NO_FENCE( (int volatile *)dest, value );
 }
 
+static FORCEINLINE void WritePointerRelease( void* volatile *dest, void* value )
+{
+    __wine_memory_barrier_acq_rel();
+#ifdef _WIN64
+    __WINE_STORE64_NO_FENCE( (INT64 volatile *)dest, (INT64)value );
+#else
+    __WINE_STORE32_NO_FENCE( (INT32 volatile *)dest, (INT32)value );
+#endif
+}
+
 static FORCEINLINE void WriteNoFence( LONG volatile *dest, LONG value )
 {
     __WINE_STORE32_NO_FENCE( (int volatile *)dest, value );
+}
+
+static FORCEINLINE void WritePointerNoFence( void* volatile *dest, void* value )
+{
+#ifdef _WIN64
+    __WINE_STORE64_NO_FENCE( (INT64 volatile *)dest, (INT64)value );
+#else
+    __WINE_STORE32_NO_FENCE( (INT32 volatile *)dest, (INT32)value );
+#endif
 }
 
 #elif defined(__GNUC__)
@@ -7278,9 +7322,23 @@ static FORCEINLINE LONG ReadAcquire( LONG const volatile *src )
     return value;
 }
 
+static FORCEINLINE void *ReadPointerAcquire( void *const volatile *src )
+{
+    void *value;
+    __WINE_ATOMIC_LOAD_ACQUIRE( src, &value );
+    return value;
+}
+
 static FORCEINLINE LONG ReadNoFence( LONG const volatile *src )
 {
     LONG value;
+    __WINE_ATOMIC_LOAD_RELAXED( src, &value );
+    return value;
+}
+
+static FORCEINLINE void *ReadPointerNoFence( void *const volatile *src )
+{
+    void *value;
     __WINE_ATOMIC_LOAD_RELAXED( src, &value );
     return value;
 }
@@ -7293,6 +7351,16 @@ static FORCEINLINE void WriteRelease( LONG volatile *dest, LONG value )
 static FORCEINLINE void WriteNoFence( LONG volatile *dest, LONG value )
 {
     __WINE_ATOMIC_STORE_RELAXED( dest, &value );
+}
+
+static FORCEINLINE void WritePointerRelease( void *volatile *src, void *value )
+{
+    __WINE_ATOMIC_STORE_RELEASE( src, &value );
+}
+
+static FORCEINLINE void WritePointerNoFence( void *volatile *src, void *value )
+{
+    __WINE_ATOMIC_STORE_RELAXED( src, &value );
 }
 
 static FORCEINLINE DECLSPEC_NORETURN void __fastfail(unsigned int code)

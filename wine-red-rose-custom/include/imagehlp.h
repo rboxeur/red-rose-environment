@@ -278,6 +278,7 @@ typedef struct _STACKFRAME {
   BOOL    Virtual;
   DWORD     Reserved[3];
   KDHELP  KdHelp;
+  ADDRESS AddrBStore;
 } STACKFRAME, *LPSTACKFRAME;
 
 typedef struct _STACKFRAME64 {

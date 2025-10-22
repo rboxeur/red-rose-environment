@@ -98,6 +98,7 @@ typedef struct _DTTOPTS {
 
 THEMEAPI DrawThemeTextEx(HTHEME,HDC,int,int,LPCWSTR,int,DWORD,RECT*,
                                const DTTOPTS*);
+THEMEAPI GetThemeBitmap(HTHEME,int,int,int,ULONG,HBITMAP*);
 
 #define ETDT_DISABLE       0x00000001
 #define ETDT_ENABLE        0x00000002
@@ -121,6 +122,7 @@ THEMEAPI GetThemeBackgroundExtent(HTHEME,HDC,int,int,const RECT*,RECT*);
 THEMEAPI GetThemeBackgroundRegion(HTHEME,HDC,int,int,const RECT*,HRGN*);
 THEMEAPI GetThemeBool(HTHEME,int,int,int,BOOL*);
 THEMEAPI GetThemeColor(HTHEME,int,int,int,COLORREF*);
+THEMEAPI GetThemeStream(HTHEME,int,int,int,void**,DWORD*,HINSTANCE);
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 # define SZ_THDOCPROP_DISPLAYNAME   L"DisplayName"

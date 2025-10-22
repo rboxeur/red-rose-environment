@@ -60,7 +60,7 @@ DWORD WINAPI RtlRunOnceBeginInitialize( RTL_RUN_ONCE *once, ULONG flags, void **
 {
     if (flags & RTL_RUN_ONCE_CHECK_ONLY)
     {
-        ULONG_PTR val = (ULONG_PTR)once->Ptr;
+        ULONG_PTR val = (ULONG_PTR)ReadPointerAcquire( &once->Ptr );
 
         if (flags & RTL_RUN_ONCE_ASYNC) return STATUS_INVALID_PARAMETER;
         if ((val & 3) != 2) return STATUS_UNSUCCESSFUL;
@@ -70,7 +70,7 @@ DWORD WINAPI RtlRunOnceBeginInitialize( RTL_RUN_ONCE *once, ULONG flags, void **
 
     for (;;)
     {
-        ULONG_PTR next, val = (ULONG_PTR)once->Ptr;
+        ULONG_PTR next, val = (ULONG_PTR)ReadPointerAcquire( &once->Ptr );
 
         switch (val & 3)
         {
@@ -115,7 +115,7 @@ DWORD WINAPI RtlRunOnceComplete( RTL_RUN_ONCE *once, ULONG flags, void *context 
 
     for (;;)
     {
-        ULONG_PTR val = (ULONG_PTR)once->Ptr;
+        ULONG_PTR val = (ULONG_PTR)ReadPointerAcquire( &once->Ptr );
 
         switch (val & 3)
         {
