@@ -3048,10 +3048,14 @@ static FORCEINLINE HANDLE WINAPI GetCurrentThread(void)
     return (HANDLE)~(ULONG_PTR)1;
 }
 
+#ifndef _KERNEL32_
+
 static FORCEINLINE DWORD WINAPI GetCurrentThreadId(void)
 {
     return HandleToULong( ((HANDLE *)NtCurrentTeb())[9] );
 }
+
+#endif
 
 static FORCEINLINE DWORD WINAPI GetLastError(void)
 {

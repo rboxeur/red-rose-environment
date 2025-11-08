@@ -636,31 +636,6 @@ void WINAPI DOSVM_Int31Handler( CONTEXT *context )
         SET_CFLAG( context );
         break;
 
-    case 0x0a00:  /* Get Vendor-Specific API Entry Point */
-        FIXME( "Get Vendor-Specific API Entry Point - unimplemented\n" );
-        SET_CFLAG( context );
-        break;
-
-    case 0x0b00:  /* Set Debug Watchpoint */
-        FIXME( "Set Debug Watchpoint - unimplemented\n" );
-        SET_CFLAG( context );
-        break;
-
-    case 0x0b01:  /* Clear Debug Watchpoint */
-        FIXME( "Clear Debug Watchpoint - unimplemented\n" );
-        SET_CFLAG( context );
-        break;
-
-    case 0x0b02:  /* Get State of Debug Watchpoint */
-        FIXME( "Get State of Debug Watchpoint - unimplemented\n" );
-        SET_CFLAG( context );
-        break;
-
-    case 0x0b03:  /* Reset Debug Watchpoint */
-        FIXME( "Reset Debug Watchpoint - unimplemented\n" );
-        SET_CFLAG( context );
-        break;
-
     case 0x0e00:  /* Get Coprocessor Status (1.0) */
         /*
          * Return status in AX bits:

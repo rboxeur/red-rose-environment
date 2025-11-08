@@ -637,7 +637,8 @@ static DWORD DSOUND_MixInBuffer(IDirectSoundBufferImpl *dsb, float *mix_buffer, 
 	}
 
 	/* check for notification positions */
-	if (dsb->dsbd.dwFlags & DSBCAPS_CTRLPOSITIONNOTIFY) {
+	if (dsb->dsbd.dwFlags & DSBCAPS_CTRLPOSITIONNOTIFY &&
+	    dsb->state != STATE_STARTING) {
 		INT ilen = DSOUND_BufPtrDiff(dsb->buflen, dsb->sec_mixpos, oldpos);
 		DSOUND_CheckEvent(dsb, oldpos, ilen);
 	}
@@ -661,7 +662,22 @@ static DWORD DSOUND_MixOne(IDirectSoundBufferImpl *dsb, float *mix_buffer, DWORD
 	DWORD primary_done = 0;
 
 	TRACE("(%p, frames=%ld)\n",dsb,frames);
-	TRACE("looping=%ld\n", dsb->playflags);
+	TRACE("looping=%ld, leadin=%ld\n", dsb->playflags, dsb->leadin);
+
+	/* If leading in, only mix about 20 ms, and 'skip' mixing the rest, for more fluid pointer advancement */
+	/* FIXME: Is this needed? */
+	if (dsb->leadin && dsb->state == STATE_STARTING) {
+		if (frames > 2 * dsb->device->frag_frames) {
+			primary_done = frames - 2 * dsb->device->frag_frames;
+			frames = 2 * dsb->device->frag_frames;
+			dsb->sec_mixpos += primary_done *
+				dsb->pwfx->nBlockAlign * dsb->freqAdjustNum / dsb->freqAdjustDen;
+		}
+	}
+
+	dsb->leadin = FALSE;
+
+	TRACE("frames (primary) = %li\n", frames);
 
 	/* First try to mix to the end of the buffer if possible
 	 * Theoretically it would allow for better optimization

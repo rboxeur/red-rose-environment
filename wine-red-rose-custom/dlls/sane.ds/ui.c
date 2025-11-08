@@ -296,6 +296,10 @@ static int create_item(HDC hdc, const struct option_descriptor *opt,
 
         tpl->cx = ctl_cx;
     }
+    if (class == 0x0085 && 0!=(styles & CBS_DROPDOWNLIST))
+    {   /* Drop-Down ComboBox */
+        tpl->cy *= 10;
+    }
     ptr = (WORD *)(tpl + 1);
     *ptr++ = 0xffff;
     *ptr++ = class;
@@ -1114,6 +1118,7 @@ static INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM
                         if (psn->lParam)
                         {
                             activeDS.currentState = 6;
+			    activeDS.remainingImages = activeDS.capXferCount;
                             SANE_Notify(MSG_XFERREADY);
                         }
                         break;
@@ -1239,7 +1244,7 @@ HWND ScanningDialogBox(HWND dialog, LONG progress)
 
     if (progress == -1)
     {
-        EndDialog(dialog,0);
+        DestroyWindow(dialog);
         return NULL;
     }
 

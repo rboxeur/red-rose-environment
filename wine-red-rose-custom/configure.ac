@@ -9,9 +9,10 @@ AC_PREREQ(2.63b)
 AC_INIT([Wine],[WINE_VERSION],[wine-devel@winehq.org],[wine],[https://www.winehq.org])
 AC_CONFIG_SRCDIR(server/atom.c)
 AC_CONFIG_HEADERS(include/config.h)
-AC_CONFIG_AUX_DIR(tools)
 
-libwine_version="1.0"
+dnl Work around install-sh requirement in autoconf <= 2.69
+AC_PREREQ([2.69d],[AC_CONFIG_AUX_DIR(tools)],
+                  [AC_PROVIDE([AC_CONFIG_AUX_DIR_DEFAULT])ac_aux_dir="${srcdir}/tools"])
 
 dnl **** Command-line arguments ****
 
@@ -2516,6 +2517,7 @@ WINE_CONFIG_MAKEFILE(dlls/cards)
 WINE_CONFIG_MAKEFILE(dlls/cdosys)
 WINE_CONFIG_MAKEFILE(dlls/cfgmgr32)
 WINE_CONFIG_MAKEFILE(dlls/cfgmgr32/tests)
+WINE_CONFIG_MAKEFILE(dlls/chakra)
 WINE_CONFIG_MAKEFILE(dlls/clusapi)
 WINE_CONFIG_MAKEFILE(dlls/cng.sys)
 WINE_CONFIG_MAKEFILE(dlls/combase)
@@ -3194,6 +3196,7 @@ WINE_CONFIG_MAKEFILE(dlls/taskschd)
 WINE_CONFIG_MAKEFILE(dlls/taskschd/tests)
 WINE_CONFIG_MAKEFILE(dlls/tbs)
 WINE_CONFIG_MAKEFILE(dlls/tdh)
+WINE_CONFIG_MAKEFILE(dlls/tdh/tests)
 WINE_CONFIG_MAKEFILE(dlls/tdi.sys)
 WINE_CONFIG_MAKEFILE(dlls/threadpoolwinrt)
 WINE_CONFIG_MAKEFILE(dlls/threadpoolwinrt/tests)

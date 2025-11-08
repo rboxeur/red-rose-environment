@@ -645,7 +645,7 @@
 @ stdcall GetCurrentProcessorNumber() NTDLL.NtGetCurrentProcessorNumber
 @ stdcall GetCurrentProcessorNumberEx(ptr) NTDLL.RtlGetCurrentProcessorNumberEx
 @ stdcall -norelay GetCurrentThread() KERNEL32_GetCurrentThread
-@ stdcall -norelay GetCurrentThreadId() KERNEL32_GetCurrentThreadId
+@ stdcall -norelay GetCurrentThreadId()
 @ stdcall -import GetCurrentThreadStackLimits(ptr ptr)
 @ stdcall -arch=win64 GetCurrentUmsThread()
 @ stdcall -import GetDateFormatA(long long ptr str ptr long)
@@ -1718,6 +1718,11 @@
 @ stdcall -import lstrlen(str)
 @ stdcall -import lstrlenA(str)
 @ stdcall -import lstrlenW(wstr)
+@ stdcall timeBeginPeriod(long)
+@ stdcall timeEndPeriod(long)
+@ stdcall timeGetDevCaps(ptr long)
+@ stdcall timeGetSystemTime(ptr long)
+@ stdcall timeGetTime()
 
 ################################################################
 # Wine internal extensions

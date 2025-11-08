@@ -51,11 +51,11 @@ static inline BYTE hexchar_to_byte(WCHAR ch)
 static BOOL get_regdata(const WCHAR *data, DWORD reg_type, WCHAR separator,
                         BYTE **data_bytes, DWORD *size_bytes)
 {
-    static const WCHAR empty;
+    static const WCHAR empty[2];
 
     *size_bytes = 0;
 
-    if (!data) data = &empty;
+    if (!data) data = empty;
 
     switch (reg_type)
     {

@@ -302,6 +302,8 @@ static struct key *find_subkey( const struct key *key, const struct unicode_str 
     while (min <= max)
     {
         i = (min + max) / 2;
+        if (key->subkeys[i]->flags & KEY_DELETED)
+            break;
         len = min( key->subkeys[i]->obj.name->len, name->len );
         res = memicmp_strW( key->subkeys[i]->obj.name->name, name->str, len );
         if (!res) res = key->subkeys[i]->obj.name->len - name->len;

@@ -215,10 +215,15 @@ static TW_UINT16 SANE_ICAPXferMech (pTW_CAPABILITY pCapability, TW_UINT16 action
             twCC = msg_set(pCapability, &val);
             if (twCC == TWCC_SUCCESS)
             {
-               activeDS.capXferMech = (TW_UINT16) val;
-               FIXME("Partial Stub:  XFERMECH set to %ld, but ignored\n", val);
-            }
-            break;
+	        if (val == TWSX_NATIVE || val == TWSX_MEMORY)
+	        {
+		    activeDS.capXferMech = (TW_UINT16) val;
+                    FIXME("Partial Stub:  XFERMECH set to %ld, but ignored\n", val);
+                }
+		else
+		    twCC = TWCC_BADVALUE;
+	    }
+	    break;
 
         case MSG_GETDEFAULT:
             twCC = set_onevalue(pCapability, TWTY_UINT16, TWSX_NATIVE);
@@ -259,8 +264,21 @@ static TW_UINT16 SANE_CAPXferCount (pTW_CAPABILITY pCapability, TW_UINT16 action
 
         case MSG_SET:
             twCC = msg_set(pCapability, &val);
-            if (twCC == TWCC_SUCCESS)
-               FIXME("Partial Stub:  XFERCOUNT set to %ld, but ignored\n", val);
+	    if (val==0)
+	    {
+	        // This case is explicitly mentioned in the TWAIN specification
+		activeDS.capXferCount = -1;
+	        twCC = TWCC_CHECKSTATUS;
+	    }
+	    else if ((val>0 && val < 32768) || val==(TW_INT32) -1)
+	    {
+		activeDS.capXferCount = val;
+	        TRACE("Set XFERCOUNT %d", activeDS.capXferCount);
+	    }
+	    else
+	    {
+	        twCC = TWCC_BADVALUE;
+	    }
             break;
 
         case MSG_GETDEFAULT:
@@ -268,10 +286,11 @@ static TW_UINT16 SANE_CAPXferCount (pTW_CAPABILITY pCapability, TW_UINT16 action
             break;
 
         case MSG_RESET:
+            activeDS.capXferCount = -1;
             /* .. fall through intentional .. */
 
         case MSG_GETCURRENT:
-            twCC = set_onevalue(pCapability, TWTY_INT16, -1);
+            twCC = set_onevalue(pCapability, TWTY_INT16, activeDS.capXferCount);
             break;
     }
     return twCC;

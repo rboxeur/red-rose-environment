@@ -2168,6 +2168,12 @@ static HRESULT PropertyStorage_WritePropertyToStream(PropertyStorage_impl *This,
         hr = IStream_Write(This->stm, &ularge, sizeof(ularge), &bytesWritten);
         break;
     }
+    case VT_R8:
+    {
+        hr = IStream_Write(This->stm, &var->dblVal, sizeof(var->dblVal), &count);
+        bytesWritten = count;
+        break;
+    }
     case VT_LPSTR:
     {
         if (This->codePage == CP_UNICODE)

@@ -13,8 +13,8 @@
 15 stub -noname DumpLoadedThemeToTextFile
 16 stub -noname OpenThemeDataFromFile
 17 stub -noname OpenThemeFileFromData
-18 stub -noname GetThemeSysSize96
-19 stub -noname GetThemeSysFont96
+# 18 stub -noname GetThemeSysSize96
+# 19 stub -noname GetThemeSysFont96
 20 stub -noname SessionAllocate
 21 stub -noname SessionFree
 22 stub -noname ThemeHooksOn
@@ -38,6 +38,7 @@
 46 stub -noname ClassicAdjustWindowRectEx
 47 stdcall DrawThemeBackgroundEx(ptr ptr long long ptr ptr)
 48 stub -noname GetThemeParseErrorInfo
+49 stub -noname @
 60 stub -noname CreateThemeDataFromObjects
 61 stdcall OpenThemeDataEx(ptr wstr long)
 62 stub -noname ServerClearStockObjects

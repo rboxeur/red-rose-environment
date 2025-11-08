@@ -326,6 +326,7 @@ typedef struct
     DWORD bytesToWrite;
     DWORD bytesWritten;
     BOOL clear_auth; /* Flag to clear the password field on the authorization dialog */
+    BOOL invalid_state;
 
     CRITICAL_SECTION headers_section;  /* section to protect the headers array */
     HTTPHEADERW *custHeaders;

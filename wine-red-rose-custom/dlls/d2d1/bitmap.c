@@ -837,6 +837,11 @@ HRESULT d2d_bitmap_create_shared(struct d2d_device_context *context, REFIID iid,
         return S_OK;
     }
 
+    if (IsEqualGUID(iid, &IID_IWICBitmapLock))
+    {
+        return d2d_bitmap_create_from_wic_bitmap(context, data, desc, bitmap);
+    }
+
     WARN("Unhandled interface %s.\n", debugstr_guid(iid));
 
     return E_INVALIDARG;

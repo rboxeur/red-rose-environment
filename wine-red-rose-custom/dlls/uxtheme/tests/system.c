@@ -36,6 +36,10 @@
 
 #include "v6util.h"
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#endif
+
 static HTHEME  (WINAPI * pOpenThemeDataEx)(HWND, LPCWSTR, DWORD);
 static HTHEME (WINAPI *pOpenThemeDataForDpi)(HWND, LPCWSTR, UINT);
 static HRESULT (WINAPI *pOpenThemeFile)(const WCHAR *, const WCHAR *, const WCHAR *, HANDLE, DWORD);
@@ -780,6 +784,55 @@ static void test_OpenThemeDataForDpi(void)
         ok(GetLastError() == E_PROP_ID_UNSUPPORTED, "Expected error %lu, got %lu.\n",
            E_PROP_ID_UNSUPPORTED, GetLastError());
     }
+}
+
+static BOOL ends_with_i(const WCHAR *s, const WCHAR *suffix)
+{
+    size_t ls, lt;
+    size_t i;
+
+    if (!s || !suffix) return FALSE;
+    ls = lstrlenW(s);
+    lt = lstrlenW(suffix);
+    if (lt > ls) return FALSE;
+    for (i = 0; i < lt; ++i)
+    {
+        WCHAR a = s[ls - lt + i], b = suffix[i];
+        if (a >= L'A' && a <= L'Z') a += L'a' - L'A';
+        if (b >= L'A' && b <= L'Z') b += L'a' - L'A';
+        if (a != b) return FALSE;
+    }
+    return TRUE;
+}
+
+static BOOL ends_with_aero_msstyles(const WCHAR *path)
+{
+    static const WCHAR suf1[] = L"\\Aero\\Aero.msstyles";
+    static const WCHAR suf2[] = L"/Aero/Aero.msstyles";
+    return ends_with_i(path, suf1) || ends_with_i(path, suf2);
+}
+
+static void test_GetCurrentThemeName_maps_to_aero(void)
+{
+    HRESULT hr;
+    WCHAR theme[MAX_PATH], color[64], size[64];
+
+    if (!IsThemeActive())
+    {
+        win_skip("Themes are inactive on this system.\n");
+        return;
+    }
+
+    theme[0] = color[0] = size[0] = 0;
+    hr = GetCurrentThemeName(theme, ARRAY_SIZE(theme), color, ARRAY_SIZE(color),
+                             size, ARRAY_SIZE(size));
+    ok(hr == S_OK, "GetCurrentThemeName failed, hr=%#lx\n", hr);
+    trace("theme=%s color=%s size=%s\n",
+          wine_dbgstr_w(theme), wine_dbgstr_w(color), wine_dbgstr_w(size));
+
+    todo_wine ok(ends_with_aero_msstyles(theme),
+                 "Expected '\\\\Aero\\\\Aero.msstyles', got %s\n",
+                 wine_dbgstr_w(theme));
 }
 
 static void test_GetCurrentThemeName(void)
@@ -2798,6 +2851,49 @@ static void test_DrawThemeEdge(void)
     DestroyWindow(hwnd);
 }
 
+static void test_DrawThemeTextEx(void)
+{
+    DTTOPTS options;
+    HTHEME htheme;
+    HRESULT hr;
+    RECT rect;
+    HWND hwnd;
+    HDC hdc;
+
+    hwnd = CreateWindowA(WC_STATICA, "", WS_POPUP, 0, 0, 1, 1, 0, 0, 0, NULL);
+    ok(hwnd != NULL, "CreateWindowA failed, error %#lx.\n", GetLastError());
+    htheme = OpenThemeData(hwnd, L"Button");
+    if (!htheme)
+    {
+        skip("Theming is inactive.\n");
+        DestroyWindow(hwnd);
+        return;
+    }
+
+    hdc = GetDC(hwnd);
+    SetRect(&rect, 0, 0, 1, 1);
+
+    hr = DrawThemeTextEx(NULL, hdc, 0, 0, L"Wine", -1, DT_CENTER, &rect, NULL);
+    ok(hr == E_HANDLE, "Got unexpected hr %#lx.\n", hr);
+
+    hr = DrawThemeTextEx(htheme, hdc, 0, 0, L"Wine", -1, DT_CENTER, &rect, NULL);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    options.dwSize = sizeof(options);
+    options.dwFlags = DTT_VALIDBITS;
+    options.iFontPropId = TMT_BODYFONT;
+    hr = DrawThemeTextEx(htheme, hdc, 0, 0, L"Wine", -1, DT_CENTER, &rect, &options);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    options.crText = CLR_INVALID;
+    hr = DrawThemeTextEx(htheme, hdc, 0, 0, L"Wine", -1, DT_CENTER, &rect, &options);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    ReleaseDC(hwnd, hdc);
+    CloseThemeData(htheme);
+    DestroyWindow(hwnd);
+}
+
 START_TEST(system)
 {
     ULONG_PTR ctx_cookie;
@@ -2827,6 +2923,7 @@ START_TEST(system)
     test_ShouldSystemUseDarkMode();
     test_ShouldAppsUseDarkMode();
     test_DrawThemeEdge();
+    test_DrawThemeTextEx();
 
     if (load_v6_module(&ctx_cookie, &ctx))
     {
@@ -2835,6 +2932,8 @@ START_TEST(system)
 
         unload_v6_module(ctx_cookie, ctx);
     }
+
+    test_GetCurrentThemeName_maps_to_aero();
 
     /* Test EnableTheming() in the end because it may disable theming */
     test_EnableTheming();

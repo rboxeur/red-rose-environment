@@ -337,6 +337,7 @@ static NTSTATUS hidraw_device_get_report_descriptor(struct unix_device *iface, B
 #endif
 }
 
+#ifdef HAVE_LINUX_HIDRAW_H
 static void hidraw_device_read_report(struct unix_device *iface)
 {
     struct hidraw_device *impl = hidraw_impl_from_unix_device(iface);
@@ -399,6 +400,7 @@ static void hidraw_device_read_report(struct unix_device *iface)
         bus_event_queue_input_report(&event_queue, iface, buff, size);
     }
 }
+#endif
 
 static void hidraw_disable_sony_quirks(struct unix_device *iface)
 {

@@ -174,7 +174,7 @@ DWORD WINAPI KERNEL32_GetCurrentProcessId(void)
  * RETURNS
  *  current thread identifier
  */
-DWORD WINAPI KERNEL32_GetCurrentThreadId(void)
+DWORD WINAPI GetCurrentThreadId(void)
 {
     return HandleToULong(NtCurrentTeb()->ClientId.UniqueThread);
 }

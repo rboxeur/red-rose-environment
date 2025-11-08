@@ -80,6 +80,8 @@ static TW_UINT16 SANE_OpenDS( pTW_IDENTITY pOrigin, pTW_IDENTITY self)
         activeDS.currentState = 4;
         activeDS.identity.Id = self->Id;
         activeDS.appIdentity = *pOrigin;
+	activeDS.capXferMech = TWSX_NATIVE;
+	activeDS.capXferCount = -1;
         return TWRC_SUCCESS;
     }
     SANE_CALL( close_ds, NULL );

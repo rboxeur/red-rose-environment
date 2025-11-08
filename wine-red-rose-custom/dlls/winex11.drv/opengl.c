@@ -329,7 +329,7 @@ static void init_pixel_formats( Display *display );
 static BOOL glxRequireVersion(int requiredVersion);
 
 static void dump_PIXELFORMATDESCRIPTOR(const PIXELFORMATDESCRIPTOR *ppfd) {
-  TRACE( "size %u version %u flags %u type %u color %u %u,%u,%u,%u "
+  TRACE( "size %u version %u flags %#x type %u color %u %u,%u,%u,%u "
          "accum %u depth %u stencil %u aux %u ",
          ppfd->nSize, ppfd->nVersion, (int)ppfd->dwFlags, ppfd->iPixelType,
          ppfd->cColorBits, ppfd->cRedBits, ppfd->cGreenBits, ppfd->cBlueBits, ppfd->cAlphaBits,

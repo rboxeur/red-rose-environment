@@ -5172,6 +5172,7 @@ static void test_alpha_mode(BOOL d3d11)
 static void test_shared_bitmap(BOOL d3d11)
 {
     IWICBitmap *wic_bitmap1, *wic_bitmap2;
+    IWICBitmapLock *wic_lock;
     ID2D1GdiInteropRenderTarget *interop;
     D2D1_RENDER_TARGET_PROPERTIES desc;
     D2D1_BITMAP_PROPERTIES bitmap_desc;
@@ -5309,6 +5310,18 @@ static void test_shared_bitmap(BOOL d3d11)
     hr = ID2D1RenderTarget_CreateSharedBitmap(rt2, &IID_ID2D1Bitmap, bitmap1, NULL, &bitmap2);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     check_bitmap_surface(bitmap2, FALSE, 0);
+    ID2D1Bitmap_Release(bitmap2);
+    ID2D1RenderTarget_Release(rt2);
+
+    /* Software rendered render target for IWICBitmapLock */
+    desc.type = D2D1_RENDER_TARGET_TYPE_SOFTWARE;
+    hr = ID2D1Factory_CreateDxgiSurfaceRenderTarget(factory1, surface2, &desc, &rt2);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = IWICBitmap_Lock(wic_bitmap1, NULL, WICBitmapLockRead, &wic_lock);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = ID2D1RenderTarget_CreateSharedBitmap(rt2, &IID_IWICBitmapLock, wic_bitmap1, NULL, &bitmap2);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    IWICBitmapLock_Release(wic_lock);
     ID2D1Bitmap_Release(bitmap2);
     ID2D1RenderTarget_Release(rt2);
 

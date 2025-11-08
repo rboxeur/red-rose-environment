@@ -587,8 +587,7 @@ static HANDLE create_dest_file( const WCHAR *name, BOOL delete )
         SetFilePointer( h, 0, NULL, FILE_BEGIN );
         SetEndOfFile( h );
     }
-    else if (!(GetLastError() == ERROR_SHARING_VIOLATION /* SessionMgr KnownDLLs entry */
-             || delete))
+    else if (!delete)
     {
         if (GetLastError() == ERROR_PATH_NOT_FOUND) create_directories( name );
 

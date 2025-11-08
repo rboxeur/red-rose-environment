@@ -150,6 +150,8 @@
 /* Note: this string is referenced from the registry*/
 #define IDS_RECYCLEBIN_FOLDER_NAME   8964
 
+#define IDD_PICKICONDLG            7
+
 /* Properties dialog */
 #define IDD_FILE_PROPERTIES        8
 #define IDD_FOLDER_PROPERTIES      9
@@ -389,6 +391,12 @@ FIXME: Need to add them, but for now just let them use the same: searching.avi
 #define IDC_ABOUT_STATIC_TEXT1   100
 #define IDC_ABOUT_STATIC_TEXT2   101
 #define IDC_ABOUT_STATIC_TEXT3   102
+
+#define IDC_PICKICONDLG_LABELPATH   1001
+#define IDC_PICKICONDLG_EDIT        1002
+#define IDC_PICKICONDLG_CHANGE      1003
+#define IDC_PICKICONDLG_LABELICONS  1004
+#define IDC_PICKICONDLG_ICONS       1005
 
 /* run dialog */
 #define IDC_RUNDLG_DESCRIPTION  12289

@@ -841,9 +841,6 @@ static struct macdrv_win_data *macdrv_create_win_data(HWND hwnd, const RECT *win
         return NULL;
     }
 
-    /* don't create win data for HWND_MESSAGE windows */
-    if (parent != NtUserGetDesktopWindow() && !NtUserGetAncestor(parent, GA_PARENT)) return NULL;
-
     if (!(data = alloc_win_data(hwnd))) return NULL;
 
     data->whole_rect = data->window_rect = *window_rect;

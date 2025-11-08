@@ -27,6 +27,7 @@ SOURCES = \
 	sync.c \
 	tape.c \
 	thread.c \
+	time.c \
 	toolhelp.c \
 	version.c \
 	version.rc \

@@ -93,6 +93,7 @@ struct DirectSoundDevice
     int                         lfe_channel;
     float *tmp_buffer, *cp_buffer, *dsp_buffer;
     DWORD                       tmp_buffer_len, cp_buffer_len, dsp_buffer_len;
+    CO_MTA_USAGE_COOKIE         mta_cookie;
 
     DSVOLUMEPAN                 volpan;
 
@@ -144,7 +145,7 @@ struct IDirectSoundBufferImpl
     SRWLOCK                     lock;
     PWAVEFORMATEX               pwfx;
     BufferMemory*               buffer;
-    DWORD                       playflags,state;
+    DWORD                       playflags,state,leadin;
     DWORD                       writelead,maxwritelead,buflen;
     DWORD                       freq;
     DSVOLUMEPAN                 volpan;
@@ -260,7 +261,7 @@ DWORD CALLBACK DSOUND_mixthread(void *ptr);
 void DSOUND_Calc3DBuffer(IDirectSoundBufferImpl *dsb);
 
 /* capture.c */
-
+ 
 HRESULT DSOUND_CaptureCreate(REFIID riid, void **ppv);
 HRESULT DSOUND_CaptureCreate8(REFIID riid, void **ppv);
 HRESULT IDirectSoundCaptureImpl_Create(IUnknown *outer_unk, REFIID riid, void **ppv, BOOL has_dsc8);

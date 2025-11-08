@@ -1779,10 +1779,10 @@ HRESULT WINAPI DrawThemeTextEx(HTHEME hTheme, HDC hdc, int iPartId, int iStateId
     HFONT hFont = NULL;
     HGDIOBJ oldFont = NULL;
     LOGFONTW logfont;
-    COLORREF textColor;
+    COLORREF textColor = CLR_INVALID;
     COLORREF oldTextColor;
     int oldBkMode;
-    int fontProp;
+    int fontProp = TMT_FONT;
 
     TRACE("%p %p %d %d %s:%d 0x%08lx %p %p\n", hTheme, hdc, iPartId, iStateId,
         debugstr_wn(pszText, iCharCount), iCharCount, flags, rect, options);
@@ -1790,13 +1790,21 @@ HRESULT WINAPI DrawThemeTextEx(HTHEME hTheme, HDC hdc, int iPartId, int iStateId
     if(!hTheme)
         return E_HANDLE;
 
-    if (options->dwFlags & ~(DTT_TEXTCOLOR | DTT_FONTPROP))
-        FIXME("unsupported flags 0x%08lx\n", options->dwFlags);
+    if (options)
+    {
+        if (options->dwFlags & ~(DTT_TEXTCOLOR | DTT_FONTPROP))
+            FIXME("unsupported flags 0x%08lx\n", options->dwFlags);
+        if (options->dwFlags & DTT_FONTPROP)
+            fontProp = options->iFontPropId;
+        if (options->dwFlags & DTT_TEXTCOLOR)
+            textColor = options->crText;
+    }
 
-    if (options->dwFlags & DTT_FONTPROP)
-        fontProp = options->iFontPropId;
-    else
-        fontProp = TMT_FONT;
+    if (textColor == CLR_INVALID)
+    {
+        if(FAILED(GetThemeColor(hTheme, iPartId, iStateId, TMT_TEXTCOLOR, &textColor)))
+            textColor = GetTextColor(hdc);
+    }
 
     hr = GetThemeFont(hTheme, hdc, iPartId, iStateId, fontProp, &logfont);
     if(SUCCEEDED(hr)) {
@@ -1808,12 +1816,6 @@ HRESULT WINAPI DrawThemeTextEx(HTHEME hTheme, HDC hdc, int iPartId, int iStateId
     if(hFont)
         oldFont = SelectObject(hdc, hFont);
 
-    if (options->dwFlags & DTT_TEXTCOLOR)
-        textColor = options->crText;
-    else {
-        if(FAILED(GetThemeColor(hTheme, iPartId, iStateId, TMT_TEXTCOLOR, &textColor)))
-            textColor = GetTextColor(hdc);
-    }
     oldTextColor = SetTextColor(hdc, textColor);
     oldBkMode = SetBkMode(hdc, TRANSPARENT);
     DrawTextW(hdc, pszText, iCharCount, rect, flags);

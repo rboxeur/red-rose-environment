@@ -20,6 +20,7 @@
 
 #include "dmime_private.h"
 #include "dmusic_midi.h"
+#include "dmksctrl.h"
 #include "wine/rbtree.h"
 #include <math.h>
 
@@ -37,6 +38,7 @@ struct channel
     DWORD midi_group;
     DWORD midi_channel;
     IDirectMusicPort *port;
+    IKsControl *control;
 };
 
 struct channel_block
@@ -268,6 +270,7 @@ static void channel_block_free(struct wine_rb_entry *entry, void *context)
     for (i = 0; i < ARRAY_SIZE(block->channels); i++)
     {
         struct channel *channel = block->channels + i;
+        if (channel->control) IKsControl_Release(channel->control);
         if (channel->port) IDirectMusicPort_Release(channel->port);
     }
 
@@ -283,7 +286,7 @@ static struct channel *performance_get_channel(struct performance *This, DWORD c
 }
 
 static HRESULT channel_block_init(struct performance *This, DWORD block_num,
-        IDirectMusicPort *port, DWORD midi_group)
+        IDirectMusicPort *port, IKsControl *control, DWORD midi_group)
 {
     struct channel_block *block;
     struct wine_rb_entry *entry;
@@ -303,8 +306,10 @@ static HRESULT channel_block_init(struct performance *This, DWORD block_num,
         struct channel *channel = block->channels + i;
         channel->midi_group = midi_group;
         channel->midi_channel = i;
+        if (channel->control) IKsControl_Release(channel->control);
         if (channel->port) IDirectMusicPort_Release(channel->port);
         if ((channel->port = port)) IDirectMusicPort_AddRef(channel->port);
+        if ((channel->control = control)) IKsControl_AddRef(channel->control);
     }
 
     return S_OK;
@@ -1139,6 +1144,9 @@ static void performance_update_latency_time(struct performance *This, IDirectMus
 static HRESULT perf_dmport_create(struct performance *perf, DMUS_PORTPARAMS *params)
 {
     IDirectMusicPort *port;
+    KSPROPERTY volume_prop;
+    IKsControl *control;
+    DWORD volume_size;
     GUID guid;
     unsigned int i;
     HRESULT hr;
@@ -1148,6 +1156,19 @@ static HRESULT perf_dmport_create(struct performance *perf, DMUS_PORTPARAMS *par
 
     if (FAILED(hr = IDirectMusic8_CreatePort(perf->dmusic, &guid, params, &port, NULL)))
         return hr;
+
+    if (FAILED(hr = IDirectMusicPort_QueryInterface(port, &IID_IKsControl, (void **)&control)))
+    {
+        IDirectMusicPort_Release(port);
+        return hr;
+    }
+
+    volume_prop.Set = GUID_DMUS_PROP_Volume;
+    volume_prop.Id = 0;
+    volume_prop.Flags = KSPROPERTY_TYPE_SET;
+
+    IKsControl_KsProperty(control, &volume_prop, sizeof(volume_prop),
+            &perf->lMasterVolume, sizeof(perf->lMasterVolume), &volume_size);
 
     if (FAILED(hr = IDirectMusicPort_SetDirectSound(port, perf->dsound, NULL))
             || FAILED(hr = IDirectMusicPort_Activate(port, TRUE)))
@@ -1160,11 +1181,12 @@ static HRESULT perf_dmport_create(struct performance *perf, DMUS_PORTPARAMS *par
 
     for (i = 0; i < params->dwChannelGroups; i++)
     {
-        if (FAILED(hr = channel_block_init(perf, i, port, i + 1)))
+        if (FAILED(hr = channel_block_init(perf, i, port, control, i + 1)))
             ERR("Failed to init channel block, hr %#lx\n", hr);
     }
 
     performance_update_latency_time(perf, port, NULL);
+    IKsControl_Release(control);
     IDirectMusicPort_Release(port);
     return S_OK;
 }
@@ -1213,6 +1235,8 @@ static HRESULT WINAPI performance_AssignPChannelBlock(IDirectMusicPerformance8 *
         DWORD block_num, IDirectMusicPort *port, DWORD midi_group)
 {
     struct performance *This = impl_from_IDirectMusicPerformance8(iface);
+    IKsControl *control;
+    HRESULT hr;
 
     FIXME("(%p, %ld, %p, %ld): semi-stub\n", This, block_num, port, midi_group);
 
@@ -1220,7 +1244,10 @@ static HRESULT WINAPI performance_AssignPChannelBlock(IDirectMusicPerformance8 *
     if (block_num > MAXDWORD / 16) return E_INVALIDARG;
     if (This->audio_paths_enabled) return DMUS_E_AUDIOPATHS_IN_USE;
 
-    return channel_block_init(This, block_num, port, midi_group);
+    if (FAILED(hr = IDirectMusicPort_QueryInterface(port, &IID_IKsControl, (void **)&control)))
+        return hr;
+
+    return channel_block_init(This, block_num, port, control, midi_group);
 }
 
 static HRESULT WINAPI performance_AssignPChannel(IDirectMusicPerformance8 *iface, DWORD channel_num,
@@ -1228,12 +1255,16 @@ static HRESULT WINAPI performance_AssignPChannel(IDirectMusicPerformance8 *iface
 {
     struct performance *This = impl_from_IDirectMusicPerformance8(iface);
     struct channel *channel;
+    IKsControl *control;
     HRESULT hr;
 
     FIXME("(%p)->(%ld, %p, %ld, %ld) semi-stub\n", This, channel_num, port, midi_group, midi_channel);
 
     if (!port) return E_POINTER;
     if (This->audio_paths_enabled) return DMUS_E_AUDIOPATHS_IN_USE;
+
+    if (FAILED(hr = IDirectMusicPort_QueryInterface(port, &IID_IKsControl, (void **)&control)))
+        return hr;
 
     if (!(channel = performance_get_channel(This, channel_num)))
     {
@@ -1246,8 +1277,12 @@ static HRESULT WINAPI performance_AssignPChannel(IDirectMusicPerformance8 *iface
 
     channel->midi_group = midi_group;
     channel->midi_channel = midi_channel;
+    if (channel->control) IDirectMusicPort_Release(channel->control);
     if (channel->port) IDirectMusicPort_Release(channel->port);
     if ((channel->port = port)) IDirectMusicPort_AddRef(channel->port);
+    if ((channel->control = control)) IKsControl_AddRef(channel->control);
+
+    IKsControl_Release(control);
 
     return S_OK;
 }
@@ -1351,6 +1386,28 @@ static HRESULT WINAPI performance_GetGlobalParam(IDirectMusicPerformance8 *iface
 	return S_OK;
 }
 
+static void update_master_volume(struct performance *This)
+{
+    struct channel_block *block;
+    KSPROPERTY volume_prop;
+    DWORD volume_size;
+    int i;
+
+    volume_prop.Set = GUID_DMUS_PROP_Volume;
+    volume_prop.Id = 0;
+    volume_prop.Flags = KSPROPERTY_TYPE_SET;
+
+    RB_FOR_EACH_ENTRY(block, &This->channel_blocks, struct channel_block, entry)
+    {
+        for (i = 0; i < ARRAYSIZE(block->channels); ++i)
+        {
+            IKsControl_KsProperty(block->channels[i].control, &volume_prop,
+                    sizeof(volume_prop), &This->lMasterVolume, sizeof(This->lMasterVolume),
+                    &volume_size);
+        }
+    }
+}
+
 static HRESULT WINAPI performance_SetGlobalParam(IDirectMusicPerformance8 *iface, REFGUID rguidType,
         void *pParam, DWORD dwSize)
 {
@@ -1372,6 +1429,7 @@ static HRESULT WINAPI performance_SetGlobalParam(IDirectMusicPerformance8 *iface
 	}
 	if (IsEqualGUID (rguidType, &GUID_PerfMasterVolume)) {
 		memcpy(&This->lMasterVolume, pParam, dwSize);
+		update_master_volume(This);
 		TRACE("=> MasterVolume set to %li\n", This->lMasterVolume);
 	}
 

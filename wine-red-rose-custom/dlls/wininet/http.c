@@ -3075,11 +3075,21 @@ static DWORD read_req_file(http_request_t *req, BYTE *buffer, DWORD size, DWORD 
     LARGE_INTEGER off;
     BYTE buf[1024];
 
+    if (req->invalid_state) {
+        *read = 0;
+        return ERROR_INTERNET_INCORRECT_HANDLE_STATE;
+    }
+
     while (req->content_pos > req->cache_size) {
         res = read_http_stream(req, (BYTE*)buf, min(sizeof(buf), req->content_pos - req->cache_size),
                                &ret_read, allow_blocking);
         if (res != ERROR_SUCCESS)
             return res;
+        if (!ret_read && req->content_pos > req->cache_size) {
+            req->invalid_state = TRUE;
+            *read = 0;
+            return ERROR_NOACCESS;
+        }
         if (!ret_read) {
             *read = 0;
             return ERROR_SUCCESS;
@@ -3092,6 +3102,10 @@ static DWORD read_req_file(http_request_t *req, BYTE *buffer, DWORD size, DWORD 
             return GetLastError();
         if (!ReadFile(req->req_file->file_handle, buffer, size, &ret_read, NULL))
             return GetLastError();
+    } else if (req->content_pos > req->cache_size) {
+        req->invalid_state = TRUE;
+        *read = 0;
+        return ERROR_NOACCESS;
     }
 
     *read = ret_read;
@@ -3174,12 +3188,26 @@ static void async_read_file_proc(task_header_t *hdr)
 
     TRACE("req %p buf %p size %lu read_pos %lu ret_read %p\n", req, task->buf, task->size, task->read_pos, task->ret_read);
 
+    if (req->invalid_state) {
+        if(task->ret_read)
+            *task->ret_read = 0;
+        send_request_complete(req, FALSE, ERROR_INTERNET_INCORRECT_HANDLE_STATE);
+        return;
+    }
+
     if(req->req_file && req->req_file->file_handle) {
         DWORD ret, ret_read;
         BYTE buf[1024];
         while (req->content_pos > req->cache_size) {
             ret = read_http_stream(req, (BYTE*)buf, min(sizeof(buf), req->content_pos - req->cache_size),
                                    &ret_read, TRUE);
+            if (!ret_read && req->content_pos > req->cache_size) {
+                req->invalid_state = TRUE;
+                if(task->ret_read)
+                    *task->ret_read = 0;
+                send_request_complete(req, FALSE, ERROR_NOACCESS);
+                return;
+            }
             if(ret != ERROR_SUCCESS || !ret_read)
                 break;
         }
@@ -3245,6 +3273,12 @@ static DWORD HTTPREQ_SetFilePointer(object_header_t *hdr, LONG lDistanceToMove, 
     }
 
     EnterCriticalSection(&req->read_section);
+
+    if (req->invalid_state) {
+        LeaveCriticalSection(&req->read_section);
+        SetLastError(ERROR_INTERNET_INVALID_OPERATION);
+        return INVALID_SET_FILE_POINTER;
+    }
 
     switch (dwMoveContext) {
         case FILE_BEGIN:
@@ -3392,6 +3426,11 @@ static DWORD HTTPREQ_QueryDataAvailable(object_header_t *hdr, DWORD *available, 
             hdr->dwError = INTERNET_HANDLE_IN_USE;
         else if(hdr->dwError == INTERNET_HANDLE_IN_USE)
             hdr->dwError = ERROR_INTERNET_INTERNAL_ERROR;
+
+        if (req->invalid_state) {
+            LeaveCriticalSection( &req->read_section );
+            return ERROR_INTERNET_INCORRECT_HANDLE_STATE;
+        }
 
         avail = req->read_size;
         if(req->cache_size > req->content_pos)
