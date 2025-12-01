@@ -785,6 +785,34 @@ static HRESULT WINAPI ImagingFactory_CreateBitmapFromHBITMAP(IWICImagingFactory2
         return E_INVALIDARG;
     }
 
+    if (!hpal &&
+        (IsEqualGUID(&format, &GUID_WICPixelFormat1bppIndexed) ||
+        IsEqualGUID(&format, &GUID_WICPixelFormat4bppIndexed) ||
+        IsEqualGUID(&format, &GUID_WICPixelFormat8bppIndexed)))
+    {
+        HDC hdc_palette = CreateCompatibleDC(0);
+        char bmibuf_palette[FIELD_OFFSET(BITMAPINFO, bmiColors[256])];
+        BITMAPINFO *bmi_palette = (BITMAPINFO *)bmibuf_palette;
+        bmi_palette->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi_palette->bmiHeader.biBitCount = 0;
+
+        if(GetDIBits(hdc_palette, hbm, 0, 0, NULL, bmi_palette, DIB_RGB_COLORS))
+        {
+            num_palette_entries = bmi_palette->bmiHeader.biClrUsed ? bmi_palette->bmiHeader.biClrUsed : (UINT)(1 << bmi_palette->bmiHeader.biBitCount);
+            if (GetDIBits(hdc_palette, hbm, 0, 0, (LPVOID)entry, bmi_palette, DIB_RGB_COLORS))
+            {
+                for (UINT i = 0; i < num_palette_entries; i++)
+                {
+                    entry[i].peRed = bmi_palette->bmiColors[i].rgbRed;
+                    entry[i].peGreen = bmi_palette->bmiColors[i].rgbGreen;
+                    entry[i].peBlue = bmi_palette->bmiColors[i].rgbBlue;
+                    entry[i].peFlags = 0;
+                }
+            }
+        }
+        DeleteDC(hdc_palette);
+    }
+
     hr = BitmapImpl_Create(bm.bmWidth, bm.bmHeight, bm.bmWidthBytes, 0, NULL, 0, &format,
                            WICBitmapCacheOnLoad, bitmap);
     if (hr != S_OK) return hr;

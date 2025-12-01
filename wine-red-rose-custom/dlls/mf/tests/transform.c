@@ -3708,6 +3708,10 @@ static void test_wma_decoder_dmo_output_type(void)
     ok(hr == S_OK, "SetOutputType returned %#lx.\n", hr);
     hr = IMediaObject_SetOutputType(dmo, 0, good_output_type, 0x4);
     ok(hr == E_INVALIDARG, "SetOutputType returned %#lx.\n", hr);
+    ((WAVEFORMATEX *)good_output_type->pbFormat)->nChannels += 1;
+    hr = IMediaObject_SetOutputType(dmo, 0, good_output_type, 0);
+    ok(hr == DMO_E_TYPE_NOT_ACCEPTED, "SetOutputType returned %#lx.\n", hr);
+    ((WAVEFORMATEX *)good_output_type->pbFormat)->nChannels -= 1;
 
     /* Test GetOutputCurrentType. */
     hr = IMediaObject_SetOutputType(dmo, 0, NULL, DMO_SET_TYPEF_CLEAR);
@@ -7077,6 +7081,7 @@ static void test_wmv_decoder_dmo_output_type(void)
     const GUID* input_subtype = &MEDIASUBTYPE_WMV1;
     REFERENCE_TIME time_per_frame = 10000000;
     LONG width = 16, height = 16;
+    VIDEOINFOHEADER *vih;
     DWORD count, i, ret;
     IMediaObject *dmo;
     HRESULT hr;
@@ -7234,6 +7239,17 @@ static void test_wmv_decoder_dmo_output_type(void)
     hr = IMediaObject_SetOutputType(dmo, 0, good_output_type, DMO_SET_TYPEF_TEST_ONLY);
     ok(hr == S_OK, "SetOutputType returned %#lx.\n", hr);
     hr = IMediaObject_SetOutputType(dmo, 0, good_output_type, 0x4);
+    ok(hr == S_OK, "SetOutputType returned %#lx.\n", hr);
+
+    /* Does DMO accept a format with a different size? */
+    vih = (VIDEOINFOHEADER *)good_output_type->pbFormat;
+    vih->bmiHeader.biHeight += 10;
+    vih->bmiHeader.biWidth += 10;
+    vih->rcSource.bottom += 10;
+    vih->rcSource.right += 10;
+    vih->rcTarget.bottom += 10;
+    vih->rcTarget.right += 10;
+    hr = IMediaObject_SetOutputType(dmo, 0, good_output_type, 0);
     ok(hr == S_OK, "SetOutputType returned %#lx.\n", hr);
 
     /* Release. */
@@ -7436,7 +7452,6 @@ static void test_wmv_decoder_media_object(void)
     output_data_buffer.rtTimestamp = 0xdeadbeef;
     output_data_buffer.rtTimelength = 0xdeadbeef;
     hr = IMediaObject_ProcessOutput(media_object, 0, 1, &output_data_buffer, &status);
-    todo_wine
     ok(hr == S_FALSE, "ProcessOutput returned %#lx.\n", hr);
     ok(output_media_buffer->length == 0, "Unexpected length %#lx.\n", output_media_buffer->length);
 
@@ -7462,6 +7477,14 @@ static void test_wmv_decoder_media_object(void)
     ok(output_data_buffer.dwStatus == expected_status, "Got unexpected dwStatus %#lx.\n", output_data_buffer.dwStatus);
     diff = check_dmo_output_data_buffer(&output_data_buffer, &output_buffer_desc_nv12, L"nv12frame.bmp", 0, 300000);
     ok(diff == 0, "Got %lu%% diff.\n", diff);
+
+    output_media_buffer->length = 0;
+    output_data_buffer.pBuffer = &output_media_buffer->IMediaBuffer_iface;
+    output_data_buffer.dwStatus = 0xdeadbeef;
+    output_data_buffer.rtTimestamp = 0xdeadbeef;
+    output_data_buffer.rtTimelength = 0xdeadbeef;
+    hr = IMediaObject_ProcessOutput(media_object, 0, 1, &output_data_buffer, &status);
+    ok(hr == S_FALSE, "ProcessOutput returned %#lx.\n", hr);
 
     hr = IMediaObject_AllocateStreamingResources(media_object);
     ok(hr == S_OK, "Got hr %#lx.\n", hr);

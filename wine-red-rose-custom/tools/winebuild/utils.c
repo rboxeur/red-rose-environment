@@ -227,7 +227,7 @@ static const char *find_clang_tool( struct strarray clang, const char *tool )
 struct strarray find_tool( const char *name, const char * const *names )
 {
     struct strarray ret = empty_strarray;
-    const char *file;
+    const char *file = NULL;
     const char *alt_names[2];
 
     if (!names)

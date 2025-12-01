@@ -279,6 +279,19 @@ static HRESULT WINAPI FileLockBytesImpl_WriteAt(
 
 static HRESULT WINAPI FileLockBytesImpl_Flush(ILockBytes* iface)
 {
+    FileLockBytesImpl *This = impl_from_ILockBytes(iface);
+
+    TRACE("(%p)\n", iface);
+
+    /* verify a sane environment */
+    if (!This) return E_FAIL;
+
+    if (This->flProtect != PAGE_READWRITE)
+        return STG_E_ACCESSDENIED;
+
+    if (!FlushFileBuffers(This->hfile))
+        return STG_E_WRITEFAULT;
+
     return S_OK;
 }
 

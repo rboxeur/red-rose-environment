@@ -1189,6 +1189,30 @@ int set_process_debug_flag( struct process *process, int flag )
     return write_process_memory( process, process->peb + 2, 1, &data );
 }
 
+#ifdef __linux__
+int socket_peer_has_pid(int socket_fd)
+{
+    /* ensure the caller exists in our pid namespace */
+    struct ucred ucred;
+    socklen_t len = sizeof(struct ucred);
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_PEERCRED, &ucred, &len) < 0)
+        return 0;
+    if (ucred.uid != getuid())
+        return 0;
+    /* this is the pid of whoever created the socket, i.e. the parent of the newly created process */
+    /* we still trust the unix_pid in init_first_thread */
+    if (ucred.pid == 0)
+        return 0;
+    return 1;
+}
+#else
+int socket_peer_has_pid(int socket_fd)
+{
+    /* pid namespaces aren't a thing outside Linux */
+    return 1;
+}
+#endif
+
 /* create a new process */
 DECL_HANDLER(new_process)
 {
@@ -1228,6 +1252,14 @@ DECL_HANDLER(new_process)
     if (shutdown_stage)
     {
         set_error( STATUS_SHUTDOWN_IN_PROGRESS );
+        close( socket_fd );
+        return;
+    }
+    if (!socket_peer_has_pid( socket_fd ))
+    {
+        set_error( SCHED_E_NAMESPACE );
+        /* caller gave us a bad pid, discard it, don't kill the named pid */
+        current->process->unix_pid = -1;
         close( socket_fd );
         return;
     }

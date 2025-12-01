@@ -174,8 +174,10 @@ static DWORD WINAPI stream_thread(void *arg)
 
         params.device = filter->device;
         params.data = data;
-        if (!V4L_CALL( read_frame, &params ))
-        {
+        
+        NTSTATUS status = V4L_CALL(read_frame, &params);
+         if (!NT_SUCCESS(status)) {
+            ERR("read_frame failed: 0x%lx\n", status);
             IMediaSample_Release(sample);
             break;
         }

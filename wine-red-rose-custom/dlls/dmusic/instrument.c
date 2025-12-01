@@ -18,6 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include <math.h>
+
 #include "dmusic_private.h"
 #include "soundfont.h"
 #include "dls2.h"
@@ -51,7 +53,6 @@ struct region
     WAVELINK wave_link;
     WSMPL wave_sample;
     WLOOP wave_loop;
-    BOOL loop_present;
 };
 
 static void region_destroy(struct region *region)
@@ -554,6 +555,7 @@ static HRESULT instrument_add_soundfont_region(struct instrument *This, struct s
     UINT start_loop, end_loop, unity_note, sample_index = generators->amount[SF_GEN_SAMPLE_ID].value;
     struct sf_sample *sample = soundfont->shdr + sample_index;
     struct region *region;
+    double attenuation;
 
     if (!(region = calloc(1, sizeof(*region)))) return E_OUTOFMEMORY;
     list_init(&region->articulations);
@@ -565,20 +567,45 @@ static HRESULT instrument_add_soundfont_region(struct instrument *This, struct s
 
     region->wave_link.ulTableIndex = sample_index;
 
+    /* SF2 implementation for the original hardware applies a factor of 0.4 to
+     * the attenuation value. Although this does not comply with the SF2 spec,
+     * most soundfonts expect this behavior. */
+    attenuation = (SHORT)generators->amount[SF_GEN_INITIAL_ATTENUATION].value * 0.4;
+    /* Normally, FluidSynth adds a resonance hump compensation in
+     * fluid_iir_filter_q_from_dB, but as DLS has no such compensation, it's
+     * disabled in the budled version of FluidSynth. Add it back here. */
+    attenuation += -15.05;
+    /* Add some attenuation to normalize the volume. The value was determined
+     * experimentally by comparing instruments from SF2 soundfonts to the
+     * gm.dls equivalents. The value is approximate, as there is some volume
+     * variation from instrument to instrument. */
+    attenuation += 80.;
     unity_note = generators->amount[SF_GEN_OVERRIDING_ROOT_KEY].value;
-    if (unity_note == -1) unity_note = sample->original_key;
-    region->wave_sample.usUnityNote = unity_note;
-    region->wave_sample.sFineTune = generators->amount[SF_GEN_FINE_TUNE].value;
-    region->wave_sample.lAttenuation = sample->correction;
+    if (unity_note == (WORD)-1) unity_note = sample->original_key;
+    region->wave_sample.usUnityNote = unity_note - (SHORT)generators->amount[SF_GEN_COARSE_TUNE].value;
+    region->wave_sample.sFineTune = sample->correction + generators->amount[SF_GEN_FINE_TUNE].value;
+    region->wave_sample.lAttenuation = (LONG)round(attenuation * -65536.);
 
     start_loop = generators->amount[SF_GEN_STARTLOOP_ADDRS_OFFSET].value;
+    start_loop += generators->amount[SF_GEN_STARTLOOP_ADDRS_COARSE_OFFSET].value * 32768;
     end_loop = generators->amount[SF_GEN_ENDLOOP_ADDRS_OFFSET].value;
-    if (start_loop || end_loop)
+    end_loop += generators->amount[SF_GEN_ENDLOOP_ADDRS_COARSE_OFFSET].value * 32768;
+    region->wave_loop.ulStart = sample->start_loop + start_loop - sample->start;
+    region->wave_loop.ulLength = sample->end_loop + end_loop - sample->start_loop;
+
+    switch (generators->amount[SF_GEN_SAMPLE_MODES].value & 0x3)
     {
-        region->loop_present = TRUE;
+    case SF_UNLOOPED:
+    case SF_NOTUSED:
+        break;
+    case SF_LOOP_DURING_RELEASE:
         region->wave_sample.cSampleLoops = 1;
-        region->wave_loop.ulStart = start_loop;
-        region->wave_loop.ulLength = end_loop - start_loop;
+        region->wave_loop.ulType = WLOOP_TYPE_FORWARD;
+        break;
+    case SF_LOOP_UNTIL_RELEASE:
+        region->wave_sample.cSampleLoops = 1;
+        region->wave_loop.ulType = WLOOP_TYPE_RELEASE;
+        break;
     }
 
     list_add_tail(&This->regions, &region->entry);

@@ -809,6 +809,16 @@ static HRESULT WINAPI media_object_SetOutputType(IMediaObject *iface, DWORD inde
 
     if (IsEqualGUID(&decoder->input_type.majortype, &GUID_NULL))
         return DMO_E_TYPE_NOT_SET;
+
+    if (IsEqualGUID(&decoder->input_type.formattype, &FORMAT_WaveFormatEx) &&
+            IsEqualGUID(&type->formattype, &FORMAT_WaveFormatEx))
+    {
+        WORD current_nchannels = ((WAVEFORMATEX *)decoder->input_type.pbFormat)->nChannels;
+        WORD incomming_nchannels = ((WAVEFORMATEX *)type->pbFormat)->nChannels;
+        if (current_nchannels != incomming_nchannels)
+            return DMO_E_TYPE_NOT_ACCEPTED;
+    }
+
     if (flags & DMO_SET_TYPEF_TEST_ONLY)
         return S_OK;
 
@@ -1022,6 +1032,9 @@ static HRESULT WINAPI media_object_ProcessOutput(IMediaObject *iface, DWORD flag
         buffers[0].dwStatus |= DMO_OUTPUT_DATA_BUFFERF_INCOMPLETE;
         wg_sample_queue_flush(decoder->wg_sample_queue, false);
     }
+    else if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT)
+        hr = S_FALSE;
+
 
     return hr;
 }

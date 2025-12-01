@@ -6155,7 +6155,7 @@ NTSTATUS WINAPI NtReadFile( HANDLE handle, HANDLE event, PIO_APC_ROUTINE apc, vo
 
         if (async_read)
         {
-            BOOL avail_mode;
+            BOOL avail_mode = FALSE;
 
             if ((status = get_io_avail_mode( handle, type, &avail_mode ))) goto err;
             if (total && avail_mode)

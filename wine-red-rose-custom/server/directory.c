@@ -343,7 +343,7 @@ static void create_session( unsigned int id )
     struct directory *dir_id, *dir_bno, *dir_dosdevices, *dir_windows, *dir_winstation;
     struct object *link_global, *link_local, *link_session, *link_bno, *link_windows;
     struct unicode_str id_str;
-    char id_strA[10];
+    char id_strA[11];
     WCHAR *id_strW;
 
     if (!id)

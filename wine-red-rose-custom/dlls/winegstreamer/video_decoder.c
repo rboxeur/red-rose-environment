@@ -1369,14 +1369,16 @@ static HRESULT WINAPI media_object_SetOutputType(IMediaObject *iface, DWORD inde
 
 static HRESULT WINAPI media_object_GetInputCurrentType(IMediaObject *iface, DWORD index, DMO_MEDIA_TYPE *type)
 {
-    FIXME("iface %p, index %lu, type %p stub!\n", iface, index, type);
-    return E_NOTIMPL;
+    struct video_decoder *decoder = impl_from_IMediaObject(iface);
+    TRACE("iface %p, index %lu, type %p stub!\n", iface, index, type);
+    return CopyMediaType(type, &decoder->dmo_input_type);
 }
 
 static HRESULT WINAPI media_object_GetOutputCurrentType(IMediaObject *iface, DWORD index, DMO_MEDIA_TYPE *type)
 {
-    FIXME("iface %p, index %lu, type %p stub!\n", iface, index, type);
-    return E_NOTIMPL;
+    struct video_decoder *decoder = impl_from_IMediaObject(iface);
+    TRACE("iface %p, index %lu, type %p stub!\n", iface, index, type);
+    return CopyMediaType(type, &decoder->dmo_output_type);
 }
 
 static HRESULT WINAPI media_object_GetInputSizeInfo(IMediaObject *iface, DWORD index, DWORD *size,
@@ -1506,6 +1508,8 @@ static HRESULT WINAPI media_object_ProcessOutput(IMediaObject *iface, DWORD flag
 
     if (SUCCEEDED(hr))
         wg_sample_queue_flush(decoder->wg_sample_queue, false);
+    else if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT)
+        hr = S_FALSE;
 
     return hr;
 }

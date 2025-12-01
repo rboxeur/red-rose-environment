@@ -313,7 +313,7 @@ static NTSTATUS read_data( void *args )
     const struct read_data_params *params = args;
     unsigned char *buffer = params->buffer;
     int read_len, remaining = params->len;
-    SANE_Status status;
+    SANE_Status status = SANE_STATUS_GOOD;
 
     *params->retlen = 0;
     while (remaining)

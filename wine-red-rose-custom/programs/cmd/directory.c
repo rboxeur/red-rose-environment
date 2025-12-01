@@ -270,6 +270,14 @@ static DIRECTORY_STACK *WCMD_list_directory (DIRECTORY_STACK *inputparms, int le
   parms = inputparms;
   fd = xalloc(sizeof(WIN32_FIND_DATAW));
   while (parms && lstrcmpW(inputparms->dirName, parms->dirName) == 0) {
+
+    if ((lstrlenW(parms->dirName) + lstrlenW(parms->fileName) + 1) > ARRAY_SIZE(real_path)) {
+      WINE_TRACE("Path gets too long: %s %s\n", wine_dbgstr_w(parms->dirName), wine_dbgstr_w(parms->fileName));
+      /* Move to next parm */
+      parms = parms->next;
+      continue;
+    }
+
     concurrentDirs++;
 
     /* Work out the full path + filename */

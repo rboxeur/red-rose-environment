@@ -1679,6 +1679,10 @@ size_t server_init_process(void)
         setsockopt( fd_socket, SOL_SOCKET, SO_PASSCRED, &enable, sizeof(enable) );
     }
 #endif
+    /* ensure wineserver exists in our pid namespace */
+    if (server_pid == 0)
+        fatal_error( "cannot determine wineserver's process ID.\n"
+                     "Is it running in wrong pid namespace?\n" );
 
     if (version != SERVER_PROTOCOL_VERSION)
         server_protocol_error( "version mismatch %d/%d.\n"
