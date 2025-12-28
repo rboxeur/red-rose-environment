@@ -1,0 +1,9 @@
+PROGRAMS = \
+	make_xftmpl
+
+C_SRCS = \
+	make_xftmpl.c
+
+IN_SRCS = \
+	gdbinit.py.in \
+	wineapploader.in

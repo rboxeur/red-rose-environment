@@ -1,0 +1,15 @@
+MODULE = windows.media.speech.dll
+UNIXLIB = windows.media.speech.so
+IMPORTS = combase uuid user32
+
+C_SRCS = \
+	async.c \
+	event_handlers.c \
+	listconstraint.c \
+	main.c \
+	recognizer.c \
+	synthesizer.c \
+	unixlib.c \
+	vector.c
+
+IDL_SRCS = classes.idl
