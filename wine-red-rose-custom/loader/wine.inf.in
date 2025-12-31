@@ -3169,6 +3169,15 @@ HKCU,Software\Wine\DllOverrides,"vcruntime140",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"vcruntime140_1",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"atiadlxx",,"disabled"
 HKCU,Software\Wine\DllOverrides,"nvcuda",0x2,"disabled"
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\.NET\4.8,"4.8",0x10001,1
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\.NET\4.7.2,"4.7.2",0x10001,1
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\.NET\4.6.2,"4.6.2",0x10001,1
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\.NET\4.5.2,"4.5.2",0x10001,1
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\.NET\4.0,"4.0",0x10001,1
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\.NET\4.0 Client Profile,"4.0 Client Profile",0x10001,1
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\.NET\3.5,"3.5",0x10001,1
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\.NET\3.5 Client Profile,"3.5 Client Profile",0x10001,1
+HKLM,Software\Wow6432Node\Valve\Steam\Apps\CommonRedist\XNA\4.0,"4.0",0x10001,1
 ;;Other app-specific overrides
 HKCU,Software\Wine\AppDefaults\Pentiment.exe\DllOverrides,"SpeechSynthesisWrapper",,"disabled"
 HKCU,Software\Wine\AppDefaults\Maine-Win64-Shipping.exe\DllOverrides,"SpeechSynthWrapper",0x2,"disabled"
@@ -3203,6 +3212,8 @@ HKLM,Software\Wow6432Node\lucasarts entertainment company llc\Star Wars: Episode
 ;; DXVK, VKD3D-Proton, DXVK-NVAPI, OpenAL, DSOAL
 HKCU,Software\Wine\DllOverrides,"d3dcompiler_47",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"d3dcompiler_46",0x2,"native,builtin"
+HKCU,Software\Wine\DllOverrides,"d3dx11_42",0x2,"native,builtin"
+HKCU,Software\Wine\DllOverrides,"d3dx11_43",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"d3d10core",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"d3d11",0x2,"native,builtin"
 HKCU,Software\Wine\DllOverrides,"d3d12",0x2,"native,builtin"

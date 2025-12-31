@@ -5647,6 +5647,16 @@ static void test_WinHttpGetProxyForUrl(void)
     ret = WinHttpGetProxyForUrl( session, L"http:", &options, &info );
     ok( !ret, "expected failure\n" );
 
+    options.dwFlags = WINHTTP_AUTOPROXY_ALLOW_STATIC|WINHTTP_AUTOPROXY_AUTO_DETECT;
+    options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP|WINHTTP_AUTO_DETECT_TYPE_DNS_A;
+    ret = WinHttpGetProxyForUrl( session, L"http://winehq.com/", &options, &info);
+    ok(ret, "expected success\n" );
+    ok(info.dwAccessType == WINHTTP_ACCESS_TYPE_NO_PROXY,
+            "info.dwAccessType = %lu\n", info.dwAccessType);
+    ok(!info.lpszProxy, "info.Proxy = %s\n", wine_dbgstr_w(info.lpszProxy));
+    ok(!info.lpszProxyBypass, "info.ProxyBypass = %s\n",
+            wine_dbgstr_w(info.lpszProxyBypass));
+
     WinHttpCloseHandle( session );
 }
 

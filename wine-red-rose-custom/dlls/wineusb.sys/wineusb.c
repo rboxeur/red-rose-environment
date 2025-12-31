@@ -78,7 +78,7 @@ struct usb_device
     bool interface;
     int16_t interface_index;
 
-    uint8_t class, subclass, protocol, busnum, portnum;
+    uint8_t class, subclass, protocol, busnum, portpath[8];
 
     uint16_t vendor, product, revision, usbver;
 
@@ -134,7 +134,7 @@ static void add_unix_device(const struct usb_add_device_event *event)
     device->subclass = event->subclass;
     device->protocol = event->protocol;
     device->busnum = event->busnum;
-    device->portnum = event->portnum;
+    memcpy(device->portpath, event->portpath, sizeof(event->portpath));
 
     device->vendor = event->vendor;
     device->product = event->product;
@@ -368,7 +368,14 @@ static void get_device_id(const struct usb_device *device, struct string_buffer 
 
 static void get_instance_id(const struct usb_device *device, struct string_buffer *buffer)
 {
-    append_id(buffer, L"%u&%u&%u&%u", device->usbver, device->revision, device->busnum, device->portnum);
+    WCHAR tmp[ARRAY_SIZE(device->portpath)*2+1];
+    int i = 0;
+
+    do
+        swprintf(&tmp[i*2], ARRAY_SIZE(tmp) - (i * 2), L"%02X", device->portpath[i]);
+    while (++i < ARRAY_SIZE(device->portpath) && device->portpath[i]);
+
+    append_id(buffer, L"%u&%u&%u&%s", device->usbver, device->revision, device->busnum, tmp);
 }
 
 static void get_hardware_ids(const struct usb_device *device, struct string_buffer *buffer)

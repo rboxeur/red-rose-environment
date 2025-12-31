@@ -7448,6 +7448,93 @@ done:
         winetest_pop_context();
     }
 
+    /* test starting an invaild topology */
+    source = create_test_source(TRUE);
+    callback = create_test_callback(TRUE);
+
+    hr = MFCreateMediaSession(NULL, &session);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = MFCreateAudioRendererActivate(&sink_activate);
+    ok(hr == S_OK, "Failed to create audio renderer sink, hr %#lx.\n", hr);
+
+    topology = create_test_topology(source, sink_activate, &duration);
+    hr = IMFMediaSession_SetTopology(session, 0, topology);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IMFTopology_Release(topology);
+
+    propvar.vt = VT_I8;
+    propvar.hVal.QuadPart = 0;
+    hr = IMFMediaSession_Start(session, &GUID_NULL, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = wait_media_event(session, callback, MESessionStarted, 5000, &propvar);
+    ok(hr == MF_E_INVALIDREQUEST, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFMediaSession_Stop(session);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    IMFMediaSource_Release(source);
+    IMFActivate_ShutdownObject(sink_activate);
+    IMFActivate_Release(sink_activate);
+
+    /* then start a valid topology */
+    source = create_test_source(TRUE);
+
+    grabber_callback = impl_from_IMFSampleGrabberSinkCallback(create_test_grabber_callback());
+    hr = MFCreateMediaType(&output_type);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    init_media_type(output_type, video_rgb32_desc, -1);
+    hr = MFCreateSampleGrabberSinkActivate(output_type, &grabber_callback->IMFSampleGrabberSinkCallback_iface, &sink_activate);
+    ok(hr == S_OK, "Failed to create grabber sink, hr %#lx.\n", hr);
+    IMFMediaType_Release(output_type);
+
+    topology = create_test_topology(source, sink_activate, &duration);
+    hr = IMFMediaSession_SetTopology(session, 0, topology);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IMFTopology_Release(topology);
+
+    propvar.vt = VT_I8;
+    propvar.hVal.QuadPart = 0;
+    hr = IMFMediaSession_Start(session, &GUID_NULL, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = wait_media_event(session, callback, MESessionStarted, 5000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    IMFMediaSource_Release(source);
+    IMFActivate_ShutdownObject(sink_activate);
+    IMFActivate_Release(sink_activate);
+
+    hr = IMFMediaSession_Stop(session);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    /* try invalid topology once again */
+    source = create_test_source(TRUE);
+
+    hr = MFCreateAudioRendererActivate(&sink_activate);
+    ok(hr == S_OK, "Failed to create audio renderer sink, hr %#lx.\n", hr);
+
+    topology = create_test_topology(source, sink_activate, &duration);
+    hr = IMFMediaSession_SetTopology(session, 0, topology);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IMFTopology_Release(topology);
+
+    propvar.vt = VT_I8;
+    propvar.hVal.QuadPart = 0;
+    hr = IMFMediaSession_Start(session, &GUID_NULL, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = wait_media_event(session, callback, MESessionStarted, 5000, &propvar);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFMediaSession_Stop(session);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    IMFMediaSource_Release(source);
+    IMFActivate_ShutdownObject(sink_activate);
+    IMFActivate_Release(sink_activate);
+
+    IMFAsyncCallback_Release(callback);
+    IMFMediaSession_Release(session);
+
     hr = MFShutdown();
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 }

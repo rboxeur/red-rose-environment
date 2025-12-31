@@ -1023,6 +1023,7 @@ static const struct wined3d_allocator_ops wined3d_allocator_gl_ops =
 static const struct
 {
     GLbitfield flags;
+    GLenum binding;
 }
 gl_memory_types[] =
 {
@@ -1035,15 +1036,21 @@ gl_memory_types[] =
     {GL_CLIENT_STORAGE_BIT | GL_MAP_READ_BIT},
     {GL_CLIENT_STORAGE_BIT | GL_MAP_WRITE_BIT},
     {GL_CLIENT_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT},
+
+    {0, GL_UNIFORM_BUFFER},
+    {GL_MAP_READ_BIT, GL_UNIFORM_BUFFER},
+    {GL_MAP_WRITE_BIT, GL_UNIFORM_BUFFER},
+    {GL_MAP_READ_BIT | GL_MAP_WRITE_BIT, GL_UNIFORM_BUFFER},
 };
 
-static unsigned int wined3d_device_gl_find_memory_type(GLbitfield flags)
+static unsigned int wined3d_device_gl_find_memory_type(GLbitfield flags, GLenum binding)
 {
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(gl_memory_types); ++i)
     {
-        if (gl_memory_types[i].flags == flags)
+        if (gl_memory_types[i].flags == flags
+                && (binding != GL_UNIFORM_BUFFER || gl_memory_types[i].binding == binding))
             return i;
     }
 
@@ -1054,6 +1061,11 @@ static unsigned int wined3d_device_gl_find_memory_type(GLbitfield flags)
 GLbitfield wined3d_device_gl_get_memory_type_flags(unsigned int memory_type_idx)
 {
     return gl_memory_types[memory_type_idx].flags;
+}
+
+GLenum wined3d_device_gl_get_memory_type_binding(unsigned int memory_type_idx)
+{
+    return gl_memory_types[memory_type_idx].binding ? gl_memory_types[memory_type_idx].binding : GL_ARRAY_BUFFER;
 }
 
 static struct wined3d_allocator_block *wined3d_device_gl_allocate_memory(struct wined3d_device_gl *device_gl,
@@ -1116,7 +1128,7 @@ bool wined3d_device_gl_create_bo(struct wined3d_device_gl *device_gl, struct win
         GLsizeiptr size, GLenum binding, GLenum usage, bool coherent, GLbitfield flags, struct wined3d_bo_gl *bo)
 {
     const struct wined3d_gl_info *gl_info = &wined3d_adapter_gl(device_gl->d.adapter)->gl_info;
-    unsigned int memory_type_idx = wined3d_device_gl_find_memory_type(flags);
+    unsigned int memory_type_idx = wined3d_device_gl_find_memory_type(flags, binding);
     struct wined3d_allocator_block *memory = NULL;
     GLsizeiptr buffer_offset = 0;
     GLuint id = 0;

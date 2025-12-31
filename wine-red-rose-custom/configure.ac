@@ -21,6 +21,7 @@ AC_ARG_ENABLE(win16, AS_HELP_STRING([--disable-win16],[do not include Win16 supp
 AC_ARG_ENABLE(win64, AS_HELP_STRING([--enable-win64],[build a Win64 emulator on AMD64 (won't run Win32 binaries)]))
 AC_ARG_ENABLE(tests, AS_HELP_STRING([--disable-tests],[do not build the regression tests]))
 AC_ARG_ENABLE(build-id, AS_HELP_STRING([--enable-build-id],[include .buildid section in output objects]))
+AC_ARG_ENABLE(split-debug, AS_HELP_STRING([--enable-split-debug],[enable split debug info]))
 AC_ARG_ENABLE(maintainer-mode, AS_HELP_STRING([--enable-maintainer-mode],[enable maintainer-specific build rules]))
 AC_ARG_ENABLE(silent-rules, AS_HELP_STRING([--enable-silent-rules],[use silent build rules (override: "make V=1")]))
 AC_ARG_ENABLE(werror, AS_HELP_STRING([--enable-werror],[treat compilation warnings as errors]))
@@ -1048,6 +1049,7 @@ This is an error since --enable-archs=$wine_arch was requested.])])
         pdb)     WINE_TRY_PE_CFLAGS([-gcodeview]) ;;
       esac
     fi
+    test "x$enable_split_debug" != xyes || AS_VAR_APPEND(wine_crossdebug, " split")
     AS_VAR_SET([${wine_arch}_DEBUG],[$wine_crossdebug])
 
     test "x$enable_werror" != xyes || WINE_TRY_PE_CFLAGS([-Werror])
@@ -2786,6 +2788,7 @@ WINE_CONFIG_MAKEFILE(dlls/hvsimanagementapi)
 WINE_CONFIG_MAKEFILE(dlls/hvsimanagementapi/tests)
 WINE_CONFIG_MAKEFILE(dlls/ia2comproxy)
 WINE_CONFIG_MAKEFILE(dlls/iccvid)
+WINE_CONFIG_MAKEFILE(dlls/iccvid/tests)
 WINE_CONFIG_MAKEFILE(dlls/icmp)
 WINE_CONFIG_MAKEFILE(dlls/icu)
 WINE_CONFIG_MAKEFILE(dlls/ieframe)

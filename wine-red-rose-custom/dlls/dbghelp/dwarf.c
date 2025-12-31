@@ -2953,12 +2953,9 @@ static BOOL dwarf2_parse_compilation_unit(dwarf2_parse_context_t* ctx)
             struct attribute            comp_dir;
             struct attribute            language;
 
-            if (!dwarf2_find_attribute(di, DW_AT_name, &name))
-                name.u.string = NULL;
-
-            /* get working directory of current compilation unit */
-            if (!dwarf2_find_attribute(di, DW_AT_comp_dir, &comp_dir))
-                comp_dir.u.string = NULL;
+            if (!dwarf2_find_attribute(di, DW_AT_name, &name) ||
+                !dwarf2_find_attribute(di, DW_AT_comp_dir, &comp_dir))
+                goto failure;
 
             if (!dwarf2_find_attribute(di, DW_AT_low_pc, &low_pc))
                 low_pc.u.uvalue = 0;
@@ -2989,6 +2986,7 @@ static BOOL dwarf2_parse_compilation_unit(dwarf2_parse_context_t* ctx)
         }
         else FIXME("Should have a compilation unit here %Iu\n", di->abbrev->tag);
     }
+failure:
     if (ctx->status == UNIT_BEINGLOADED) ctx->status = UNIT_LOADED_FAIL;
     return ret;
 }

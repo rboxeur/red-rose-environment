@@ -2208,6 +2208,9 @@ BOOL WINAPI WinHttpGetProxyForUrl( HINTERNET hsession, LPCWSTR url, WINHTTP_AUTO
     {
         ret = run_script( script, size, url, info );
         free( script );
+    } else if (options->dwFlags & WINHTTP_AUTOPROXY_ALLOW_STATIC)
+    {
+        ret = WinHttpGetDefaultProxyConfiguration( info );
     }
 
 done:

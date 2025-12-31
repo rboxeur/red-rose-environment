@@ -42,9 +42,16 @@
 #include "wine/unixlib.h"
 
 #include "unixlib.h"
-
 WINE_DEFAULT_DEBUG_CHANNEL(alsa);
-
+static int get_max_channels_override(void)
+{
+    const char *env = getenv("WINEALSA_CHANNELS");
+    if (env && *env) {
+        int val = atoi(env);
+        if (val > 0) return val;
+    }
+    return 0;
+}
 struct alsa_stream
 {
     snd_pcm_t *pcm_handle;
@@ -807,7 +814,7 @@ static NTSTATUS alsa_create_stream(void *args)
     WAVEFORMATEXTENSIBLE *fmtex = (WAVEFORMATEXTENSIBLE *)params->fmt;
     int err;
     SIZE_T size;
-
+    int limit;
     params->result = S_OK;
 
     if (params->share == AUDCLNT_SHAREMODE_SHARED) {
@@ -889,6 +896,14 @@ static NTSTATUS alsa_create_stream(void *args)
                 &rate, NULL)) < 0){
         WARN("Unable to set rate to %u: %d (%s)\n", rate, err,
                 snd_strerror(err));
+        params->result = AUDCLNT_E_UNSUPPORTED_FORMAT;
+        goto exit;
+    }
+
+   limit = get_max_channels_override(); /* Value assigned here, declared at top */
+    if (limit > 0 && stream->alsa_channels > limit) {
+        WARN("Application requested %d channels, but user capped at %d via WINEALSA_CHANNELS.\n",
+             stream->alsa_channels, limit);
         params->result = AUDCLNT_E_UNSUPPORTED_FORMAT;
         goto exit;
     }
@@ -1902,6 +1917,7 @@ static NTSTATUS alsa_is_format_supported(void *args)
     unsigned int max = 0, min = 0;
     int err;
     int alsa_channels, alsa_channel_map[32];
+    int limit;
 
     params->result = S_OK;
 
@@ -1981,6 +1997,13 @@ static NTSTATUS alsa_is_format_supported(void *args)
         WARN("Unable to get max channels: %d (%s)\n", err, snd_strerror(err));
         goto exit;
     }
+
+    limit = get_max_channels_override();
+    if (limit > 0 && max > limit) {
+        max = limit;
+    }
+
+
     if(params->fmt_in->nChannels > max){
         params->result = S_FALSE;
         closest->Format.nChannels = max;
@@ -2038,7 +2061,7 @@ static NTSTATUS alsa_get_mix_format(void *args)
     snd_pcm_format_mask_t *formats;
     unsigned int max_rate, max_channels;
     int err;
-
+    int limit;
     params->result = alsa_open_device(params->device, params->flow, &pcm_handle, &hw_params);
     if(FAILED(params->result))
         return STATUS_SUCCESS;
@@ -2087,7 +2110,12 @@ static NTSTATUS alsa_get_mix_format(void *args)
         goto exit;
     }
 
-    if(max_channels > 6)
+    limit = get_max_channels_override();
+    if (limit > 0 && max_channels > limit) {
+        max_channels = limit;
+    }
+
+    if(max_channels > ((limit == 8) ? 8 : 6))
         fmt->Format.nChannels = 2;
     else
         fmt->Format.nChannels = max_channels;
@@ -2340,7 +2368,7 @@ static unsigned int alsa_probe_num_speakers(char *name)
     snd_pcm_hw_params_t *params;
     int err;
     unsigned int max_channels = 0;
-
+    int limit;
     if ((err = snd_pcm_open(&handle, name, SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)) < 0) {
         WARN("The device \"%s\" failed to open: %d (%s).\n",
                 name, err, snd_strerror(err));
@@ -2364,6 +2392,11 @@ static unsigned int alsa_probe_num_speakers(char *name)
                     &max_channels)) < 0){
         WARN("Unable to get max channels: %d (%s)\n", err, snd_strerror(err));
         goto exit;
+    }
+
+    limit = get_max_channels_override();
+    if (limit > 0 && max_channels > limit) {
+        max_channels = limit;
     }
 
 exit:
@@ -2470,6 +2503,7 @@ static NTSTATUS alsa_get_prop_value(void *args)
     } else if (flow != eCapture && IsEqualPropertyKey(*prop, PKEY_AudioEndpoint_PhysicalSpeakers)) {
         unsigned int num_speakers, card, device;
         char hwname[255];
+        int limit;
 
         if (sscanf(name, "plughw:%u,%u", &card, &device))
             sprintf(hwname, "hw:%u,%u", card, device); /* must be hw rather than plughw to work */
@@ -2482,8 +2516,10 @@ static NTSTATUS alsa_get_prop_value(void *args)
             return STATUS_SUCCESS;
         }
         out->vt = VT_UI4;
-
-        if (num_speakers > 6)
+        limit = get_max_channels_override();
+        if (limit == 8 && num_speakers == 8)
+            out->ulVal = KSAUDIO_SPEAKER_7POINT1_SURROUND;
+        else if (num_speakers > 6)
             out->ulVal = KSAUDIO_SPEAKER_STEREO;
         else if (num_speakers == 6)
             out->ulVal = KSAUDIO_SPEAKER_5POINT1;

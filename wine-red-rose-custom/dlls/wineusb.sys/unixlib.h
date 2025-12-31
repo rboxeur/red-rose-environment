@@ -43,7 +43,7 @@ struct usb_event
         {
             struct unix_device *device;
             UINT16 vendor, product, revision, usbver;
-            UINT8 class, subclass, protocol, busnum, portnum;
+            UINT8 class, subclass, protocol, busnum, portpath[8];
             bool interface;
             INT16 interface_index;
         } added_device;

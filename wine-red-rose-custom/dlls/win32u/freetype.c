@@ -3698,8 +3698,13 @@ static BOOL freetype_set_outline_text_metrics( struct gdi_font *font )
 
     /* note: we store actual pointers in the names instead of offsets,
        they are fixed up when returned to the app */
-    if (!(font->otm.otmpFullName = (char *)get_face_name( ft_face, TT_NAME_ID_UNIQUE_ID, system_lcid )))
+    font->otm.otmpFullName = (char *)get_face_name( ft_face, TT_NAME_ID_UNIQUE_ID, system_lcid );
+    if (!font->otm.otmpFullName)
     {
+        /* Fallback to PostScript Name if UniqueID is not found */
+        font->otm.otmpFullName = (char *)get_face_name( ft_face, TT_NAME_ID_PS_NAME, system_lcid );
+    }
+    if (!font->otm.otmpFullName) {
         static const WCHAR fake_nameW[] = {'f','a','k','e',' ','n','a','m','e', 0};
         FIXME("failed to read full_nameW for font %s!\n", wine_dbgstr_w((WCHAR *)font->otm.otmpFamilyName));
         font->otm.otmpFullName = (char *)wcsdup( fake_nameW );

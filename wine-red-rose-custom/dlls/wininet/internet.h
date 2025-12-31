@@ -243,7 +243,6 @@ struct _object_header_t
     BOOL valid_handle;
     DWORD  dwFlags;
     DWORD_PTR dwContext;
-    DWORD  dwError;
     ULONG  ErrorMask;
     DWORD  dwInternalFlags;
     LONG   refs;
@@ -310,6 +309,7 @@ typedef struct {
 typedef struct
 {
     object_header_t hdr;
+    DWORD state;
     http_session_t *session;
     server_t *server;
     server_t *proxy;

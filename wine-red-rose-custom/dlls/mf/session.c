@@ -191,6 +191,7 @@ struct topo_node
         {
             IMFMediaSource *source;
             DWORD stream_id;
+            unsigned int init_requests;
         } source;
         struct
         {
@@ -2088,7 +2089,7 @@ static void session_set_topology(struct media_session *session, DWORD flags, IMF
     session_raise_topology_set(session, topology, hr);
 
     /* With no current topology set it right away, otherwise queue. */
-    if (topology)
+    if (SUCCEEDED(hr) && topology)
     {
         struct queued_topology *queued_topology;
 
@@ -3034,6 +3035,7 @@ static HRESULT session_add_media_stream(struct media_session *session, IMFMediaS
     IMFStreamDescriptor *sd;
     DWORD stream_id = 0;
     HRESULT hr;
+    unsigned int i;
 
     if (FAILED(hr = IMFMediaStream_GetStreamDescriptor(stream, &sd)))
         return hr;
@@ -3056,6 +3058,13 @@ static HRESULT session_add_media_stream(struct media_session *session, IMFMediaS
 
             node->object.source_stream = stream;
             IMFMediaStream_AddRef(node->object.source_stream);
+
+            for (i = 0; i < node->u.source.init_requests; ++i)
+            {
+                if (FAILED(hr = IMFMediaStream_RequestSample(node->object.source_stream, NULL)))
+                    WARN("Sample request failed, hr %#lx.\n", hr);
+            }
+            node->u.source.init_requests = 0;
             break;
         }
     }
@@ -3967,7 +3976,9 @@ static HRESULT session_request_sample_from_node(struct media_session *session, s
     switch (topo_node->type)
     {
         case MF_TOPOLOGY_SOURCESTREAM_NODE:
-            if (FAILED(hr = IMFMediaStream_RequestSample(topo_node->object.source_stream, NULL)))
+            if (!topo_node->object.source_stream)
+                ++topo_node->u.source.init_requests;
+            else if (FAILED(hr = IMFMediaStream_RequestSample(topo_node->object.source_stream, NULL)))
                 WARN("Sample request failed, hr %#lx.\n", hr);
             break;
         case MF_TOPOLOGY_TRANSFORM_NODE:
@@ -4929,6 +4940,8 @@ HRESULT WINAPI MFCreateMediaSession(IMFAttributes *config, IMFMediaSession **ses
     {
         goto failed;
     }
+
+    session_clear_presentation(object);
 
     *session = &object->IMFMediaSession_iface;
 
