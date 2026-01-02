@@ -38,7 +38,7 @@ I keep these Wine source as-it-is as a reference.
 
 Aligned with GE-Proton-10-28 [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) with following specifications
 
-- [Patch was applied to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-10.0-be.mypatch) was applied -- slightly modified.
+- [Patch to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-10.0-be.mypatch) was applied -- slightly modified.
 - [Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0003-use-surfaceless-for-GST.patch) was neutered.
 - [Another Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0305-winegstreamer-Fix-x11-gst-display.patch) was neutered.
 - [Kron4ek' patch to neuter OpenCL](https://github.com/Kron4ek/Wine-Builds/blob/master/proton-opencl.patch) was applied
@@ -50,7 +50,7 @@ I keep these Wine source as-it-is as a reference.
 
 ### wine-red-rose-custom 
 
-This is the working Wine folder. Chosen cumulative MR (Merge Request) or BF (Bug Fixed) are applied
+This is the working Wine folder. Chosen cumulative MR (Merge Request) or BF (Bug Fixed) are applied keeping wine-red-rose-base-09 as the starting point.
 
 - Wine is built using a customized/enhanced environment based on the one provided by default by [Kron4ek](https://github.com/Kron4ek/Wine-Builds)
 - This Wine repository is purely experimental. I am doing all of this just for fun. I am not responsible if if could break your Linux system
