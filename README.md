@@ -11,7 +11,7 @@ This repository provides my Wine build to play native Windows games on Linux.
 ### wine-red-rose-base-08
 
 It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom).
-It is based on latest Wine taken from Proton 8 (wine-bleeding-edge) from 2024 [experimental-wine-bleeding-edge-8.0-82496-20240226-p479bb6-wa058f1-d9004c1-v806fd7]
+It is based on latest Wine tag taken from Proton 8 (wine-bleeding-edge) from 2024 [experimental-wine-bleeding-edge-8.0-82496-20240226-p479bb6-wa058f1-d9004c1-v806fd7].
 Then
 
 - changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version 8-26 were applied
@@ -25,7 +25,8 @@ I keep these Wine source as-it-is as a reference.
 ### wine-red-rose-base-09
 
 It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom). 
-It is based on latest Wine taken from Proton 9 (wine-bleeding-edge) from 04/25/2025. Then
+It is based on latest Wine tag taken from Proton 9 (wine-bleeding-edge) from 2025 [experimental-wine-bleeding-edge-9.0-99996-20240527-p01a60c-w7374ef-d7df801-v32ca00]. 
+Then
 
 - changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version 9-22 were applied
 - a [patch was applied to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-90-be.mypatch) on this Wine version. Patch was taken from [Wine-TkG](https://github.com/Frogging-Family/wine-tkg-git.git).
