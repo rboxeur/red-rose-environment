@@ -21,7 +21,7 @@ Then
 - [Josh' theme patch](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/misc/josh-flat-theme/josh-flat-theme.patch) was applied.
 - My minor changes for Red Rose were applied.
 
-I keep these Wine source as-it-is as a reference.
+I keep these Wine sources as-it-is as a reference.
 
 
 ### wine-red-rose-base-09
@@ -35,7 +35,7 @@ Then
 - [Josh' theme patch](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/misc/josh-flat-theme/josh-flat-theme.patch) was applied.
 - My minor changes for Red Rose were applied.
 
-I keep these Wine source as-it-is as a reference.
+I keep these Wine sources as-it-is as a reference.
 
 ### wine-red-rose-base-10
 
@@ -50,7 +50,7 @@ Aligned with GE-Proton-10-28 [Glorious Eggroll proton](https://github.com/Glorio
 - [Glorious Eggroll's patch for winealsa-override-channel-count](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/proton/winealsa-override-channel-count.patch) was slightly modified
 - Applied personal changes for Red Rose.
 
-I keep these Wine source as-it-is as a reference.
+I keep these Wine sources as-it-is as a reference.
 
 ### wine-red-rose-custom 
 
