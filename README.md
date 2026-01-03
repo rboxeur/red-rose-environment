@@ -6,7 +6,9 @@
 
 ## About
 
-This repository provides my Wine build to play native Windows games on Linux.
+This repository provides my Wine build to play native Windows games on Linux. As of July 12th 2025, project [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom) was archived by its author Glorious Eggroll.
+-- this project was replaced by [UMU](https://github.com/Open-Wine-Components/umu-launcher).
+The main idea here is to provide almost the same idea as the original project but for my personal needs.
 
 ### wine-red-rose-base-08
 
