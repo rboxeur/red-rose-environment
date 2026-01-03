@@ -30,7 +30,7 @@ It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/w
 It is based on latest Wine tag taken from Proton 9 (wine-bleeding-edge) from 2025 [experimental-wine-bleeding-edge-9.0-191846-20250429-p965305-wfc8c710-d27b71a-v4ec9ec]. 
 Then
 
-- changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version 9-22 were applied
+- changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-9-22 were applied
 - a [patch was applied to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-90-be.mypatch) on this Wine version. Patch was taken from [Wine-TkG](https://github.com/Frogging-Family/wine-tkg-git.git).
 - [Josh' theme patch](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/misc/josh-flat-theme/josh-flat-theme.patch) was applied.
 - My minor changes for Red Rose were applied.
@@ -41,6 +41,7 @@ I keep these Wine source as-it-is as a reference.
 
 Aligned with GE-Proton-10-28 [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) with following specifications
 
+- changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-10-28 were applied
 - [Patch to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-10.0-be.mypatch) was applied -- slightly modified.
 - [Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0003-use-surfaceless-for-GST.patch) was neutered.
 - [Another Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0305-winegstreamer-Fix-x11-gst-display.patch) was neutered.
