@@ -27,7 +27,7 @@ I keep these Wine source as-it-is as a reference.
 ### wine-red-rose-base-09
 
 It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom). 
-It is based on latest Wine tag taken from Proton 9 (wine-bleeding-edge) from 2025 [experimental-wine-bleeding-edge-9.0-99996-20240527-p01a60c-w7374ef-d7df801-v32ca00]. 
+It is based on latest Wine tag taken from Proton 9 (wine-bleeding-edge) from 2025 [experimental-wine-bleeding-edge-9.0-191846-20250429-p965305-wfc8c710-d27b71a-v4ec9ec]. 
 Then
 
 - changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version 9-22 were applied
