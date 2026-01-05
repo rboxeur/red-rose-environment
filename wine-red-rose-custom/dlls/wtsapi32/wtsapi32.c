@@ -364,6 +364,11 @@ BOOL WINAPI WTSEnumerateSessionsW(HANDLE server, DWORD reserved, DWORD version,
         WTSFreeMemory(*session_info);
         return FALSE;
     }
+    if ((*session_info)->SessionId == 0)
+    {
+        FIXME("replacing service session with default\n");
+        (*session_info)->SessionId = 1 /* default_session_id, server/process.h */;
+    }
     *count = 1;
     (*session_info)->State = WTSActive;
     (*session_info)->pWinStationName = (WCHAR *)((char *)*session_info + sizeof(**session_info));
@@ -653,9 +658,13 @@ BOOL WINAPI WTSQueryUserToken(ULONG session_id, PHANDLE token)
         return FALSE;
     }
 
-    return DuplicateHandle(GetCurrentProcess(), GetCurrentProcessToken(),
+    if(!DuplicateHandle(GetCurrentProcess(), GetCurrentProcessToken(),
                            GetCurrentProcess(), token,
-                           0, FALSE, DUPLICATE_SAME_ACCESS);
+                           0, FALSE, DUPLICATE_SAME_ACCESS))
+        return FALSE;
+
+
+    return SetTokenInformation(token, TokenSessionId, &session_id, sizeof(ULONG));
 }
 
 /************************************************************

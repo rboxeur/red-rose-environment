@@ -224,7 +224,7 @@ BOOL WINAPI NtGdiResizePalette( HPALETTE hPal, UINT count )
     PALETTEOBJ * palPtr = GDI_GetObjPtr( hPal, NTGDI_OBJ_PAL );
     PALETTEENTRY *entries;
 
-    if( !palPtr ) return FALSE;
+    if( !palPtr || count == 0 ) return FALSE;
     TRACE("hpal = %p, prev = %i, new = %i\n", hPal, palPtr->count, count );
 
     if (!(entries = realloc( palPtr->entries, count * sizeof(*palPtr->entries) )))
