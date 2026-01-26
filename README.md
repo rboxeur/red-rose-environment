@@ -39,9 +39,9 @@ I keep these Wine sources as-it-is as a reference.
 
 ### wine-red-rose-base-10
 
-Aligned with GE-Proton-10-28 [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) with following specifications
+Aligned with GE-Proton-10-29 [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) with following specifications
 
-- changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-10-28 were applied
+- changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-10-29 were applied
 - [Patch to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-10.0-be.mypatch) was applied -- slightly modified.
 - [Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0003-use-surfaceless-for-GST.patch) was neutered.
 - [Another Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0305-winegstreamer-Fix-x11-gst-display.patch) was neutered.

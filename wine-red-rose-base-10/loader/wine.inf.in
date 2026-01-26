@@ -3230,3 +3230,4 @@ HKCU,Software\Wine\AppDefaults\NightofRevenge.exe\DllOverrides,"winhttp",,"nativ
 HKCU,Software\Wine\AppDefaults\Age of Barbarians Chronicles.exe\DllOverrides,"dsound",,"native,builtin"
 HKCU,Software\Wine\AppDefaults\WHISPERER.exe\DllOverrides,"winhttp",,"native,builtin"
 HKCU,Software\Wine\AppDefaults\ThorSin.exe\DllOverrides,"winhttp",,"native,builtin"
+HKCU,Software\Wine\AppDefaults\WickedIsland.exe\DllOverrides,"dsound",,"builtin,native"

@@ -22,6 +22,7 @@
 #endif
 
 #include "config.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -45,21 +46,34 @@
 WINE_DEFAULT_DEBUG_CHANNEL(alsa);
 static int get_max_channels_override(void)
 {
-    const char *env = getenv("WINEALSA_CHANNELS");
-    if (env && *env) {
-        int val = atoi(env);
-        if (val > 0) return val;
+    static int val = -1;
+
+    if (val == -1) {
+        const char *env = getenv("WINEALSA_CHANNELS");
+        if (env && *env) {
+            int tmp = atoi(env);
+            val = (tmp > 0) ? tmp : 0;
+        } else {
+            val = 0;
+        }
     }
-    return 0;
+    return val;
 }
 
 static int get_spatial_override(void)
 {
-    const char *env = getenv("WINEALSA_SPATIAL");
-    if (env && *env == '1') return 1;
-    return 0;
-}
+    static int val = -1;
 
+    if (val == -1) {
+        const char *env = getenv("WINEALSA_SPATIAL");
+        if (env && *env == '1') {
+            val = 1;
+        } else {
+            val = 0;
+        }
+    }
+    return val;
+}
 
 struct mix_instruction {
     int target1;  
@@ -860,7 +874,7 @@ static void init_downmix_map(struct alsa_stream *stream)
         if (mask & (1 << bit)) {
             t1 = -1; t2 = -1; v1 = 0.0f; v2 = 0.0f;
 
-            switch (1 << bit) {
+switch (1 << bit) {
                 case SPEAKER_FRONT_LEFT:
                     t1 = O_FL; v1 = 1.0f;
                     break;
@@ -897,8 +911,56 @@ static void init_downmix_map(struct alsa_stream *stream)
                     else { t1 = O_FL; v1 = 0.707106781f; t2 = O_FR; v2 = 0.707106781f; }
                     break;
 
+                 /* HEIGHT CHANNELS */
 
-                default: t1 = O_FL; v1 = 0.0f; t2 = O_FR; v2 = 0.0f; break;
+                /* Left Heights */
+                case 0x00001000: /* SPEAKER_TOP_FRONT_LEFT */
+                    t1 = O_FL; v1 = 0.707106781f;
+                    break;
+
+                case 0x00008000: /* SPEAKER_TOP_BACK_LEFT */
+                    if (O_RL != -1) { t1 = O_RL; v1 = 0.707106781f; }
+                    else { t1 = O_FL; v1 = 0.707106781f; }
+                    break;
+
+                /* Right Heights */
+                case 0x00004000: /* SPEAKER_TOP_FRONT_RIGHT */
+                    t1 = O_FR; v1 = 0.707106781f;
+                    break;
+
+                case 0x00020000: /* SPEAKER_TOP_BACK_RIGHT */
+                    if (O_RR != -1) { t1 = O_RR; v1 = 0.707106781f; }
+                    else { t1 = O_FR; v1 = 0.707106781f; }
+                    break;
+
+                 /* Center Heights */ 
+                case 0x00000800: /* SPEAKER_TOP_CENTER */
+                case 0x00002000: /* SPEAKER_TOP_FRONT_CENTER */
+                    if (O_FC != -1) { 
+                        t1 = O_FC; v1 = 1.0f; 
+                    } else { 
+                        t1 = O_FL; v1 = 0.707106781f; 
+                        t2 = O_FR; v2 = 0.707106781f; 
+                    }
+                    break;
+
+                case 0x00010000: /* SPEAKER_TOP_BACK_CENTER */
+                    if (O_RL != -1 && O_RR != -1) { 
+                        t1 = O_RL; v1 = 0.707106781f; 
+                        t2 = O_RR; v2 = 0.707106781f; 
+                    } else if (O_SL != -1 && O_SR != -1) {  
+                        t1 = O_SL; v1 = 0.707106781f; 
+                        t2 = O_SR; v2 = 0.707106781f; 
+                    } else { 
+                        t1 = O_FL; v1 = 0.707106781f; 
+                        t2 = O_FR; v2 = 0.707106781f; 
+                    }
+                    break;
+
+                default:  
+                    t1 = O_FL; v1 = 0; 
+                    t2 = O_FR; v2 = 0; 
+                    break;
             }
 
             stream->mix_ops[c].target1 = t1; stream->mix_ops[c].vol1 = v1;
@@ -1310,7 +1372,7 @@ static void adjust_buffer_volume(const struct alsa_stream *stream, BYTE *buf, sn
     end = buf + frames * stream->fmt->nBlockAlign;
     buf += stream->vol_adjusted_frames * stream->fmt->nBlockAlign;
 
-      /* Downmixing*/
+      /* Downmixing */
     if (stream->alsa_format == SND_PCM_FORMAT_FLOAT_LE && stream->mix_active) {
         p_float = (float*)buf;
 

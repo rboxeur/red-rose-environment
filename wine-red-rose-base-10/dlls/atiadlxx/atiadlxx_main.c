@@ -279,6 +279,45 @@ typedef struct ADLDDCInfo2
     int iReserved[2];
 } ADLDDCInfo2;
 
+#define ADL_DL_MAX_MVPU_ADAPTERS   4
+
+typedef struct ADLAdapterLocation
+{
+    int iBus;
+    int iDevice;
+    int iFunction;
+} ADLAdapterLocation, ADLBdf;
+
+typedef struct ADLMVPUStatus
+{
+  int iSize;
+  int iActiveAdapterCount;
+  int iStatus;
+  ADLAdapterLocation aAdapterLocation[ADL_DL_MAX_MVPU_ADAPTERS];
+} ADLMVPUStatus;
+
+typedef struct ADLODClockSetting
+{
+    int iDefaultClock;
+    int iCurrentClock;
+    int iMaxClock;
+    int iMinClock;
+    int iRequestedClock;
+    int iStepClock;
+} ADLODClockSetting;
+
+#define ADL_DL_CLOCKINFO_FLAG_FULLSCREEN3DONLY   0x00000001
+#define ADL_DL_CLOCKINFO_FLAG_ALWAYSFULLSCREEN3D 0x00000002
+#define ADL_DL_CLOCKINFO_FLAG_VPURECOVERYREDUCED 0x00000004
+#define ADL_DL_CLOCKINFO_FLAG_THERMALPROTECTION  0x00000008
+typedef struct ADLAdapterODClockInfo
+{
+    int iSize;
+    int iFlags;
+    ADLODClockSetting sMemoryClock;
+    ADLODClockSetting sEngineClock;
+} ADLAdapterODClockInfo;
+
 static const ADLVersionsInfo version = {
     "99.19.02-230831a-396538C-AMD-Software-Adrenalin-Edition",
     "99.10",
@@ -1075,6 +1114,29 @@ int CDECL ADL_Display_DisplayMapConfig_Get(int adapter_index, int *display_map_c
 
     return ADL2_Display_DisplayMapConfig_Get(default_ctx, adapter_index, display_map_count, display_maps,
             display_target_count, display_targets, options);
+}
+
+int CDECL ADL_Display_MVPUStatus_Get(int adapter_index, ADLMVPUStatus *mvpu_status)
+{
+    TRACE("adapter_index %d, mvpu_status %p.\n", adapter_index, mvpu_status);
+
+    memset(&mvpu_status->iActiveAdapterCount, 0, sizeof(*mvpu_status) - offsetof(ADLMVPUStatus, iActiveAdapterCount));
+    return ADL_OK;
+}
+
+int CDECL ADL_Display_ODClockInfo_Get(int adapter_index, ADLAdapterODClockInfo *clock_info)
+{
+    FIXME("adapter_index %d, clock_info %p stub.\n", adapter_index, clock_info);
+
+    clock_info->iFlags = ADL_DL_CLOCKINFO_FLAG_ALWAYSFULLSCREEN3D;
+    clock_info->sMemoryClock.iStepClock = 500;
+    clock_info->sMemoryClock.iDefaultClock = 210000;
+    clock_info->sMemoryClock.iMaxClock = 210000;
+    clock_info->sMemoryClock.iMinClock = 210000;
+    clock_info->sMemoryClock.iCurrentClock = 210000;
+    clock_info->sMemoryClock.iRequestedClock = 210000;
+    clock_info->sEngineClock = clock_info->sMemoryClock;
+    return ADL_OK;
 }
 
 int CDECL ADL2_Display_SLSMapIndex_Get(ADL_CONTEXT_HANDLE ctx, int adapter_index, int num_display_target,

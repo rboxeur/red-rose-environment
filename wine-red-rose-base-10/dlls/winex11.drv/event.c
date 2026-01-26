@@ -514,7 +514,12 @@ static BOOL process_events( Display *display, Bool (*filter)(Display*, XEvent*,X
     while (XCheckIfEvent( display, &event, filter, (char *)arg ))
     {
         count++;
-        if (overlay_enabled && filter_event( display, &event, (char *)overlay_filter )) continue;
+        if (overlay_enabled && filter_event( display, &event, (char *)overlay_filter ))
+        {
+            get_event_data( &event );
+            free_event_data( &event );
+            continue;
+        }
         if (XFilterEvent( &event, None ))
         {
             /*
@@ -695,7 +700,7 @@ static void set_focus( Display *display, HWND focus, Time time )
 
     TRACE( "setting foreground window to %p\n", focus );
 
-    if (!is_net_supported( x11drv_atom(_NET_ACTIVE_WINDOW) ))
+    if (X11DRV_HasWindowManager( "steamcompmgr" ) || !is_net_supported( x11drv_atom(_NET_ACTIVE_WINDOW) ))
     {
         NtUserSetForegroundWindow( focus );
 
@@ -964,7 +969,8 @@ static void focus_out( Display *display , HWND hwnd )
     /* don't reset the foreground window, if the window which is
        getting the focus is a Wine window */
 
-    if (!is_net_supported( x11drv_atom(_NET_ACTIVE_WINDOW) ) && !is_current_process_focused())
+    if ((X11DRV_HasWindowManager( "steamcompmgr" ) || !is_net_supported( x11drv_atom(_NET_ACTIVE_WINDOW) ))
+            && !is_current_process_focused())
     {
         /* Abey : 6-Oct-99. Check again if the focus out window is the
            Foreground window, because in most cases the messages sent
@@ -1307,6 +1313,23 @@ static void get_window_mwm_hints( Display *display, Window window, MwmHints *hin
     }
 }
 
+static int skip_iconify(void)
+{
+    static int cached = -1;
+    const char *env;
+
+    if (cached == -1)
+    {
+        cached = (env = getenv( "SteamGameId" )) && (0
+                    || !strcmp( env, "1827980" )
+                    || !strcmp( env, "1183470" )
+                 );
+        if (cached) FIXME( "HACK: skip_iconify.\n" );
+    }
+
+    return cached;
+}
+
 /***********************************************************************
  *           handle_wm_state_notify
  *
@@ -1326,6 +1349,16 @@ static void handle_wm_state_notify( HWND hwnd, XPropertyEvent *event )
 
     if (hwnd == NtUserGetForegroundWindow() && activate) set_net_active_window( hwnd, 0 );
     NtUserPostMessage( hwnd, WM_WINE_WINDOW_STATE_CHANGED, 0, 0 );
+    if (value == IconicState && X11DRV_HasWindowManager( "steamcompmgr" ) && !skip_iconify() && (data = get_win_data( hwnd )))
+    {
+        if (data->whole_window)
+        {
+            FIXME( "restoring %p.\n", hwnd );
+            XUnmapWindow( data->display, data->whole_window );
+            XMapWindow( data->display, data->whole_window );
+        }
+        release_win_data( data );
+    }
 }
 
 static void handle_xembed_info_notify( HWND hwnd, XPropertyEvent *event )

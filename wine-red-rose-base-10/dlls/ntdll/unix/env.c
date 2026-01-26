@@ -355,11 +355,7 @@ static BOOL is_special_env_var( const char *var )
             STARTS_WITH( var, "NIXPKGS=" ) ||
             STARTS_WITH( var, "VK_" ) ||
             STARTS_WITH( var, "XR_" ) ||
-            STARTS_WITH( var, "XDG_SESSION_TYPE=" ) ||
-            /* broken applications read these on windows too (GTK, godot 3.4 etc) */
-            STARTS_WITH( var, "XDG_DATA_HOME=" ) ||
-            STARTS_WITH( var, "XDG_CACHE_HOME=" ) ||
-            STARTS_WITH( var, "XDG_CONFIG_HOME=" ));
+            STARTS_WITH( var, "XDG_SESSION_TYPE=" ));
 }
 
 /* check if an environment variable changes dynamically in every new process */

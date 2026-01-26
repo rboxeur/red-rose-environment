@@ -1108,7 +1108,7 @@ static const char* driver_vendor_to_version( UINT16 vendor )
     switch (vendor)
     {
     case 0x8086: /* Intel */    return "35.0.999.9999";
-    case 0x1002: /* AMD */      return "35.0.99999.9999";
+    case 0x1002: /* AMD */      return "560.81";
     case 0x10de: /* Nvidia */   return "35.0.99.9999";
     default:                    return "35.0.99.9999";
     }

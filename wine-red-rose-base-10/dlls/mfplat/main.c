@@ -6299,7 +6299,13 @@ static HRESULT resolver_get_bytestream_url_hint(IMFByteStream *stream, WCHAR con
     return S_OK;
 }
 
-static HRESULT resolver_create_default_handler(IMFByteStreamHandler **handler)
+static HRESULT resolver_create_gstreamer_handler(IMFByteStreamHandler **handler)
+{
+    static const GUID CLSID_GStreamerByteStreamHandler = {0x317df618, 0x5e5a, 0x468a, {0x9f, 0x15, 0xd8, 0x27, 0xa9, 0xa0, 0x81, 0x62}};
+    return CoCreateInstance(&CLSID_GStreamerByteStreamHandler, NULL, CLSCTX_INPROC_SERVER, &IID_IMFByteStreamHandler, (void **)handler);
+}
+
+static HRESULT resolver_create_mpeg4_handler(IMFByteStreamHandler **handler)
 {
     return CoCreateInstance(&CLSID_MPEG4ByteStreamHandlerPlugin, NULL, CLSCTX_INPROC_SERVER, &IID_IMFByteStreamHandler, (void **)handler);
 }
@@ -6337,14 +6343,20 @@ static HRESULT resolver_get_bytestream_handler(IMFByteStream *stream, const WCHA
        this handler for all possible types.
      */
 
-    TRACE( "url_ext %s mimeW %s\n", debugstr_w(url_ext), debugstr_w(mimeW) );
+    TRACE("url_ext %s mimeW %s\n", debugstr_w(url_ext), debugstr_w(mimeW));
 
     if (url_ext || mimeW)
     {
         hr = resolver_create_bytestream_handler(stream, flags, mimeW, url_ext, handler);
 
         if (FAILED(hr))
-            hr = resolver_create_default_handler(handler);
+        {
+            if (SUCCEEDED(resolver_get_bytestream_url_hint(stream, &url_ext)) &&
+                url_ext && (!wcscmp(url_ext, L".mp4") || !wcscmp(url_ext, L".m4v")))
+                hr = resolver_create_mpeg4_handler(handler);
+            else
+                hr = resolver_create_gstreamer_handler(handler);
+        }
     }
 
     CoTaskMemFree(mimeW);
@@ -6362,7 +6374,7 @@ static HRESULT resolver_get_bytestream_handler(IMFByteStream *stream, const WCHA
     hr = resolver_create_bytestream_handler(stream, flags, NULL, url_ext, handler);
 
     if (FAILED(hr))
-        hr = resolver_create_default_handler(handler);
+        hr = resolver_create_gstreamer_handler(handler);
 
     return hr;
 }
