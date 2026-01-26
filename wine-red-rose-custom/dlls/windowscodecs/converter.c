@@ -1472,7 +1472,7 @@ static HRESULT copypixels_to_32bppGrayFloat(struct FormatConverter *This, const 
         break;
     }
 
-    if (SUCCEEDED(hr) && prc && source_format != format_32bppGrayFloat)
+    if (SUCCEEDED(hr) && prc)
     {
         INT x, y;
         BYTE *p = pbBuffer;
@@ -1850,6 +1850,7 @@ static HRESULT copypixels_to_64bppRGBA(struct FormatConverter *This, const WICRe
         return hr;
     }
 
+    default:
     case format_32bppBGRA:
     {
         UINT srcstride, srcdatasize;
@@ -1869,7 +1870,10 @@ static HRESULT copypixels_to_64bppRGBA(struct FormatConverter *This, const WICRe
         srcdata = malloc(srcdatasize);
         if (!srcdata) return E_OUTOFMEMORY;
 
-        hr = IWICBitmapSource_CopyPixels(This->source, prc, srcstride, srcdatasize, srcdata);
+        if (source_format == format_32bppBGRA)
+            hr = IWICBitmapSource_CopyPixels(This->source, prc, srcstride, srcdatasize, srcdata);
+        else
+            hr = copypixels_to_32bppBGRA(This, prc, srcstride, srcdatasize, srcdata, source_format);
         if (SUCCEEDED(hr))
         {
             srcrow = srcdata;
@@ -1893,10 +1897,6 @@ static HRESULT copypixels_to_64bppRGBA(struct FormatConverter *This, const WICRe
         free(srcdata);
         return hr;
     }
-
-    default:
-        FIXME("Unimplemented conversion path %d.\n", source_format);
-        return WINCODEC_ERR_UNSUPPORTEDOPERATION;
     }
 }
 

@@ -3103,6 +3103,12 @@ void wined3d_context_gl_copy_bo_address(struct wined3d_context_gl *context_gl,
     }
     else
     {
+        if (!dst->addr || !src->addr)
+        {
+            ERR("Invalid addresses.\n");
+            return;
+        }
+
         for (i = 0; i < range_count; ++i)
             memcpy(dst->addr + ranges[i].offset, src->addr + ranges[i].offset, ranges[i].size);
     }

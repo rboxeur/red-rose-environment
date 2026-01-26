@@ -1,0 +1,28 @@
+I) Wine-upstream: 18 merge requests
+
+1. https://gitlab.winehq.org/wine/wine/-/merge_requests/9914: dwrite/tests: Handle COLRv1 in GetGlyphImageFormats() tests. 
+2. https://gitlab.winehq.org/wine/wine/-/merge_requests/9911: winhttp: Enforce a 5 second resolve timeout in detect_autoproxyconfig_url_dns(). 
+3. https://gitlab.winehq.org/wine/wine/-/merge_requests/9908: msi: Don&#39;t list drives for which GetVolumeInformationW() or GetDiskFreeSpaceExW() fails. 
+4. https://gitlab.winehq.org/wine/wine/-/merge_requests/9906: ntdll: Make VEH registration structure compatible. 
+5. https://gitlab.winehq.org/wine/wine/-/merge_requests/9903: wined3d: Don&#39;t print opcodes for cs padding packets. 
+6. https://gitlab.winehq.org/wine/wine/-/merge_requests/9900: d3d8/tests: ATI2 DS surface creation attempt crashes nvidia. 
+7. https://gitlab.winehq.org/wine/wine/-/merge_requests/9898: windowscodecs: Remove unused comparison. 
+8. https://gitlab.winehq.org/wine/wine/-/merge_requests/9896: shell32: Add attributes to registry for CLSID_Printers. 
+9. https://gitlab.winehq.org/wine/wine/-/merge_requests/9894: cryptnet: Close leaking file handle in `find_cached_revocation_status` 
+10. https://gitlab.winehq.org/wine/wine/-/merge_requests/9893: include: Annotate VirtualAlloc functions with __WINE_ALLOC_SIZE. 
+11. https://gitlab.winehq.org/wine/wine/-/merge_requests/9892: winecfg: Remove unnecessary calls to strdupU2W. 
+12. https://gitlab.winehq.org/wine/wine/-/merge_requests/9890: ntdll: Avoid infinite wait during process termination. 
+13. https://gitlab.winehq.org/wine/wine/-/merge_requests/9889: windows.ui: Stub IUISettings2::get_TextScaleFactor(). 
+14. https://gitlab.winehq.org/wine/wine/-/merge_requests/9882: kernelbase: Trim whitespaces from the quoted &#39;cmdline&#39; 
+15. https://gitlab.winehq.org/wine/wine/-/merge_requests/9872: qasf: Protect against unconnected pins in media_seeking_ChangeCurrent. 
+16. https://gitlab.winehq.org/wine/wine/-/merge_requests/9862: kerberos: Add support for EXTENDED_ERROR flags. 
+17. https://gitlab.winehq.org/wine/wine/-/merge_requests/9861: ntdll/unix/file.c: added new xattr for marking directories as readonly 
+18. https://gitlab.winehq.org/wine/wine/-/merge_requests/9858: qasf: Fix use-after-free of filter in reader callback. 
+
+II) Wine-bleeding-edge (Proton 10): 4 commits
+
+commit e5597c59ca6d089394a7befd9f9b4061aae2e35e [ok] --- atiadlxx: Add stub for ADL_Display_ODClockInfo_Get().
+commit 29c21872ab45e6ea16f4110ae11bb5e3789c362f [ok] --- atiadlxx: Add ADL_Display_MVPUStatus_Get().
+commit b73f72e237802a0145feee515eeb3ee6cb83279c [ok] --- mmdevapi: HACK: Change audio device name scheme.
+commit 91edb29258b6fa7936ba7724fad203268d8d6bcd [ok] --- qasf: Set the DedicatedDeliveryThread property earlier.
+

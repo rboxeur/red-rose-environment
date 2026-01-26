@@ -183,6 +183,7 @@ typedef struct
 
 #define SAMBA_XATTR_DOS_ATTRIB  XATTR_USER_PREFIX "DOSATTRIB"
 #define XATTR_ATTRIBS_MASK      (FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM)
+#define XATTR_WIN_DIR_READONLY XATTR_USER_PREFIX "WINREADONLY"
 
 struct file_identity
 {
@@ -1655,7 +1656,10 @@ static NTSTATUS fd_set_file_info( int fd, HANDLE handle, UINT attr, BOOL force_s
     if (attr & FILE_ATTRIBUTE_READONLY)
     {
         if (S_ISDIR( st.st_mode))
-            WARN("FILE_ATTRIBUTE_READONLY ignored for directory.\n");
+        {
+            int status = xattr_fset(fd, XATTR_WIN_DIR_READONLY, "1", 1);
+            if (status) WARN("Failed to set extended attribute %s. errno: %d (%s)\n", XATTR_WIN_DIR_READONLY, errno, strerror(errno));
+        }
         else
             st.st_mode &= ~0222; /* clear write permission bits */
     }
@@ -1670,6 +1674,8 @@ static NTSTATUS fd_set_file_info( int fd, HANDLE handle, UINT attr, BOOL force_s
         {
             /* add write permission only where we already have read permission */
             st.st_mode |= (0600 | ((st.st_mode & 044) >> 1)) & (~start_umask);
+
+        if (S_ISDIR(st.st_mode)) xattr_fremove(fd, XATTR_WIN_DIR_READONLY);
         }
     }
     if (fchmod( fd, st.st_mode ) == -1) return errno_to_status( errno );
@@ -1692,6 +1698,8 @@ static int get_file_info( const char *path, struct stat *st, ULONG *attr )
     char *parent_path;
     char attr_data[65];
     int attr_len, ret;
+    char ro_buffer[3];
+    int ro_buf_len;
 
     *attr = 0;
     ret = lstat( path, st );
@@ -1717,6 +1725,12 @@ static int get_file_info( const char *path, struct stat *st, ULONG *attr )
         free( parent_path );
     }
     *attr |= get_file_attributes( st );
+
+    ro_buf_len = xattr_get(path, XATTR_WIN_DIR_READONLY, &ro_buffer, 3);
+    if (ro_buf_len != -1)
+    {
+        *attr |= FILE_ATTRIBUTE_READONLY;
+    }
 
     attr_len = xattr_get( path, SAMBA_XATTR_DOS_ATTRIB, attr_data, sizeof(attr_data)-1 );
     if (attr_len != -1)
@@ -2700,7 +2714,7 @@ static unsigned int get_cached_dir_data( HANDLE handle, struct dir_data **data_r
     }
 
     *data_ret = dir_data_cache[entry];
-    if (restart_scan) (*data_ret)->pos = 0;
+    if (restart_scan && *data_ret) (*data_ret)->pos = 0;
     return status;
 }
 

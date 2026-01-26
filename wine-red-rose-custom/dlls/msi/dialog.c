@@ -3120,7 +3120,7 @@ static LONGLONG vcl_get_cost( msi_dialog *dialog )
 static void dialog_vcl_add_drives( msi_dialog *dialog, struct control *control )
 {
     ULARGE_INTEGER total, unused;
-    LONGLONG difference, cost;
+    LONGLONG cost;
     WCHAR size_text[MAX_PATH];
     WCHAR cost_text[MAX_PATH];
     LPWSTR drives, ptr;
@@ -3142,8 +3142,8 @@ static void dialog_vcl_add_drives( msi_dialog *dialog, struct control *control )
     ptr = drives;
     while (*ptr)
     {
-        if (GetVolumeInformationW(ptr, NULL, 0, NULL, 0, &flags, NULL, 0) &&
-            flags & FILE_READ_ONLY_VOLUME)
+        if (!GetVolumeInformationW(ptr, NULL, 0, NULL, 0, &flags, NULL, 0) || (flags & FILE_READ_ONLY_VOLUME) ||
+            !GetDiskFreeSpaceExW(ptr, &unused, &total, NULL))
         {
             ptr += lstrlenW(ptr) + 1;
             continue;
@@ -3155,9 +3155,6 @@ static void dialog_vcl_add_drives( msi_dialog *dialog, struct control *control )
         lvitem.pszText = ptr;
         lvitem.cchTextMax = lstrlenW(ptr) + 1;
         SendMessageW( control->hwnd, LVM_INSERTITEMW, 0, (LPARAM)&lvitem );
-
-        GetDiskFreeSpaceExW(ptr, &unused, &total, NULL);
-        difference = unused.QuadPart - cost;
 
         StrFormatByteSizeW(total.QuadPart, size_text, MAX_PATH);
         lvitem.iSubItem = 1;
@@ -3176,7 +3173,7 @@ static void dialog_vcl_add_drives( msi_dialog *dialog, struct control *control )
         lvitem.cchTextMax = lstrlenW(cost_text) + 1;
         SendMessageW( control->hwnd, LVM_SETITEMW, 0, (LPARAM)&lvitem );
 
-        StrFormatByteSizeW(difference, size_text, MAX_PATH);
+        StrFormatByteSizeW(unused.QuadPart - cost, size_text, MAX_PATH);
         lvitem.iSubItem = 4;
         lvitem.pszText = size_text;
         lvitem.cchTextMax = lstrlenW(size_text) + 1;

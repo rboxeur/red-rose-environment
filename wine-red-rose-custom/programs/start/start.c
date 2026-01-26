@@ -456,6 +456,18 @@ static void parse_command_line( int argc, WCHAR *argv[] )
                 usage();
             } else
                 opts.sei.lpDirectory = argv[++i];
+
+            if (opts.sei.lpDirectory[0] == '\"')
+            {
+                int len = wcslen(opts.sei.lpDirectory);
+                /* no need to free since the process will exit shortly */
+                WCHAR* lpDirectory = wcsdup(opts.sei.lpDirectory);
+                if (lpDirectory[len - 1] == '\"')
+                    lpDirectory[len - 1] = 0;
+                else
+                    WINE_ERR("quotes does not match!\n");
+                opts.sei.lpDirectory = lpDirectory + 1;
+            }
         }
         else if (is_option(argv[i], L"/b"))
             opts.creation_flags &= ~CREATE_NEW_CONSOLE;

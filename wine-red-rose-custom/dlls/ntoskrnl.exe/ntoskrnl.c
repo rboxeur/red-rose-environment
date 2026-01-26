@@ -525,6 +525,7 @@ struct dispatch_context
 
 static NTSTATUS dispatch_irp( DEVICE_OBJECT *device, IRP *irp, struct dispatch_context *context )
 {
+    IO_STACK_LOCATION *irpsp = IoGetNextIrpStackLocation( irp );
     struct irp_data *irp_data;
     LARGE_INTEGER count;
     NTSTATUS status;
@@ -539,6 +540,35 @@ static NTSTATUS dispatch_irp( DEVICE_OBJECT *device, IRP *irp, struct dispatch_c
     IoSetCompletionRoutine( irp, dispatch_irp_completion, irp_data, TRUE, TRUE, TRUE );
     context->irp_data = irp_data;
     context->handle = 0;
+
+    if (irpsp->MajorFunction == IRP_MJ_QUERY_VOLUME_INFORMATION
+            && irpsp->Parameters.QueryVolume.FsInformationClass == FileFsDeviceInformation)
+    {
+        /* Handled by us; never passed to the driver. */
+        DEVICE_OBJECT *bottom_device = irp->Tail.Overlay.OriginalFileObject->DeviceObject;
+        NTSTATUS status;
+
+        --irp->CurrentLocation;
+        --irp->Tail.Overlay.CurrentStackLocation;
+
+        if (irpsp->Parameters.QueryVolume.Length >= sizeof(FILE_FS_DEVICE_INFORMATION))
+        {
+            FILE_FS_DEVICE_INFORMATION *info = irp->AssociatedIrp.SystemBuffer;
+
+            info->DeviceType = bottom_device->DeviceType;
+            info->Characteristics = bottom_device->Characteristics;
+            irp->IoStatus.Information = sizeof(*info);
+            status = STATUS_SUCCESS;
+        }
+        else
+        {
+            status = STATUS_INFO_LENGTH_MISMATCH;
+        }
+
+        irp->IoStatus.Status = status;
+        IoCompleteRequest( irp, IO_NO_INCREMENT );
+        return status;
+    }
 
     KeQueryTickCount( &count );  /* update the global KeTickCount */
 
@@ -1657,6 +1687,7 @@ NTSTATUS WINAPI IoCreateDevice( DRIVER_OBJECT *driver, ULONG ext_size,
     device = &wine_device->device_obj;
 
     device->DriverObject    = driver;
+    device->Characteristics = characteristics;
     device->DeviceExtension = wine_device + 1;
     device->DeviceType      = type;
     device->StackSize       = 1;

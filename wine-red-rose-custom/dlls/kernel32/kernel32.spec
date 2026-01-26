@@ -1324,15 +1324,15 @@
 @ stdcall -import ResolveLocaleName(wstr ptr long)
 @ stdcall RestoreLastError(long) NTDLL.RtlRestoreLastWin32Error
 @ stdcall -import ResumeThread(long)
-@ cdecl -arch=!i386 RtlAddFunctionTable(ptr long long) NTDLL.RtlAddFunctionTable
+@ cdecl -arch=!i386 RtlAddFunctionTable(ptr long long) RtlAddFunctionTable
 @ stdcall -norelay -import RtlCaptureContext(ptr)
 @ stdcall RtlCaptureStackBackTrace(long long ptr ptr) NTDLL.RtlCaptureStackBackTrace
 @ stdcall -arch=!i386 RtlCompareMemory(ptr ptr long) NTDLL.RtlCompareMemory
 @ stdcall -arch=!i386 RtlCopyMemory(ptr ptr long) NTDLL.RtlCopyMemory
-@ cdecl -arch=!i386 RtlDeleteFunctionTable(ptr) NTDLL.RtlDeleteFunctionTable
+@ cdecl -arch=!i386 RtlDeleteFunctionTable(ptr) RtlDeleteFunctionTable
 @ stdcall RtlFillMemory(ptr long long) NTDLL.RtlFillMemory
-@ cdecl -arch=!i386 RtlInstallFunctionTableCallback(long long long ptr ptr ptr) NTDLL.RtlInstallFunctionTableCallback
-@ stdcall -arch=!i386 RtlLookupFunctionEntry(long ptr ptr) NTDLL.RtlLookupFunctionEntry
+@ cdecl -arch=!i386 RtlInstallFunctionTableCallback(long long long ptr ptr ptr) RtlInstallFunctionTableCallback
+@ stdcall -arch=!i386 RtlLookupFunctionEntry(long ptr ptr) RtlLookupFunctionEntry
 @ stdcall RtlMoveMemory(ptr ptr long) NTDLL.RtlMoveMemory
 @ stdcall RtlPcToFileHeader(ptr ptr) NTDLL.RtlPcToFileHeader
 @ stdcall -arch=!i386 -norelay RtlRaiseException(ptr) NTDLL.RtlRaiseException
