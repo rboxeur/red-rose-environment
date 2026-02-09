@@ -67,13 +67,13 @@ prepare_chroot () {
 }
 
 create_build_scripts () {
-	sdl2_version="2.32.4"
+	sdl2_version="2.32.10"
 	faudio_version="23.03"
-	vulkan_headers_version="1.4.312"
-	vulkan_loader_version="1.4.312"
+	vulkan_headers_version="1.4.343"
+	vulkan_loader_version="1.4.343"
 	spirv_headers_version="sdk-1.3.296.0"
  	libpcap_version="1.10.5"
-  	libxkbcommon_version="1.6.0"
+  	libxkbcommon_version="1.13.1"
    	python3_version="3.12.7"
     	meson_version="1.3.2"
      	cmake_version="3.30.6"
@@ -86,6 +86,9 @@ create_build_scripts () {
 	libgcrypt_version="1.10.3"
 	winetricks_version="20250102";
 	libglvnd_version="1.7.0";
+	bison_version="3.8.2";
+	wayland_version="1.24.0";
+	wayland_protocols_version="1.47";	
 
 	cat <<EOF > "${MAINDIR}"/prepare_chroot.sh
 #!/bin/bash
@@ -129,7 +132,7 @@ wget -O vulkan-loader.tar.gz https://github.com/KhronosGroup/Vulkan-Loader/archi
 wget -O vulkan-headers.tar.gz https://github.com/KhronosGroup/Vulkan-Headers/archive/v${vulkan_headers_version}.tar.gz
 wget -O spirv-headers.tar.gz https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/vulkan-${spirv_headers_version}.tar.gz
 wget -O libpcap.tar.gz https://www.tcpdump.org/release/libpcap-${libpcap_version}.tar.gz
-wget -O libxkbcommon.tar.xz https://xkbcommon.org/download/libxkbcommon-${libxkbcommon_version}.tar.xz
+wget -O libxkbcommon.tar.gz https://github.com/xkbcommon/libxkbcommon/archive/refs/tags/xkbcommon-${libxkbcommon_version}.tar.gz
 wget -O python3.tar.gz https://www.python.org/ftp/python/${python3_version}/Python-${python3_version}.tgz
 wget -O meson.tar.gz https://github.com/mesonbuild/meson/releases/download/${meson_version}/meson-${meson_version}.tar.gz
 wget -O mingw.tar.xz http://techer.pascal.free.fr/Red-Rose_MinGW-w64-Toolchain/Red-Rose-MinGW-w64-Posix-Urct-v${mingw64_version}-Gcc-11.5.0.tar.xz
@@ -140,6 +143,9 @@ wget -O nasm.tar.gz https://www.nasm.us/pub/nasm/releasebuilds/${nasm_version}/n
 wget -O yasm.tar.gz https://github.com/yasm/yasm/releases/download/v${yasm_version}/yasm-${yasm_version}.tar.gz
 wget -O libgpg-error.tar.bz2 https://www.gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-${libgpg_error_version}.tar.bz2
 wget -O libgcrypt.tar.bz2 https://www.gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-${libgcrypt_version}.tar.bz2
+wget -O bison.tar.xz https://ftp.gnu.org/gnu/bison/bison-${bison_version}.tar.xz
+wget -O wayland.tar.xz https://gitlab.freedesktop.org/wayland/wayland/-/releases/${wayland_version}/downloads/wayland-${wayland_version}.tar.xz
+wget -O wayland-protocols.tar.xz https://gitlab.freedesktop.org/wayland/wayland-protocols/-/releases/${wayland_protocols_version}/downloads/wayland-protocols-${wayland_protocols_version}.tar.xz
 wget -O /usr/include/linux/ntsync.h https://raw.githubusercontent.com/zen-kernel/zen-kernel/refs/heads/6.13/main/include/uapi/linux/ntsync.h
 wget -O /usr/include/linux/userfaultfd.h https://raw.githubusercontent.com/zen-kernel/zen-kernel/refs/heads/6.13/main/include/uapi/linux/userfaultfd.h
 if [ -d /usr/lib/i386-linux-gnu ]; then wget -O wine.deb https://dl.winehq.org/wine-builds/ubuntu/dists/bionic/main/binary-i386/wine-stable_4.0.3~bionic_i386.deb; fi
@@ -151,16 +157,16 @@ tar xf vulkan-loader.tar.gz
 tar xf vulkan-headers.tar.gz
 tar xf spirv-headers.tar.gz
 tar xf libpcap.tar.gz
-tar xf libxkbcommon.tar.xz
+tar xf libxkbcommon.tar.gz
 tar xf python3.tar.gz
 tar xf cmake.tar.gz
 tar xf ccache.tar.gz
 tar xf gmp.tar.xz
 tar xf nasm.tar.gz
 tar xf yasm.tar.gz
-tar xf mingw.tar.xz -C /
-tar xf mingw.tar.xz -C /
-tar xf mingw.tar.xz -C /
+tar xf bison.tar.xz
+tar xf wayland.tar.xz
+tar xf wayland-protocols.tar.xz
 tar xf mingw.tar.xz -C /
 tar xf meson.tar.gz -C /usr/local
 tar xf libgpg-error.tar.bz2
@@ -240,6 +246,15 @@ python -m pip install meson
 python -m pip install ninja
 pip3 install piper
 pip3 install vosk
+cd bison-${bison_version} && ./configure && make -j$(nproc) install
+cd ../wayland-${wayland_version}
+meson setup build --prefix=/usr/ --libdir=/usr/lib/\${local_lib}-linux-gnu  -Ddocumentation=false
+meson compile -C build
+meson install -C build
+cd ../wayland-protocols-${wayland_protocols_version}
+meson setup build --prefix=/usr/ --libdir=/usr/lib/\${local_lib}-linux-gnu
+meson compile -C build
+meson install -C build
 cd ../libxkbcommon-${libxkbcommon_version}
 meson setup build -Denable-docs=false
 meson compile -C build
