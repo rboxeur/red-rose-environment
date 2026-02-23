@@ -2536,12 +2536,9 @@ static void test_reset(void)
     d3dpp.EnableAutoDepthStencil = FALSE;
     d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;
 
-    if (FAILED(hr = IDirect3D9_CreateDevice(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
-            hwnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &device2)))
-    {
-        skip("Failed to create device, hr %#lx.\n", hr);
-        goto cleanup;
-    }
+    hr = IDirect3D9_CreateDevice(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
+            hwnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &device2);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
 
     hr = IDirect3DDevice9_TestCooperativeLevel(device2);
     ok(hr == S_OK, "Got hr %#lx.\n", hr);
@@ -2556,12 +2553,10 @@ static void test_reset(void)
     hr = IDirect3DDevice9_Reset(device2, &d3dpp);
     ok(hr == S_OK, "Got hr %#lx.\n", hr);
 
-    if (FAILED(hr)) goto cleanup;
-
     hr = IDirect3DDevice9_GetDepthStencilSurface(device2, &surface);
     ok(hr == S_OK, "Got hr %#lx.\n", hr);
     ok(surface != NULL, "Depth stencil should not be NULL\n");
-    if (surface) IDirect3DSurface9_Release(surface);
+    IDirect3DSurface9_Release(surface);
 
 cleanup:
     free(modes);

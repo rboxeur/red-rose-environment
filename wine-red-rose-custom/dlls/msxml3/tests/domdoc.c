@@ -3056,6 +3056,33 @@ static void test_create(void)
     IXMLDOMComment_Release(comment);
     SysFreeString(str);
 
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"comment");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"coMment");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"8");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
+
     /* NODE_TEXT */
     V_VT(&var) = VT_I1;
     V_I1(&var) = NODE_TEXT;
@@ -3104,6 +3131,24 @@ static void test_create(void)
     ok( str && SysStringLen(str) == 0, "expected empty comment, %p\n", str);
     IXMLDOMText_Release(text);
     SysFreeString(str);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"text");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"teXt");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
 
     /* NODE_CDATA_SECTION */
     V_VT(&var) = VT_I1;
@@ -3154,6 +3199,24 @@ static void test_create(void)
     IXMLDOMCDATASection_Release(cdata);
     SysFreeString(str);
 
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"cdatasection");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"cdataSection");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, NULL, NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
+
     /* NODE_ATTRIBUTE */
     V_VT(&var) = VT_I1;
     V_I1(&var) = NODE_ATTRIBUTE;
@@ -3187,6 +3250,24 @@ static void test_create(void)
     ok(hr == E_FAIL, "Unexpected hr %#lx.\n", hr);
     ok( node == (void*)0x1, "expected same ptr, got %p\n", node);
     SysFreeString(str);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"attribute");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, _bstr_("name"), NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"attriBute");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, _bstr_("name"), NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
 
     /* NODE_PROCESSING_INSTRUCTION */
     V_VT(&var) = VT_I1;
@@ -3237,6 +3318,24 @@ static void test_create(void)
     hr = IXMLDOMDocument_createNode( doc, var, _bstr_(""), NULL, &node );
     ok(hr == E_FAIL, "Unexpected hr %#lx.\n", hr);
     ok( node == (void*)0x1, "expected same ptr, got %p\n", node);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"element");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, _bstr_("name"), NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
+
+    V_VT(&var) = VT_BSTR;
+    V_BSTR(&var) = SysAllocString(L"elemEnt");
+    node = NULL;
+    hr = IXMLDOMDocument_createNode( doc, var, _bstr_("name"), NULL, &node );
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!node, "Unexpected object %p.\n", node);
+    IXMLDOMNode_Release(node);
+    VariantClear(&var);
 
     V_VT(&var) = VT_I1;
     V_I1(&var) = NODE_ELEMENT;
@@ -13600,6 +13699,50 @@ static void test_merging_text(void)
     free_bstrs();
 }
 
+static const WCHAR transform_xsldecl_utf16_xsl[] =
+L"<?xml version=\"1.0\" encoding=\"utf-16\"?>\n"
+"<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" version=\"1.0\">\n"
+"<xsl:output method=\"xml\" version=\"1.0\" encoding=\"utf-16\"/>"
+"<xsl:template match=\"/\">"
+"    <xsl:for-each select=\"/a/item\">"
+"        <xsl:element name=\"node\">"
+"            <xsl:value-of select=\"@name\"/>"
+"        </xsl:element>"
+"    </xsl:for-each>"
+"</xsl:template>"
+"</xsl:stylesheet>";
+
+static const char transform_xsldecl_copy_xsl[] =
+"<?xml version=\"1.0\"?>\n"
+"<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" version=\"1.0\">\n"
+"<xsl:output method=\"xml\" version=\"1.0\" encoding=\"utf-8\"/>"
+"<xsl:template match=\"@* | node()\" >"
+"    <xsl:copy>"
+"        <xsl:apply-templates select=\"@* | node()\" />"
+"    </xsl:copy>"
+"</xsl:template>"
+"</xsl:stylesheet>";
+
+static const char transform_xmldecl_utf8_doc[] =
+"<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+"<a>"
+"    <item name=\"item1\"/>"
+"    <item name=\"item2\"/>"
+"</a>";
+
+static const char transform_utf8_ret[] =
+"<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+"<a><item name=\"item1\"></item><item name=\"item2\"></item></a>";
+
+static const char transform_utf8_ret_alt[] =
+"<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+"<a><item name=\"item1\"/><item name=\"item2\"/></a>";
+
+static const WCHAR transform_utf16_ret[] =
+L"<?xml version=\"1.0\" encoding=\"utf-16\"?>"
+"<node>item1</node><node>item2</node>";
+
+
 static HRESULT WINAPI transformdest_QueryInterface(IUnknown *iface, REFIID riid, void **obj)
 {
     BOOL known_iid = IsEqualIID(riid, &IID_IHTMLObjectElement) ||
@@ -13639,11 +13782,13 @@ static void test_transformNodeToObject(void)
     ISequentialStream *sstream;
     LARGE_INTEGER off;
     WCHAR buffer[256];
+    char bufferA[256];
     IStream *istream;
     VARIANT_BOOL b;
     ULONG nread;
     HRESULT hr;
     VARIANT v;
+    BSTR bstr;
 
     doc = create_document(&IID_IXMLDOMDocument);
     doc2 = create_document(&IID_IXMLDOMDocument);
@@ -13717,6 +13862,61 @@ static void test_transformNodeToObject(void)
     ok(buffer[0] == 0xfeff, "got %x\n", buffer[0]);
     ok(compareIgnoreReturns(&buffer[1], _bstr_(szTransformOutput)), "got output %s\n", wine_dbgstr_w(buffer));
     ISequentialStream_Release(sstream);
+    IStream_Release(istream);
+
+    /* test duplicate xml declarations */
+    hr = IXMLDOMDocument_loadXML(doc, _bstr_(transform_xmldecl_utf8_doc), &b);
+    ok(hr == S_OK, "Failed to load document, hr %#lx.\n", hr);
+    hr = IXMLDOMDocument_loadXML(doc2, _bstr_(transform_xsldecl_copy_xsl), &b);
+    ok(hr == S_OK, "Failed to load document, hr %#lx.\n", hr);
+
+    istream = SHCreateMemStream(NULL, 0);
+    V_VT(&v) = VT_UNKNOWN;
+    V_UNKNOWN(&v) = (IUnknown*)istream;
+    hr = IXMLDOMDocument_transformNodeToObject(doc, (IXMLDOMNode*)doc2, v);
+    ok(hr == S_OK, "Failed to transform node, hr %#lx.\n", hr);
+
+    off.QuadPart = 0;
+    hr = IStream_Seek(istream, off, STREAM_SEEK_SET, NULL);
+    ok(hr == S_OK, "Failed to seek, hr %#lx.\n", hr);
+
+    nread = 0;
+    memset(bufferA, 0xcc, sizeof(bufferA));
+    hr = IStream_Read(istream, bufferA, sizeof(bufferA), &nread);
+    ok(hr == S_OK, "Failed to read, hr %#lx.\n", hr);
+    bufferA[nread] = 0;
+    ok(!strcmp(bufferA, transform_utf8_ret) ||
+       !strcmp(bufferA, transform_utf8_ret_alt),
+       "got output %s\n", wine_dbgstr_a(bufferA));
+    IStream_Release(istream);
+
+    /* test both xml and xsl have xml declaration, different encoding */
+    hr = IXMLDOMDocument_loadXML(doc, _bstr_(transform_xmldecl_utf8_doc), &b);
+    ok(hr == S_OK, "Failed to load document, hr %#lx.\n", hr);
+    bstr = SysAllocString(transform_xsldecl_utf16_xsl);
+    hr = IXMLDOMDocument_loadXML(doc2, bstr, &b);
+    ok(hr == S_OK, "Failed to load document, hr %#lx.\n", hr);
+    SysFreeString(bstr);
+
+    istream = SHCreateMemStream(NULL, 0);
+    V_VT(&v) = VT_UNKNOWN;
+    V_UNKNOWN(&v) = (IUnknown*)istream;
+    hr = IXMLDOMDocument_transformNodeToObject(doc, (IXMLDOMNode*)doc2, v);
+    ok(hr == S_OK, "Failed to transform node, hr %#lx.\n", hr);
+
+    off.QuadPart = 0;
+    hr = IStream_Seek(istream, off, STREAM_SEEK_SET, NULL);
+    ok(hr == S_OK, "Failed to seek, hr %#lx.\n", hr);
+
+    nread = 0;
+    memset(buffer, 0xcc, sizeof(buffer));
+    hr = IStream_Read(istream, buffer, sizeof(buffer), &nread);
+    ok(hr == S_OK, "Failed to read, hr %#lx.\n", hr);
+    buffer[nread / 2] = 0;
+    ok(buffer[0] == 0xfeff, "got %x\n", buffer[0]);
+    bstr = SysAllocString(transform_utf16_ret);
+    ok(compareIgnoreReturns(&buffer[1], bstr), "got output %s\n", wine_dbgstr_w(buffer));
+    SysFreeString(bstr);
     IStream_Release(istream);
 
     IXMLDOMDocument_Release(doc3);

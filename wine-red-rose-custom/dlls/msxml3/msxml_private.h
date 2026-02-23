@@ -161,6 +161,7 @@ extern HRESULT xmldoc_add_orphan( xmlDocPtr doc, xmlNodePtr node );
 extern HRESULT xmldoc_remove_orphan( xmlDocPtr doc, xmlNodePtr node );
 extern void xmldoc_link_xmldecl(xmlDocPtr doc, xmlNodePtr node);
 extern xmlNodePtr xmldoc_unlink_xmldecl(xmlDocPtr doc);
+extern xmlNodePtr xmldoc_get_xmldecl( xmlDocPtr doc );
 extern MSXML_VERSION xmldoc_version( xmlDocPtr doc );
 
 extern HRESULT XMLElement_create( xmlNodePtr node, LPVOID *ppObj, BOOL own );

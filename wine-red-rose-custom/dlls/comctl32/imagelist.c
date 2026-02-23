@@ -720,6 +720,7 @@ ImageList_Copy (HIMAGELIST himlDst, INT iDst,	HIMAGELIST himlSrc,
                       hdcBmp, 0, 0, SRCCOPY);
 
         /* image */
+        SelectObject (hdcBmp, hbmTempImage);
         BitBlt       (himlSrc->hdcImage, ptSrc.x, ptSrc.y, himlSrc->cx, himlSrc->cy,
                       hdcBmp, 0, 0, SRCCOPY);
         /* delete temporary bitmaps */
@@ -3171,6 +3172,15 @@ static HBITMAP ImageList_CreateImage(HDC hdc, HIMAGELIST himl, UINT count)
             }
         }
 	hbmNewBitmap = CreateDIBSection(hdc, bmi, DIB_RGB_COLORS, NULL, 0, 0);
+        if(!hbmNewBitmap)
+        {
+            UINT newImageCount = 1;
+            //if CreateDIBSection failed, allocate for 1 image only.
+            bmi->bmiHeader.biHeight = newImageCount * himl->cy;
+            hbmNewBitmap = CreateDIBSection(hdc, bmi, DIB_RGB_COLORS, NULL, 0, 0);
+            //the max image count is set to 2, expand when exceeded.
+            himl->cMaxImage = newImageCount + 1;
+        }
     }
     else /*if (ilc == ILC_COLORDDB)*/
     {

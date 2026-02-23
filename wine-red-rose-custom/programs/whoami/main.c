@@ -237,13 +237,13 @@ static int user(enum format format, BOOL skip_header)
     if (!sid)
     {
         ERR("get_process_sid failed\n");
-        return 1;
+        goto cleanup;
     }
 
     if (!ConvertSidToStringSidW(sid, &sid_string))
     {
         ERR("ConvertSidToStringSidW failed, error %ld\n", GetLastError());
-        return 1;
+        goto cleanup;
     }
 
     if (format != FORMAT_CSV && !skip_header)
@@ -293,6 +293,16 @@ static int user(enum format format, BOOL skip_header)
     LocalFree(sid_string);
 
     return 0;
+
+cleanup:
+    if (name)
+        free(name);
+    if (sid)
+        free(sid);
+    if (sid_string)
+        LocalFree(sid_string);
+
+    return 1;
 }
 
 int __cdecl wmain(int argc, WCHAR *argv[])

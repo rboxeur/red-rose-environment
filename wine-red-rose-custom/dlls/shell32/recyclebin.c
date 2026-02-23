@@ -118,16 +118,16 @@ static BOOL WINAPI init_trash_dirs( INIT_ONCE *once, void *param, void **context
         swprintf( files, len, fmt, home );
         files[1] = '\\';  /* change \??\ to \\?\ */
         for (p = files; *p; p++) if (*p == '/') *p = '\\';
-        CreateDirectoryW( files, NULL );
+        SHCreateDirectoryExW( NULL, files, NULL );
         info = malloc( len * sizeof(WCHAR) );
         lstrcpyW( info, files );
         lstrcatW( files, L"\\files" );
         lstrcatW( info, L"\\info" );
-        if (!SHCreateDirectoryExW( NULL, info, NULL ) && GetLastError() != ERROR_ALREADY_EXISTS) goto done;
+        if (!CreateDirectoryW( info, NULL ) && GetLastError() != ERROR_ALREADY_EXISTS) goto done;
         trash_info_dir = info;
     }
 
-    if (!SHCreateDirectoryExW( NULL, files, NULL ) && GetLastError() != ERROR_ALREADY_EXISTS) goto done;
+    if (!CreateDirectoryW( files, NULL ) && GetLastError() != ERROR_ALREADY_EXISTS) goto done;
     trash_dir = files;
     random_seed = GetTickCount();
     return TRUE;

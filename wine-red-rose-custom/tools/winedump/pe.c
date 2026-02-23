@@ -2328,7 +2328,6 @@ static void print_clr( const char *str )
 static void print_clr_strings( const BYTE *data, UINT data_size )
 {
     const char *beg = (const char *)data, *end;
-    UINT count = 0;
 
     if (!data_size) return;
     clr_indent += 4;
@@ -2336,9 +2335,8 @@ static void print_clr_strings( const BYTE *data, UINT data_size )
     {
         if (!(end = memchr( beg, '\0', data_size - (beg - (const char *)data) ))) break;
         print_clr_indent();
-        printf( "%-10u\"%s\"\n", count, beg );
+        printf( "%-10lu\"%s\"\n", beg - (const char *)data, beg );
         beg = end + 1;
-        count++;
     }
     clr_indent -= 4;
 }

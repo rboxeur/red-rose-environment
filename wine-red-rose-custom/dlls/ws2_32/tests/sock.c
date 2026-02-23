@@ -6797,6 +6797,27 @@ static void test_connect_events(struct event_test_ctx *ctx)
     closesocket(server);
 
     closesocket(listener);
+
+    /* Reusing socket, with connection refused. */
+
+    destaddr = addr;
+    destaddr.sin_port = htons(12345);
+
+    client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    ok(client != -1, "failed to create socket, error %u\n", WSAGetLastError());
+
+    select_events(ctx, client, FD_ACCEPT | FD_CLOSE | FD_CONNECT | FD_OOB | FD_READ | FD_WRITE);
+    check_events(ctx, 0, 0, 0);
+
+    ret = connect(client, (struct sockaddr*)&destaddr, sizeof(destaddr));
+    ok(ret == SOCKET_ERROR, "expected SOCKET_ERROR, got %d\n", ret);
+    check_events(ctx, MAKELONG(FD_CONNECT, WSAECONNREFUSED), 0, 4000);
+
+    ret = connect(client, (struct sockaddr*)&destaddr, sizeof(destaddr));
+    ok(ret == SOCKET_ERROR, "expected SOCKET_ERROR, got %d\n", ret);
+    check_events(ctx, MAKELONG(FD_CONNECT, WSAECONNREFUSED), 0, 4000);
+
+    closesocket(client);
 }
 
 /* perform a blocking recv() even on a nonblocking socket */

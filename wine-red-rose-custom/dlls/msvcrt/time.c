@@ -761,7 +761,7 @@ void CDECL _ftime32(struct __timeb32 *buf)
     struct __timeb64 buf64;
 
     _ftime64( &buf64 );
-    buf->time     = buf64.time;
+    buf->time     = (buf64.time == (__time32_t)buf64.time) ? (__time32_t)buf64.time : -1;
     buf->millitm  = buf64.millitm;
     buf->timezone = buf64.timezone;
     buf->dstflag  = buf64.dstflag;
@@ -801,7 +801,7 @@ __time32_t CDECL _time32(__time32_t *buf)
 
     _ftime64(&tb);
 
-    curtime = tb.time;
+    curtime = (tb.time == (__time32_t)tb.time) ? (__time32_t)tb.time : -1;
     return buf ? *buf = curtime : curtime;
 }
 

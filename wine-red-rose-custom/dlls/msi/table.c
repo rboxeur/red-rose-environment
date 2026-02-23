@@ -394,11 +394,12 @@ static UINT table_get_row_size( MSIDATABASE *db, const struct column_info *cols,
 static UINT read_table_from_storage( MSIDATABASE *db, MSITABLE *t, IStorage *stg )
 {
     BYTE *rawdata = NULL;
-    UINT rawsize = 0, i, j, row_size, row_size_mem;
+    UINT rawsize = 0, i, j, row_size, row_size_mem, bytes_per_strref;
 
     TRACE("%s\n",debugstr_w(t->name));
 
-    row_size = table_get_row_size( db, t->colinfo, t->col_count, db->bytes_per_strref );
+    bytes_per_strref = db->bytes_per_strref;
+    row_size = table_get_row_size( db, t->colinfo, t->col_count, bytes_per_strref );
     row_size_mem = table_get_row_size( db, t->colinfo, t->col_count, LONG_STR_BYTES );
 
     /* if we can't read the table, just assume that it's empty */
@@ -408,13 +409,36 @@ static UINT read_table_from_storage( MSIDATABASE *db, MSITABLE *t, IStorage *stg
 
     TRACE("Read %d bytes\n", rawsize );
 
-    if( rawsize % row_size )
+    /* Check if table data was written with a different bytes_per_strref than the database.
+     * Some installers create MSI files with mismatched string reference sizes.
+     * Skip system tables (_Columns, _Tables) as they may be updated during transforms. */
+    if (bytes_per_strref == LONG_STR_BYTES && t->name[0] != '_')
     {
-        WARN("Table size is invalid %d/%d\n", rawsize, row_size );
-        goto err;
+        UINT alt_row_size = table_get_row_size( db, t->colinfo, t->col_count, sizeof(USHORT) );
+        if (alt_row_size != row_size && rawsize % alt_row_size == 0 && rawsize / alt_row_size > rawsize / row_size)
+        {
+            WARN("Table %s: detected 2-byte string refs (rawsize %u fits %u rows vs %u with db bytes_per_strref)\n",
+                 debugstr_w(t->name), rawsize, rawsize / alt_row_size, rawsize / row_size);
+            bytes_per_strref = sizeof(USHORT);
+            row_size = alt_row_size;
+        }
     }
 
-    if ((t->row_count = rawsize / row_size))
+    if( rawsize % row_size )
+    {
+        /* MSI files may have streams padded to 4-byte alignment */
+        UINT padding = rawsize % row_size;
+        if (padding < 4)
+            rawsize -= padding;
+        else
+        {
+            WARN("Table size is invalid %d/%d\n", rawsize, row_size );
+            goto err;
+        }
+    }
+
+    t->row_count = rawsize / row_size;
+    if (t->row_count)
     {
         if (!(t->data = calloc( t->row_count, sizeof(USHORT *) ))) goto err;
         if (!(t->data_persistent = calloc( t->row_count, sizeof(BOOL) ))) goto err;
@@ -434,7 +458,7 @@ static UINT read_table_from_storage( MSIDATABASE *db, MSITABLE *t, IStorage *stg
         for (j = 0; j < t->col_count; j++)
         {
             UINT m = bytes_per_column( db, &t->colinfo[j], LONG_STR_BYTES );
-            UINT n = bytes_per_column( db, &t->colinfo[j], db->bytes_per_strref );
+            UINT n = bytes_per_column( db, &t->colinfo[j], bytes_per_strref );
             UINT k;
 
             if ( n != 2 && n != 3 && n != 4 )

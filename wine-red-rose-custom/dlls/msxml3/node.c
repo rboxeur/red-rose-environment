@@ -1212,7 +1212,8 @@ static HRESULT node_transform_write(xsltStylesheetPtr style, xmlDocPtr result, B
         transform_write_text(result, style, output);
     else
     {
-        transform_write_xmldecl(result, style, omit_encoding, output);
+        if (!xmldoc_get_xmldecl(result))
+            transform_write_xmldecl(result, style, omit_encoding, output);
 
         if (result->children)
         {

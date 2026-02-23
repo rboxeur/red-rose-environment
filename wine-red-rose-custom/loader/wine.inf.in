@@ -298,6 +298,7 @@ HKCR,.lnk,,2,"lnkfile"
 HKCR,.msi,,2,"Msi.Package"
 HKCR,.msp,,2,"Msi.Patch"
 HKCR,.pdf,,2,"pdffile"
+HKCR,.reg,,2,"regfile"
 HKCR,.rtf,,2,"rtffile"
 HKCR,.wri,,2,"wrifile"
 HKCR,*\shellex\ContextMenuHandlers,,16
@@ -342,6 +343,8 @@ HKCR,Msi.Patch\DefaultIcon,,2,"msiexec.exe"
 HKCR,Msi.Patch\shell\Open\command,,2,"%11%\msiexec.exe /p ""%1"" %*"
 HKCR,pdffile,,2,"PDF Document"
 HKCR,pdffile\shell\open\command,,2,"""%11%\winebrowser.exe"" ""%1"""
+HKCR,regfile,,2,"Windows Registry File"
+HKCR,regfile\shell\open\command,,2,"""%11%\regedit.exe"" ""%1"""
 HKCR,rtffile,,2,"Rich Text Document"
 HKCR,rtffile\shell\open\command,,2,"""%16422%\Windows NT\Accessories\wordpad.exe"" ""%1"""
 HKCR,rtffile\shell\print\command,,2,"""%16422%\Windows NT\Accessories\wordpad.exe"" /p ""%1"""
@@ -2550,6 +2553,7 @@ HKLM,%CurrentVersion%\Telephony\Country List\998,"SameAreaRule",,"G"
 16422,Internet Explorer,iexplore.exe
 16422,Windows Media Player,wmplayer.exe
 16422,Windows NT\Accessories,wordpad.exe
+16427,Microsoft Shared\Ink,inkobj.dll
 16427,System\OLE DB,oledb32.dll
 16427,System\OLE DB,msdaps.dll
 16427,System\OLE DB,msdasql.dll
@@ -2618,6 +2622,7 @@ HKLM,%CurrentVersion%\Telephony\Country List\998,"SameAreaRule",,"G"
 16422,Windows Media Player,wmplayer.exe
 16422,Windows NT\Accessories,wordpad.exe
 16427,Microsoft Shared\TextConv,
+16427,Microsoft Shared\Ink,inkobj.dll
 16427,System\OLE DB,oledb32.dll
 16427,System\OLE DB,msdaps.dll
 16427,System\OLE DB,msdasql.dll

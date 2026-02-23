@@ -2732,6 +2732,7 @@ static void sock_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
 
             case SOCK_UNCONNECTED:
             case SOCK_CONNECTIONLESS:
+                if (sock->type == WS_SOCK_STREAM) sock->reported_events = 0;
                 break;
         }
 

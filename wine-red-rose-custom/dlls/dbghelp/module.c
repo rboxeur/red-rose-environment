@@ -1247,6 +1247,23 @@ BOOL  WINAPI EnumerateLoadedModules64(HANDLE hProcess,
     return EnumerateLoadedModulesW64(hProcess, enum_load_modW64_64, &x);
 }
 
+static unsigned int load_and_grow_modules(HANDLE process, HMODULE** hmods, unsigned start, unsigned* alloc, DWORD filter)
+{
+    DWORD needed;
+    BOOL ret;
+
+    while ((ret = EnumProcessModulesEx(process, *hmods + start, (*alloc - start) * sizeof(HMODULE),
+                                       &needed, filter)) &&
+           needed > (*alloc - start) * sizeof(HMODULE))
+    {
+        HMODULE* new = HeapReAlloc(GetProcessHeap(), 0, *hmods, (*alloc) * 2 * sizeof(HMODULE));
+        if (!new) return 0;
+        *hmods = new;
+        *alloc *= 2;
+    }
+    return ret ? needed / sizeof(HMODULE) : 0;
+}
+
 /******************************************************************
  *		EnumerateLoadedModules (DBGHELP.@)
  *
@@ -1276,23 +1293,6 @@ BOOL  WINAPI EnumerateLoadedModules(HANDLE hProcess,
     x.user = UserContext;
 
     return EnumerateLoadedModulesW64(hProcess, enum_load_modW64_32, &x);
-}
-
-static unsigned int load_and_grow_modules(HANDLE process, HMODULE** hmods, unsigned start, unsigned* alloc, DWORD filter)
-{
-    DWORD needed;
-    BOOL ret;
-
-    while ((ret = EnumProcessModulesEx(process, *hmods + start, (*alloc - start) * sizeof(HMODULE),
-                                       &needed, filter)) &&
-           needed > (*alloc - start) * sizeof(HMODULE))
-    {
-        HMODULE* new = HeapReAlloc(GetProcessHeap(), 0, *hmods, (*alloc) * 2 * sizeof(HMODULE));
-        if (!new) return 0;
-        *hmods = new;
-        *alloc *= 2;
-    }
-    return ret ? needed / sizeof(HMODULE) : 0;
 }
 
 /******************************************************************

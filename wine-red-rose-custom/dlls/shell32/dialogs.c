@@ -1722,10 +1722,19 @@ static BOOL ConfirmDialog(HWND hWndOwner, UINT PromptId, UINT TitleId)
 
 int WINAPI RestartDialogEx(HWND hWndOwner, LPCWSTR lpwstrReason, DWORD uFlags, DWORD uReason)
 {
+    WCHAR Prompt[256];
+    WCHAR Title[256];
     TRACE("(%p)\n", hWndOwner);
 
-    /* FIXME: use lpwstrReason */
-    if (ConfirmDialog(hWndOwner, IDS_RESTART_PROMPT, IDS_RESTART_TITLE))
+    LoadStringW(shell32_hInstance, IDS_RESTART_TITLE, Title, ARRAY_SIZE(Title));
+
+    if (!lpwstrReason)
+    {
+        LoadStringW(shell32_hInstance, IDS_RESTART_PROMPT, Prompt, ARRAY_SIZE(Prompt));
+        lpwstrReason = Prompt;
+    }
+
+    if (MessageBoxW(hWndOwner, lpwstrReason, Title, MB_YESNO|MB_ICONQUESTION) == IDYES)
     {
         HANDLE hToken;
         TOKEN_PRIVILEGES npr;

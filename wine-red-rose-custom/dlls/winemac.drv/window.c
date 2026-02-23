@@ -1537,6 +1537,7 @@ static void perform_window_command(HWND hwnd, unsigned int style_any, unsigned i
  */
 void macdrv_SetDesktopWindow(HWND hwnd)
 {
+    static pthread_once_t app_icon_once = PTHREAD_ONCE_INIT;
     unsigned int width, height;
 
     TRACE("%p\n", hwnd);
@@ -1571,7 +1572,7 @@ void macdrv_SetDesktopWindow(HWND hwnd)
         SERVER_END_REQ;
     }
 
-    set_app_icon();
+    pthread_once(&app_icon_once, set_app_icon);
 }
 
 void macdrv_resize_desktop(void)

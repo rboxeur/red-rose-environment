@@ -926,6 +926,9 @@ static void set_script_elem_readystate(HTMLScriptElement *script_elem, READYSTAT
 
             hres = push_event_task(&task->header, script_elem->element.node.doc->window, fire_readystatechange_proc,
                     fire_readystatechange_task_destr, script_elem->element.node.doc->window->task_magic);
+
+            free(task);
+
             if(SUCCEEDED(hres))
                 script_elem->pending_readystatechange_event = TRUE;
         }else {
