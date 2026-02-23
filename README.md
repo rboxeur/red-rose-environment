@@ -44,7 +44,7 @@ Aligned with GE-Proton-10-29 [Glorious Eggroll proton](https://github.com/Glorio
 - changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-10-29 were applied
 - [Patch to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-10.0-be.mypatch) was applied -- slightly modified.
 - [Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0003-use-surfaceless-for-GST.patch) was neutered.
-- [Another Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0304-winegstreamer-Fix-x11-gst-display.patch) was neutered.
+- [Another Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0301-winegstreamer-Fix-x11-gst-display.patch) was neutered.
 - [Kron4ek' patch to neuter OpenCL](https://github.com/Kron4ek/Wine-Builds/blob/master/proton-opencl.patch) was applied
 - [Josh' theme patch](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/misc/josh-flat-theme/josh-flat-theme.patch) was applied
 - [Glorious Eggroll's patch for winealsa-override-channel-count](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/proton/winealsa-override-channel-count.patch) was slightly modified
