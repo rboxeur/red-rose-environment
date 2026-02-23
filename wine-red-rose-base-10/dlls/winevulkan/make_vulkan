@@ -64,7 +64,7 @@ from enum import Enum
 LOGGER = logging.Logger("vulkan")
 LOGGER.addHandler(logging.StreamHandler())
 
-VK_XML_VERSION = "1.4.318"
+VK_XML_VERSION = "1.4.344"
 WINE_VK_VERSION = (1, 4)
 
 # Filenames to create.
@@ -100,6 +100,9 @@ UNSUPPORTED_EXTENSIONS = [
     # Relates to external_semaphore and needs type conversions in bitflags.
     "VK_KHR_maintenance7", # Causes infinity recursion in struct convert code
     "VK_KHR_shared_presentable_image", # Needs WSI work.
+    "VK_KHR_video_encode_h265", # StdVideoH265HrdParameters cannot be handled
+    "VK_KHR_video_decode_h265", # by struct conversions.
+    "VK_KHR_video_maintenance2", # Also affected by StdVideoH265HrdParameters.
     "VK_NV_external_memory_rdma", # Needs shared resources work.
     "VK_NV_external_compute_queue", # Has a new dispatchable handle
 
@@ -157,6 +160,8 @@ PERF_CRITICAL_FUNCTIONS = [
     "vkUpdateDescriptorSets",
     "vkUpdateDescriptorSetWithTemplate",
     "vkGetDescriptorEXT",
+    "vkWriteResourceDescriptorsEXT",
+    "vkWriteSamplerDescriptorsEXT",
 ]
 
 # Table of functions for which we have a special implementation.
@@ -293,6 +298,7 @@ MANUAL_UNIX_THUNKS = {
     "vkGetPhysicalDeviceProperties",
     "vkGetPhysicalDeviceProperties2",
     "vkGetPhysicalDeviceProperties2KHR",
+    "vkGetSwapchainTimeDomainPropertiesEXT",
     "vkMapMemory",
     "vkMapMemory2KHR",
     "vkUnmapMemory",
@@ -1115,38 +1121,27 @@ class VkFunctionPointer(object):
             return None
 
         members = []
-        begin = None
 
-        for t in funcpointer.findall("type"):
-            # General form:
-            # <type>void</type>*       pUserData,
-            # Parsing of the tail (anything past </type>) is tricky since there
-            # can be other data on the next line like: const <type>int</type>..
-
-            const = True if begin and "const" in begin else False
-            _type = t.text
-            lines = t.tail.split(",\n")
-            if lines[0][0] == "*":
+        for t in funcpointer.findall("param"):
+            const = t.text == "const "
+            type_element = t.find('type')
+            _type = type_element.text
+            name = t.find('name').text
+            if type_element.tail[0] == "*":
                 pointer = "*"
-                name = lines[0][1:].strip()
             else:
                 pointer = None
-                name = lines[0].strip()
 
             # Filter out ); if it is contained.
             name = name.partition(");")[0]
 
-            # If tail encompasses multiple lines, assign the second line to begin
-            # for the next line.
-            try:
-                begin = lines[1].strip()
-            except IndexError:
-                begin = None
-
             members.append(VkMember(const=const, _type=_type, pointer=pointer, name=name))
 
-        _type = funcpointer.text
-        name = funcpointer.find("name").text
+        proto = funcpointer.find("proto")
+        type_element = proto.find("type")
+        _type = "typedef {0}{1} (VKAPI_PTR *".format(type_element.text,
+                                                     type_element.tail.strip())
+        name = proto.find("name").text
         if "requires" in funcpointer.attrib:
             forward_decls = funcpointer.attrib.get("requires").split(",")
         else:
@@ -2299,6 +2294,9 @@ class VkStruct(Sequence):
             if self.name == m.type:
                 continue
 
+            if m.is_generic_handle() and not check_extensions:
+                continue
+
             if m.name == "pNext":
                 # pNext is a pointer, so it always needs conversion
                 if conv and direction == Direction.INPUT:
@@ -2476,6 +2474,9 @@ class StructConversionFunction(object):
         else:
             params = ["const {0} *in".format(self.type), "{0} *out".format(self.type)]
 
+            if self.operand.union:
+                params.append("VkFlags selector")
+
             # Generate parameter list
             if needs_alloc:
                 body += "struct conversion_context *ctx, "
@@ -2574,6 +2575,9 @@ class StructConversionFunction(object):
                         continue
                     if m.name == "pNext":
                         copy_body += ident + "out_ext->pNext = NULL;\n"
+                        continue
+                    if m.is_generic_handle():
+                        copy_body += f"            out_ext->{m.name} = in_ext->{m.name};\n"
                         continue
                     copy_body += ident + m.copy("in_ext->", "out_ext->", self.direction, self.conv, Unwrap.HOST, self.copy)
 
@@ -3910,8 +3914,11 @@ class VkRegistry(object):
             # Name is in general within a name tag else it is an optional
             # attribute on the type tag.
             name_elem = t.find("name")
+            proto_elm = t.find("proto")
             if name_elem is not None:
                 type_info["name"] = name_elem.text
+            elif proto_elm is not None:
+                type_info["name"] = proto_elm.find("name").text
             else:
                 type_info["name"] = t.attrib.get("name", None)
 

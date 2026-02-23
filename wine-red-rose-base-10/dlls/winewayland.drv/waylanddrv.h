@@ -170,6 +170,7 @@ struct wayland_text_input
     } preedit, current_preedit;
     WCHAR *commit_string;
     HWND focused_hwnd;
+    BOOL enabled;
     pthread_mutex_t mutex;
 };
 
@@ -441,7 +442,7 @@ static inline BOOL wayland_surface_is_toplevel(struct wayland_surface *surface)
 struct wayland_shm_buffer *wayland_shm_buffer_create(int width, int height,
                                                      enum wl_shm_format format);
 struct wayland_shm_buffer *wayland_shm_buffer_from_color_bitmaps(HDC hdc, HBITMAP color,
-                                                                 HBITMAP mask);
+                                                                 HBITMAP mask, BOOL allow_padding);
 void wayland_shm_buffer_ref(struct wayland_shm_buffer *shm_buffer);
 void wayland_shm_buffer_unref(struct wayland_shm_buffer *shm_buffer);
 
@@ -467,6 +468,8 @@ struct wayland_win_data
     BOOL force_below_hack;
     BOOL managed;
     BOOL layered_attribs_set;
+    BOOL ime_enabled;
+    int num_ime_children;
 };
 
 struct wayland_win_data *wayland_win_data_get(HWND hwnd);
@@ -563,6 +566,7 @@ LRESULT WAYLAND_DesktopWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
 void WAYLAND_DestroyWindow(HWND hwnd);
 void WAYLAND_FlashWindowEx(FLASHWINFO *info);
 BOOL WAYLAND_SetIMECompositionRect(HWND hwnd, RECT rect);
+BOOL WAYLAND_SetIMEEnabled(HWND hwnd, BOOL enable);
 void WAYLAND_SetCursor(HWND hwnd, HCURSOR hcursor);
 BOOL WAYLAND_SetCursorPos(INT x, INT y);
 void WAYLAND_SetLayeredWindowAttributes(HWND hwnd, COLORREF key, BYTE alpha, DWORD flags);

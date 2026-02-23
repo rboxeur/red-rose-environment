@@ -3231,3 +3231,7 @@ HKCU,Software\Wine\AppDefaults\Age of Barbarians Chronicles.exe\DllOverrides,"ds
 HKCU,Software\Wine\AppDefaults\WHISPERER.exe\DllOverrides,"winhttp",,"native,builtin"
 HKCU,Software\Wine\AppDefaults\ThorSin.exe\DllOverrides,"winhttp",,"native,builtin"
 HKCU,Software\Wine\AppDefaults\WickedIsland.exe\DllOverrides,"dsound",,"builtin,native"
+HKCU,Software\Wine\AppDefaults\PhotoShop.exe\DllOverrides,"*gdiplus",,"builtin,native"
+HKCU,Software\Wine\AppDefaults\PhotoShop.exe\DllOverrides,"*msxml3",,"builtin,native"
+HKCU,Software\Wine\AppDefaults\PhotoShop.exe\DllOverrides,"*msxml6",,"builtin,native"
+HKCU,Software\Wine\AppDefaults\HordesOfHunger.exe\DllOverrides,"dsound",,"builtin,native"

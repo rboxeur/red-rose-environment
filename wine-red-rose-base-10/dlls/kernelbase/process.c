@@ -777,6 +777,36 @@ BOOL WINAPI DECLSPEC_HOTPATCH CreateProcessInternalW( HANDLE token, const WCHAR 
     if (battleye_launcher_redirect_hack( app_name, name, ARRAY_SIZE(name), &orig_app_name, product_name ))
         app_name = name;
 
+    /* Warhammer Vermintide 2 Directory Correction Hack (Steam AppID 552500) */
+    {
+        char sgi[64] = {0};
+        GetEnvironmentVariableA("SteamGameId", sgi, sizeof(sgi));
+
+        /* If this is Vermintide 2 and we are launching the protected game... */
+        if (!strcmp(sgi, "552500") && tidy_cmdline && wcsstr(tidy_cmdline, L"start_protected_game.exe"))
+        {
+            static WCHAR root_path[MAX_PATH];
+            WCHAR *dir_sep;
+
+            /* 1. Get the current directory (which is currently .../launcher/) */
+            if (GetCurrentDirectoryW(MAX_PATH, root_path))
+            {
+                /* 2. Find the last backslash and check if we are in the launcher folder */
+                dir_sep = wcsrchr(root_path, L'\\');
+                if (dir_sep && !wcsicmp(dir_sep, L"\\launcher"))
+                {
+                    /* 3. Strip "\launcher" to move the working directory to the Game Root */
+                    *dir_sep = L'\0';
+
+                    /* 4. Apply the fix to the actual process creation parameter */
+                    cur_dir = root_path;
+
+                    FIXME("Vermintide 2: Corrected Working Directory to %s\n", debugstr_w(cur_dir));
+                }
+            }
+        }
+    }
+
     /* Warn if unsupported features are used */
 
     if (flags & (IDLE_PRIORITY_CLASS | HIGH_PRIORITY_CLASS | REALTIME_PRIORITY_CLASS |
@@ -808,6 +838,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH CreateProcessInternalW( HANDLE token, const WCHAR 
       - we don't overwrite WINEDLLOVERRIDES because it's fetched from the unix environment */
     {
         UNICODE_STRING name, value;
+        WCHAR exe_path[MAX_PATH], *p;
 
         WCHAR *new_env = RtlAllocateHeap( GetProcessHeap(), 0, params->EnvironmentSize );
         memcpy(new_env, params->Environment, params->EnvironmentSize);
@@ -820,6 +851,17 @@ BOOL WINAPI DECLSPEC_HOTPATCH CreateProcessInternalW( HANDLE token, const WCHAR 
              * PE side will be lost. Preserve some critical ones. */
             sync_env_var_to_unix( new_env, "UPLAY_ARGUMENTS" );
             sync_env_var_to_unix( new_env, "UPC_GAME_STARTER_RUNNING" );
+
+            p = app_name + wcslen( app_name );
+            while (p != app_name && *p != '/' && *p != '\\') --p;
+            if (p != app_name)
+            {
+                /* The current directory may actually be wrong for the game executable (started by EAC bootstrapper)
+                 * and not the bootstrapper itself started here but it is easier to workaround this way.  */
+                memcpy( exe_path, app_name, (p - app_name) * sizeof(*p) );
+                exe_path[p - app_name] = 0;
+                cur_dir = exe_path;
+            }
         }
 
         RtlInitUnicodeString( &name, L"PROTON_EAC_LAUNCHER_PROCESS" );
@@ -1371,12 +1413,7 @@ HANDLE WINAPI DECLSPEC_HOTPATCH OpenProcess( DWORD access, BOOL inherit, DWORD i
 
     if (GetVersion() & 0x80000000) access = PROCESS_ALL_ACCESS;
 
-    attr.Length = sizeof(OBJECT_ATTRIBUTES);
-    attr.RootDirectory = 0;
-    attr.Attributes = inherit ? OBJ_INHERIT : 0;
-    attr.ObjectName = NULL;
-    attr.SecurityDescriptor = NULL;
-    attr.SecurityQualityOfService = NULL;
+    InitializeObjectAttributes( &attr, NULL, inherit ? OBJ_INHERIT : 0, 0, NULL );
 
     cid.UniqueProcess = ULongToHandle(id);
     cid.UniqueThread  = 0;

@@ -1573,6 +1573,26 @@ static void free_stream_buffers(struct wm_reader *reader)
     }
 }
 
+static void free_streams(struct wm_reader *reader)
+{
+    unsigned int i;
+
+    for (i = 0; i < reader->stream_count; ++i)
+    {
+        struct wm_stream *stream = &reader->streams[i];
+
+        if (stream->output_allocator)
+            IWMReaderAllocatorEx_Release(stream->output_allocator);
+        stream->output_allocator = NULL;
+        if (stream->stream_allocator)
+            IWMReaderAllocatorEx_Release(stream->stream_allocator);
+        stream->stream_allocator = NULL;
+    }
+
+    free(reader->streams);
+    reader->streams = NULL;
+}
+
 static HRESULT init_stream(struct wm_reader *reader)
 {
     BOOL enable_opengl = sizeof(void *) == 4;
@@ -1817,6 +1837,7 @@ out_destroy_parser:
         reader->read_sem = NULL;
     }
     free_stream_buffers(reader);
+    free_streams(reader);
     wg_parser_destroy(reader->wg_parser);
     reader->wg_parser = 0;
 
@@ -2099,6 +2120,7 @@ static HRESULT WINAPI reader_Close(IWMSyncReader2 *iface)
     ReleaseSemaphore(reader->read_sem, 1, NULL);
 
     free_stream_buffers(reader);
+    free_streams(reader);
 
     wg_parser_disconnect(reader->wg_parser);
 

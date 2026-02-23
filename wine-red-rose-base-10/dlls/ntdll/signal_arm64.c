@@ -667,10 +667,23 @@ BOOLEAN WINAPI RtlIsProcessorFeaturePresent( UINT feature )
             user_shared_data->ProcessorFeatures[feature]);
 }
 
+static LONG apc_worker_started = 0;
+
+static void apc_worker_thread( void * )
+{
+    ULONG count = 0;
+    while (1) NtSuspendThread( NtCurrentThread(), &count );
+}
+
 static void suspend_remote_breakin( HANDLE thread )
 {
-    ULONG count;
-    NTSTATUS status = pWow64SuspendLocalThread( thread, &count );
+    ULONG count = 0;
+    NTSTATUS status = 0;
+    if (pWow64SuspendLocalThread)
+        status = pWow64SuspendLocalThread( thread, &count );
+    else
+        status = NtSuspendThread( thread, &count );
+
     if (status >= 0) status = count;
     NtTerminateThread( GetCurrentThread(),  status );
 }
@@ -900,6 +913,15 @@ __ASM_GLOBAL_FUNC( RtlUserThreadStart,
  */
 void WINAPI LdrInitializeThunk( CONTEXT *context, ULONG_PTR unk2, ULONG_PTR unk3, ULONG_PTR unk4 )
 {
+    if (NtCurrentTeb()->WowTebOffset && InterlockedCompareExchange( &apc_worker_started, 1, 0 ) == 0)
+    {
+        HANDLE handle;
+        NtCreateThreadEx( &handle, SYNCHRONIZE | THREAD_QUERY_INFORMATION, NULL, NtCurrentProcess(),
+                          apc_worker_thread, NULL,
+                          THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH | THREAD_CREATE_FLAGS_SKIP_LOADER_INIT |
+                          THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER, 0, 0, 0, NULL );
+    }
+
     loader_init( context, (void **)&context->X0 );
     TRACE_(relay)( "\1Starting thread proc %p (arg=%p)\n", (void *)context->X0, (void *)context->X1 );
     NtContinue( context, TRUE );

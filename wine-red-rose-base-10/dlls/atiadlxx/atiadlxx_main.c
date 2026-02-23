@@ -1116,6 +1116,7 @@ int CDECL ADL_Display_DisplayMapConfig_Get(int adapter_index, int *display_map_c
             display_target_count, display_targets, options);
 }
 
+
 int CDECL ADL_Display_MVPUStatus_Get(int adapter_index, ADLMVPUStatus *mvpu_status)
 {
     TRACE("adapter_index %d, mvpu_status %p.\n", adapter_index, mvpu_status);

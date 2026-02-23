@@ -1313,23 +1313,6 @@ static void get_window_mwm_hints( Display *display, Window window, MwmHints *hin
     }
 }
 
-static int skip_iconify(void)
-{
-    static int cached = -1;
-    const char *env;
-
-    if (cached == -1)
-    {
-        cached = (env = getenv( "SteamGameId" )) && (0
-                    || !strcmp( env, "1827980" )
-                    || !strcmp( env, "1183470" )
-                 );
-        if (cached) FIXME( "HACK: skip_iconify.\n" );
-    }
-
-    return cached;
-}
-
 /***********************************************************************
  *           handle_wm_state_notify
  *
@@ -1349,7 +1332,7 @@ static void handle_wm_state_notify( HWND hwnd, XPropertyEvent *event )
 
     if (hwnd == NtUserGetForegroundWindow() && activate) set_net_active_window( hwnd, 0 );
     NtUserPostMessage( hwnd, WM_WINE_WINDOW_STATE_CHANGED, 0, 0 );
-    if (value == IconicState && X11DRV_HasWindowManager( "steamcompmgr" ) && !skip_iconify() && (data = get_win_data( hwnd )))
+    if (value == IconicState && X11DRV_HasWindowManager( "steamcompmgr" ) && (data = get_win_data( hwnd )))
     {
         if (data->whole_window)
         {

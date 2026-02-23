@@ -937,7 +937,7 @@ switch (1 << bit) {
                 case 0x00000800: /* SPEAKER_TOP_CENTER */
                 case 0x00002000: /* SPEAKER_TOP_FRONT_CENTER */
                     if (O_FC != -1) { 
-                        t1 = O_FC; v1 = 1.0f; 
+                        t1 = O_FC; v1 = 0.707106781f; 
                     } else { 
                         t1 = O_FL; v1 = 0.707106781f; 
                         t2 = O_FR; v2 = 0.707106781f; 

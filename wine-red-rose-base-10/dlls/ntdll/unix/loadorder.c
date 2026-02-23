@@ -423,7 +423,7 @@ enum loadorder get_load_order( const UNICODE_STRING *nt_name )
     basename = get_basename((WCHAR *)path);
     if (!wcsicmp(basename, easyanticheat_x86W) || !wcsicmp(basename, easyanticheat_x64W) || !wcsicmp(basename, easyanticheatW))
     {
-        UNICODE_STRING eac_unix_name;
+        UNICODE_STRING eac_unix_name, out_nt_name;
         OBJECT_ATTRIBUTES attr;
         char *unix_path = NULL;
         NTSTATUS status;
@@ -446,9 +446,11 @@ enum loadorder get_load_order( const UNICODE_STRING *nt_name )
         eac_unix_name.Length = eac_unix_name.MaximumLength = wcslen(eac_unix_name.Buffer) * sizeof(WCHAR);
         InitializeObjectAttributes(&attr, &eac_unix_name, 0, NULL, NULL);
 
-        if (!(status = nt_to_unix_file_name(&attr, &unix_path, FILE_OPEN)))
+        status = get_nt_and_unix_names( &attr, &out_nt_name, &unix_path, FILE_OPEN, FALSE );
+        free( out_nt_name.Buffer );
+        free( unix_path );
+        if (!status)
         {
-            free(unix_path);
             free(eac_unix_name.Buffer);
             ret = LO_BUILTIN;
             TRACE( "got hardcoded %s for %s, as the eac unix library is present\n", debugstr_loadorder(ret), debugstr_w(path) );

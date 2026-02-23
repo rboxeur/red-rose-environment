@@ -5295,7 +5295,7 @@ NTSTATUS WINAPI RtlCreateActivationContext( HANDLE *handle, const void *ptr )
         BOOLEAN ret;
 
         if (pActCtx->dwFlags & ACTCTX_FLAG_ASSEMBLY_DIRECTORY_VALID &&
-            RtlDetermineDosPathNameType_U(pActCtx->lpSource) == RELATIVE_PATH)
+            RtlDetermineDosPathNameType_U(pActCtx->lpSource) == RtlPathTypeRelative)
         {
             DWORD dir_len, source_len;
 

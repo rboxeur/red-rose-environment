@@ -443,13 +443,21 @@ static DEVICE_OBJECT *bus_find_unix_device(UINT64 unix_device)
     return NULL;
 }
 
-static DEVICE_OBJECT *bus_find_device_from_vid_pid(const BOOL is_hidraw, struct device_desc *desc)
+static USAGE_AND_PAGE get_device_usages(UINT64 unix_device, UINT *buttons);
+
+static DEVICE_OBJECT *bus_find_device_from_vid_pid(const BOOL is_hidraw, struct device_desc *desc, USAGE_AND_PAGE *usages)
 {
     struct device_extension *ext;
+    UINT buttons;
+    USAGE_AND_PAGE found_usages;
 
     LIST_FOR_EACH_ENTRY(ext, &device_list, struct device_extension, entry)
+    {
+        found_usages = get_device_usages(ext->unix_device, &buttons);
         if (ext->desc.is_hidraw == is_hidraw && ext->desc.vid == desc->vid &&
-            ext->desc.pid == desc->pid) return ext->device;
+            ext->desc.pid == desc->pid && found_usages.UsagePage == usages->UsagePage &&
+            found_usages.Usage == usages->Usage) return ext->device;
+    }
 
     return NULL;
 }
@@ -1035,7 +1043,7 @@ static DWORD CALLBACK bus_main_thread(void *args)
             else if (desc.is_hidraw && hidraw_enabled)
             {
                 RtlEnterCriticalSection(&device_list_cs);
-                if ((device = bus_find_device_from_vid_pid(FALSE, &event->device_created.desc)))
+                if ((device = bus_find_device_from_vid_pid(FALSE, &event->device_created.desc, &usages)))
                     bus_unlink_hid_device(device);
                 device = bus_create_hid_device(&event->device_created.desc, event->device);
                 RtlLeaveCriticalSection(&device_list_cs);
@@ -1043,7 +1051,7 @@ static DWORD CALLBACK bus_main_thread(void *args)
             else /* desc.is_hidraw == FALSE */
             {
                 RtlEnterCriticalSection(&device_list_cs);
-                if (hidraw_enabled && bus_find_device_from_vid_pid(TRUE, &event->device_created.desc)) device = NULL;
+                if (hidraw_enabled && bus_find_device_from_vid_pid(TRUE, &event->device_created.desc, &usages)) device = NULL;
                 else device = bus_create_hid_device(&event->device_created.desc, event->device);
                 RtlLeaveCriticalSection(&device_list_cs);
             }

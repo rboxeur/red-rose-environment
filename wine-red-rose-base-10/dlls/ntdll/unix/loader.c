@@ -1019,7 +1019,7 @@ static NTSTATUS load_so_dll( void *args )
     struct load_so_dll_params *params = args;
     UNICODE_STRING *nt_name = &params->nt_name;
     OBJECT_ATTRIBUTES attr;
-    UNICODE_STRING redir;
+    UNICODE_STRING true_nt_name;
     struct pe_image_info info;
     char *unix_name;
     NTSTATUS status;
@@ -1027,21 +1027,18 @@ static NTSTATUS load_so_dll( void *args )
 
     if (get_load_order( nt_name ) == LO_DISABLED) return STATUS_DLL_NOT_FOUND;
     InitializeObjectAttributes( &attr, nt_name, OBJ_CASE_INSENSITIVE, 0, 0 );
-    get_redirect( &attr, &redir );
-
-    if (nt_to_unix_file_name( &attr, &unix_name, FILE_OPEN ))
+    if (!get_nt_and_unix_names( &attr, &true_nt_name, &unix_name, FILE_OPEN, FALSE ))
     {
-        free( redir.Buffer );
-        return STATUS_DLL_NOT_FOUND;
+        /* remove .so extension from Windows name */
+        len = nt_name->Length / sizeof(WCHAR);
+        if (len > 3 && !wcsicmp( nt_name->Buffer + len - 3, soW )) nt_name->Length -= 3 * sizeof(WCHAR);
+
+        status = dlopen_dll( unix_name, nt_name, params->module, &info, FALSE );
     }
+    else status = STATUS_DLL_NOT_FOUND;
 
-    /* remove .so extension from Windows name */
-    len = nt_name->Length / sizeof(WCHAR);
-    if (len > 3 && !wcsicmp( nt_name->Buffer + len - 3, soW )) nt_name->Length -= 3 * sizeof(WCHAR);
-
-    status = dlopen_dll( unix_name, nt_name, params->module, &info, FALSE );
     free( unix_name );
-    free( redir.Buffer );
+    free( true_nt_name.Buffer );
     return status;
 }
 
@@ -1511,6 +1508,31 @@ static NTSTATUS open_builtin_so_file( const char *name, OBJECT_ATTRIBUTES *attr,
 
 
 /***********************************************************************
+ *           open_main_image_so_file
+ */
+static NTSTATUS open_main_image_so_file( const char *name, UNICODE_STRING *nt_name, void **module,
+                                         SECTION_IMAGE_INFORMATION *image_info )
+{
+    struct pe_image_info pe_info;
+    NTSTATUS status;
+
+    /* remove .so extension from Windows name */
+    if (nt_name->Length > 3 * sizeof(WCHAR))
+    {
+        static const WCHAR soW[] = {'.','s','o',0};
+        WCHAR *p = nt_name->Buffer + nt_name->Length / sizeof(WCHAR);
+        if (!wcsicmp( p - 3, soW ))
+        {
+            p[-3] = 0;
+            nt_name->Length -= 3 * sizeof(WCHAR);
+        }
+    }
+    status = dlopen_dll( name, nt_name, module, &pe_info, FALSE );
+    if (!status) virtual_fill_image_information( &pe_info, image_info );
+    return status;
+}
+
+/***********************************************************************
  *           find_builtin_dll
  */
 static NTSTATUS find_builtin_dll( UNICODE_STRING *nt_name, void **module, SIZE_T *size_ptr,
@@ -1741,21 +1763,19 @@ BOOL is_builtin_path( const UNICODE_STRING *path, WORD *machine )
 static NTSTATUS open_main_image( WCHAR *image, void **module, SECTION_IMAGE_INFORMATION *info,
                                  enum loadorder loadorder, USHORT machine )
 {
-    static const WCHAR soW[] = {'.','s','o',0};
     UNICODE_STRING nt_name;
     OBJECT_ATTRIBUTES attr;
-    struct pe_image_info pe_info;
     SIZE_T size = 0;
     char *unix_name;
     NTSTATUS status;
     HANDLE mapping;
-    WCHAR *p;
+    UNICODE_STRING true_nt_name;
 
     if (loadorder == LO_DISABLED) NtTerminateProcess( GetCurrentProcess(), STATUS_DLL_NOT_FOUND );
 
     init_unicode_string( &nt_name, image );
     InitializeObjectAttributes( &attr, &nt_name, OBJ_CASE_INSENSITIVE, 0, NULL );
-    if (nt_to_unix_file_name( &attr, &unix_name, FILE_OPEN )) return STATUS_DLL_NOT_FOUND;
+    if (get_nt_and_unix_names( &attr, &true_nt_name, &unix_name, FILE_OPEN, FALSE )) return STATUS_DLL_NOT_FOUND;
 
     status = open_dll_file( unix_name, &attr, &mapping );
     if (!status)
@@ -1770,17 +1790,10 @@ static NTSTATUS open_main_image( WCHAR *image, void **module, SECTION_IMAGE_INFO
     }
     else if (status == STATUS_INVALID_IMAGE_NOT_MZ && loadorder != LO_NATIVE)
     {
-        /* remove .so extension from Windows name */
-        p = image + wcslen(image);
-        if (p - image > 3 && !wcsicmp( p - 3, soW ))
-        {
-            p[-3] = 0;
-            nt_name.Length -= 3 * sizeof(WCHAR);
-        }
-        status = dlopen_dll( unix_name, &nt_name, module, &pe_info, FALSE );
-        if (!status) virtual_fill_image_information( &pe_info, info );
+        status = open_main_image_so_file( unix_name, attr.ObjectName, module, info );
     }
     free( unix_name );
+    free( true_nt_name.Buffer );
     return status;
 }
 
