@@ -1734,6 +1734,10 @@ m4trace:configure.ac:2115: -1- AH_OUTPUT([HAVE_KQUEUE], [/* Define to 1 if you h
 @%:@undef HAVE_KQUEUE])
 m4trace:configure.ac:2115: -1- AC_DEFINE_TRACE_LITERAL([HAVE_KQUEUE])
 m4trace:configure.ac:2115: -1- m4_pattern_allow([^HAVE_KQUEUE$])
+m4trace:configure.ac:2115: -1- AH_OUTPUT([HAVE_MEMFD_CREATE], [/* Define to 1 if you have the `memfd_create\' function. */
+@%:@undef HAVE_MEMFD_CREATE])
+m4trace:configure.ac:2115: -1- AC_DEFINE_TRACE_LITERAL([HAVE_MEMFD_CREATE])
+m4trace:configure.ac:2115: -1- m4_pattern_allow([^HAVE_MEMFD_CREATE$])
 m4trace:configure.ac:2115: -1- AH_OUTPUT([HAVE_PIPE2], [/* Define to 1 if you have the `pipe2\' function. */
 @%:@undef HAVE_PIPE2])
 m4trace:configure.ac:2115: -1- AC_DEFINE_TRACE_LITERAL([HAVE_PIPE2])
@@ -1790,183 +1794,183 @@ m4trace:configure.ac:2115: -1- AH_OUTPUT([HAVE_THR_KILL2], [/* Define to 1 if yo
 @%:@undef HAVE_THR_KILL2])
 m4trace:configure.ac:2115: -1- AC_DEFINE_TRACE_LITERAL([HAVE_THR_KILL2])
 m4trace:configure.ac:2115: -1- m4_pattern_allow([^HAVE_THR_KILL2$])
-m4trace:configure.ac:2149: -1- AC_DEFINE_TRACE_LITERAL([HAVE_CLOCK_GETTIME])
-m4trace:configure.ac:2149: -1- m4_pattern_allow([^HAVE_CLOCK_GETTIME$])
-m4trace:configure.ac:2149: -1- AH_OUTPUT([HAVE_CLOCK_GETTIME], [/* Define to 1 if you have the \'clock_gettime\' function. */
+m4trace:configure.ac:2150: -1- AC_DEFINE_TRACE_LITERAL([HAVE_CLOCK_GETTIME])
+m4trace:configure.ac:2150: -1- m4_pattern_allow([^HAVE_CLOCK_GETTIME$])
+m4trace:configure.ac:2150: -1- AH_OUTPUT([HAVE_CLOCK_GETTIME], [/* Define to 1 if you have the \'clock_gettime\' function. */
 @%:@undef HAVE_CLOCK_GETTIME])
-m4trace:configure.ac:2149: -1- AC_SUBST([RT_LIBS], ["$ac_res"])
-m4trace:configure.ac:2149: -1- AC_SUBST_TRACE([RT_LIBS])
-m4trace:configure.ac:2149: -1- m4_pattern_allow([^RT_LIBS$])
-m4trace:configure.ac:2155: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SHM_OPEN])
-m4trace:configure.ac:2155: -1- m4_pattern_allow([^HAVE_SHM_OPEN$])
-m4trace:configure.ac:2155: -1- AH_OUTPUT([HAVE_SHM_OPEN], [/* Define to 1 if you have the `shm_open\' function. */
+m4trace:configure.ac:2150: -1- AC_SUBST([RT_LIBS], ["$ac_res"])
+m4trace:configure.ac:2150: -1- AC_SUBST_TRACE([RT_LIBS])
+m4trace:configure.ac:2150: -1- m4_pattern_allow([^RT_LIBS$])
+m4trace:configure.ac:2156: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SHM_OPEN])
+m4trace:configure.ac:2156: -1- m4_pattern_allow([^HAVE_SHM_OPEN$])
+m4trace:configure.ac:2156: -1- AH_OUTPUT([HAVE_SHM_OPEN], [/* Define to 1 if you have the `shm_open\' function. */
 @%:@undef HAVE_SHM_OPEN])
-m4trace:configure.ac:2155: -1- AC_SUBST([RT_LIBS], ["$ac_res"])
-m4trace:configure.ac:2155: -1- AC_SUBST_TRACE([RT_LIBS])
-m4trace:configure.ac:2155: -1- m4_pattern_allow([^RT_LIBS$])
-m4trace:configure.ac:2165: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SCHED_SETAFFINITY])
-m4trace:configure.ac:2165: -1- m4_pattern_allow([^HAVE_SCHED_SETAFFINITY$])
-m4trace:configure.ac:2165: -1- AH_OUTPUT([HAVE_SCHED_SETAFFINITY], [/* Define to 1 if you have the \'sched_setaffinity\' function. */
+m4trace:configure.ac:2156: -1- AC_SUBST([RT_LIBS], ["$ac_res"])
+m4trace:configure.ac:2156: -1- AC_SUBST_TRACE([RT_LIBS])
+m4trace:configure.ac:2156: -1- m4_pattern_allow([^RT_LIBS$])
+m4trace:configure.ac:2166: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SCHED_SETAFFINITY])
+m4trace:configure.ac:2166: -1- m4_pattern_allow([^HAVE_SCHED_SETAFFINITY$])
+m4trace:configure.ac:2166: -1- AH_OUTPUT([HAVE_SCHED_SETAFFINITY], [/* Define to 1 if you have the \'sched_setaffinity\' function. */
 @%:@undef HAVE_SCHED_SETAFFINITY])
-m4trace:configure.ac:2170: -1- AC_DEFINE_TRACE_LITERAL([HAVE_REQUEST_SENSE])
-m4trace:configure.ac:2170: -1- m4_pattern_allow([^HAVE_REQUEST_SENSE$])
-m4trace:configure.ac:2170: -1- AH_OUTPUT([HAVE_REQUEST_SENSE], [/* Define to 1 if the system has the type `request_sense\'. */
+m4trace:configure.ac:2171: -1- AC_DEFINE_TRACE_LITERAL([HAVE_REQUEST_SENSE])
+m4trace:configure.ac:2171: -1- m4_pattern_allow([^HAVE_REQUEST_SENSE$])
+m4trace:configure.ac:2171: -1- AH_OUTPUT([HAVE_REQUEST_SENSE], [/* Define to 1 if the system has the type `request_sense\'. */
 @%:@undef HAVE_REQUEST_SENSE])
-m4trace:configure.ac:2191: -1- AC_DEFINE_TRACE_LITERAL([HAVE_LINUX_GETHOSTBYNAME_R_6])
-m4trace:configure.ac:2191: -1- m4_pattern_allow([^HAVE_LINUX_GETHOSTBYNAME_R_6$])
-m4trace:configure.ac:2191: -1- AH_OUTPUT([HAVE_LINUX_GETHOSTBYNAME_R_6], [/* Define if Linux-style gethostbyname_r and gethostbyaddr_r are available */
+m4trace:configure.ac:2192: -1- AC_DEFINE_TRACE_LITERAL([HAVE_LINUX_GETHOSTBYNAME_R_6])
+m4trace:configure.ac:2192: -1- m4_pattern_allow([^HAVE_LINUX_GETHOSTBYNAME_R_6$])
+m4trace:configure.ac:2192: -1- AH_OUTPUT([HAVE_LINUX_GETHOSTBYNAME_R_6], [/* Define if Linux-style gethostbyname_r and gethostbyaddr_r are available */
 @%:@undef HAVE_LINUX_GETHOSTBYNAME_R_6])
-m4trace:configure.ac:2196: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_SOCKADDR_UN_SUN_LEN])
-m4trace:configure.ac:2196: -1- m4_pattern_allow([^HAVE_STRUCT_SOCKADDR_UN_SUN_LEN$])
-m4trace:configure.ac:2196: -1- AH_OUTPUT([HAVE_STRUCT_SOCKADDR_UN_SUN_LEN], [/* Define to 1 if `sun_len\' is a member of `struct sockaddr_un\'. */
+m4trace:configure.ac:2197: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_SOCKADDR_UN_SUN_LEN])
+m4trace:configure.ac:2197: -1- m4_pattern_allow([^HAVE_STRUCT_SOCKADDR_UN_SUN_LEN$])
+m4trace:configure.ac:2197: -1- AH_OUTPUT([HAVE_STRUCT_SOCKADDR_UN_SUN_LEN], [/* Define to 1 if `sun_len\' is a member of `struct sockaddr_un\'. */
 @%:@undef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN])
-m4trace:configure.ac:2204: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SCSIREQ_T_CMD])
-m4trace:configure.ac:2204: -1- m4_pattern_allow([^HAVE_SCSIREQ_T_CMD$])
-m4trace:configure.ac:2204: -1- AH_OUTPUT([HAVE_SCSIREQ_T_CMD], [/* Define to 1 if `cmd\' is a member of `scsireq_t\'. */
+m4trace:configure.ac:2205: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SCSIREQ_T_CMD])
+m4trace:configure.ac:2205: -1- m4_pattern_allow([^HAVE_SCSIREQ_T_CMD$])
+m4trace:configure.ac:2205: -1- AH_OUTPUT([HAVE_SCSIREQ_T_CMD], [/* Define to 1 if `cmd\' is a member of `scsireq_t\'. */
 @%:@undef HAVE_SCSIREQ_T_CMD])
-m4trace:configure.ac:2204: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SG_IO_HDR_T_INTERFACE_ID])
-m4trace:configure.ac:2204: -1- m4_pattern_allow([^HAVE_SG_IO_HDR_T_INTERFACE_ID$])
-m4trace:configure.ac:2204: -1- AH_OUTPUT([HAVE_SG_IO_HDR_T_INTERFACE_ID], [/* Define to 1 if `interface_id\' is a member of `sg_io_hdr_t\'. */
+m4trace:configure.ac:2205: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SG_IO_HDR_T_INTERFACE_ID])
+m4trace:configure.ac:2205: -1- m4_pattern_allow([^HAVE_SG_IO_HDR_T_INTERFACE_ID$])
+m4trace:configure.ac:2205: -1- AH_OUTPUT([HAVE_SG_IO_HDR_T_INTERFACE_ID], [/* Define to 1 if `interface_id\' is a member of `sg_io_hdr_t\'. */
 @%:@undef HAVE_SG_IO_HDR_T_INTERFACE_ID])
-m4trace:configure.ac:2211: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SIGINFO_T_SI_FD])
-m4trace:configure.ac:2211: -1- m4_pattern_allow([^HAVE_SIGINFO_T_SI_FD$])
-m4trace:configure.ac:2211: -1- AH_OUTPUT([HAVE_SIGINFO_T_SI_FD], [/* Define to 1 if `si_fd\' is a member of `siginfo_t\'. */
+m4trace:configure.ac:2212: -1- AC_DEFINE_TRACE_LITERAL([HAVE_SIGINFO_T_SI_FD])
+m4trace:configure.ac:2212: -1- m4_pattern_allow([^HAVE_SIGINFO_T_SI_FD$])
+m4trace:configure.ac:2212: -1- AH_OUTPUT([HAVE_SIGINFO_T_SI_FD], [/* Define to 1 if `si_fd\' is a member of `siginfo_t\'. */
 @%:@undef HAVE_SIGINFO_T_SI_FD])
-m4trace:configure.ac:2214: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_MTGET_MT_BLKSIZ])
-m4trace:configure.ac:2214: -1- m4_pattern_allow([^HAVE_STRUCT_MTGET_MT_BLKSIZ$])
-m4trace:configure.ac:2214: -1- AH_OUTPUT([HAVE_STRUCT_MTGET_MT_BLKSIZ], [/* Define to 1 if `mt_blksiz\' is a member of `struct mtget\'. */
+m4trace:configure.ac:2215: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_MTGET_MT_BLKSIZ])
+m4trace:configure.ac:2215: -1- m4_pattern_allow([^HAVE_STRUCT_MTGET_MT_BLKSIZ$])
+m4trace:configure.ac:2215: -1- AH_OUTPUT([HAVE_STRUCT_MTGET_MT_BLKSIZ], [/* Define to 1 if `mt_blksiz\' is a member of `struct mtget\'. */
 @%:@undef HAVE_STRUCT_MTGET_MT_BLKSIZ])
-m4trace:configure.ac:2214: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_MTGET_MT_GSTAT])
-m4trace:configure.ac:2214: -1- m4_pattern_allow([^HAVE_STRUCT_MTGET_MT_GSTAT$])
-m4trace:configure.ac:2214: -1- AH_OUTPUT([HAVE_STRUCT_MTGET_MT_GSTAT], [/* Define to 1 if `mt_gstat\' is a member of `struct mtget\'. */
+m4trace:configure.ac:2215: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_MTGET_MT_GSTAT])
+m4trace:configure.ac:2215: -1- m4_pattern_allow([^HAVE_STRUCT_MTGET_MT_GSTAT$])
+m4trace:configure.ac:2215: -1- AH_OUTPUT([HAVE_STRUCT_MTGET_MT_GSTAT], [/* Define to 1 if `mt_gstat\' is a member of `struct mtget\'. */
 @%:@undef HAVE_STRUCT_MTGET_MT_GSTAT])
-m4trace:configure.ac:2214: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_MTGET_MT_BLKNO])
-m4trace:configure.ac:2214: -1- m4_pattern_allow([^HAVE_STRUCT_MTGET_MT_BLKNO$])
-m4trace:configure.ac:2214: -1- AH_OUTPUT([HAVE_STRUCT_MTGET_MT_BLKNO], [/* Define to 1 if `mt_blkno\' is a member of `struct mtget\'. */
+m4trace:configure.ac:2215: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_MTGET_MT_BLKNO])
+m4trace:configure.ac:2215: -1- m4_pattern_allow([^HAVE_STRUCT_MTGET_MT_BLKNO$])
+m4trace:configure.ac:2215: -1- AH_OUTPUT([HAVE_STRUCT_MTGET_MT_BLKNO], [/* Define to 1 if `mt_blkno\' is a member of `struct mtget\'. */
 @%:@undef HAVE_STRUCT_MTGET_MT_BLKNO])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_MTIM])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_MTIM$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_MTIM], [/* Define to 1 if `st_mtim\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_MTIM])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_MTIM$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_MTIM], [/* Define to 1 if `st_mtim\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_MTIM])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_MTIMESPEC])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_MTIMESPEC$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_MTIMESPEC], [/* Define to 1 if `st_mtimespec\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_MTIMESPEC])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_MTIMESPEC$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_MTIMESPEC], [/* Define to 1 if `st_mtimespec\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_MTIMESPEC])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_CTIM])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_CTIM$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_CTIM], [/* Define to 1 if `st_ctim\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_CTIM])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_CTIM$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_CTIM], [/* Define to 1 if `st_ctim\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_CTIM])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_CTIMESPEC])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_CTIMESPEC$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_CTIMESPEC], [/* Define to 1 if `st_ctimespec\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_CTIMESPEC])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_CTIMESPEC$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_CTIMESPEC], [/* Define to 1 if `st_ctimespec\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_CTIMESPEC])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_ATIM])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_ATIM$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_ATIM], [/* Define to 1 if `st_atim\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_ATIM])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_ATIM$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_ATIM], [/* Define to 1 if `st_atim\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_ATIM])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_ATIMESPEC])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_ATIMESPEC$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_ATIMESPEC], [/* Define to 1 if `st_atimespec\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_ATIMESPEC])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_ATIMESPEC$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_ATIMESPEC], [/* Define to 1 if `st_atimespec\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_ATIMESPEC])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_BIRTHTIME])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_BIRTHTIME$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_BIRTHTIME], [/* Define to 1 if `st_birthtime\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_BIRTHTIME])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_BIRTHTIME$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_BIRTHTIME], [/* Define to 1 if `st_birthtime\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_BIRTHTIME])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_BIRTHTIM])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_BIRTHTIM$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_BIRTHTIM], [/* Define to 1 if `st_birthtim\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_BIRTHTIM])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_BIRTHTIM$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_BIRTHTIM], [/* Define to 1 if `st_birthtim\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_BIRTHTIM])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC], [/* Define to 1 if `st_birthtimespec\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC], [/* Define to 1 if `st_birthtimespec\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT___ST_BIRTHTIME])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT___ST_BIRTHTIME$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT___ST_BIRTHTIME], [/* Define to 1 if `__st_birthtime\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT___ST_BIRTHTIME])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT___ST_BIRTHTIME$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT___ST_BIRTHTIME], [/* Define to 1 if `__st_birthtime\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT___ST_BIRTHTIME])
-m4trace:configure.ac:2221: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT___ST_BIRTHTIM])
-m4trace:configure.ac:2221: -1- m4_pattern_allow([^HAVE_STRUCT_STAT___ST_BIRTHTIM$])
-m4trace:configure.ac:2221: -1- AH_OUTPUT([HAVE_STRUCT_STAT___ST_BIRTHTIM], [/* Define to 1 if `__st_birthtim\' is a member of `struct stat\'. */
+m4trace:configure.ac:2222: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_STAT___ST_BIRTHTIM])
+m4trace:configure.ac:2222: -1- m4_pattern_allow([^HAVE_STRUCT_STAT___ST_BIRTHTIM$])
+m4trace:configure.ac:2222: -1- AH_OUTPUT([HAVE_STRUCT_STAT___ST_BIRTHTIM], [/* Define to 1 if `__st_birthtim\' is a member of `struct stat\'. */
 @%:@undef HAVE_STRUCT_STAT___ST_BIRTHTIM])
-m4trace:configure.ac:2235: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID])
-m4trace:configure.ac:2235: -1- m4_pattern_allow([^HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID$])
-m4trace:configure.ac:2235: -1- AH_OUTPUT([HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID], [/* Define to 1 if `sin6_scope_id\' is a member of `struct sockaddr_in6\'. */
+m4trace:configure.ac:2236: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID])
+m4trace:configure.ac:2236: -1- m4_pattern_allow([^HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID$])
+m4trace:configure.ac:2236: -1- AH_OUTPUT([HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID], [/* Define to 1 if `sin6_scope_id\' is a member of `struct sockaddr_in6\'. */
 @%:@undef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID])
-m4trace:configure.ac:2242: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6])
-m4trace:configure.ac:2242: -1- m4_pattern_allow([^HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6$])
-m4trace:configure.ac:2242: -1- AH_OUTPUT([HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6], [/* Define to 1 if `_u._ext.nscount6\' is a member of `struct __res_state\'. */
+m4trace:configure.ac:2243: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6])
+m4trace:configure.ac:2243: -1- m4_pattern_allow([^HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6$])
+m4trace:configure.ac:2243: -1- AH_OUTPUT([HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6], [/* Define to 1 if `_u._ext.nscount6\' is a member of `struct __res_state\'. */
 @%:@undef HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6])
-m4trace:configure.ac:2248: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IN6_PKTINFO_IPI6_ADDR])
-m4trace:configure.ac:2248: -1- m4_pattern_allow([^HAVE_STRUCT_IN6_PKTINFO_IPI6_ADDR$])
-m4trace:configure.ac:2248: -1- AH_OUTPUT([HAVE_STRUCT_IN6_PKTINFO_IPI6_ADDR], [/* Define to 1 if `ipi6_addr\' is a member of `struct in6_pktinfo\'. */
+m4trace:configure.ac:2249: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IN6_PKTINFO_IPI6_ADDR])
+m4trace:configure.ac:2249: -1- m4_pattern_allow([^HAVE_STRUCT_IN6_PKTINFO_IPI6_ADDR$])
+m4trace:configure.ac:2249: -1- AH_OUTPUT([HAVE_STRUCT_IN6_PKTINFO_IPI6_ADDR], [/* Define to 1 if `ipi6_addr\' is a member of `struct in6_pktinfo\'. */
 @%:@undef HAVE_STRUCT_IN6_PKTINFO_IPI6_ADDR])
-m4trace:configure.ac:2254: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IPSTAT_IPS_TOTAL])
-m4trace:configure.ac:2254: -1- m4_pattern_allow([^HAVE_STRUCT_IPSTAT_IPS_TOTAL$])
-m4trace:configure.ac:2254: -1- AH_OUTPUT([HAVE_STRUCT_IPSTAT_IPS_TOTAL], [/* Define to 1 if `ips_total\' is a member of `struct ipstat\'. */
+m4trace:configure.ac:2255: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IPSTAT_IPS_TOTAL])
+m4trace:configure.ac:2255: -1- m4_pattern_allow([^HAVE_STRUCT_IPSTAT_IPS_TOTAL$])
+m4trace:configure.ac:2255: -1- AH_OUTPUT([HAVE_STRUCT_IPSTAT_IPS_TOTAL], [/* Define to 1 if `ips_total\' is a member of `struct ipstat\'. */
 @%:@undef HAVE_STRUCT_IPSTAT_IPS_TOTAL])
-m4trace:configure.ac:2267: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IP_STATS_IPS_TOTAL])
-m4trace:configure.ac:2267: -1- m4_pattern_allow([^HAVE_STRUCT_IP_STATS_IPS_TOTAL$])
-m4trace:configure.ac:2267: -1- AH_OUTPUT([HAVE_STRUCT_IP_STATS_IPS_TOTAL], [/* Define to 1 if `ips_total\' is a member of `struct ip_stats\'. */
+m4trace:configure.ac:2268: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IP_STATS_IPS_TOTAL])
+m4trace:configure.ac:2268: -1- m4_pattern_allow([^HAVE_STRUCT_IP_STATS_IPS_TOTAL$])
+m4trace:configure.ac:2268: -1- AH_OUTPUT([HAVE_STRUCT_IP_STATS_IPS_TOTAL], [/* Define to 1 if `ips_total\' is a member of `struct ip_stats\'. */
 @%:@undef HAVE_STRUCT_IP_STATS_IPS_TOTAL])
-m4trace:configure.ac:2273: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IP6STAT_IP6S_TOTAL])
-m4trace:configure.ac:2273: -1- m4_pattern_allow([^HAVE_STRUCT_IP6STAT_IP6S_TOTAL$])
-m4trace:configure.ac:2273: -1- AH_OUTPUT([HAVE_STRUCT_IP6STAT_IP6S_TOTAL], [/* Define to 1 if `ip6s_total\' is a member of `struct ip6stat\'. */
+m4trace:configure.ac:2274: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IP6STAT_IP6S_TOTAL])
+m4trace:configure.ac:2274: -1- m4_pattern_allow([^HAVE_STRUCT_IP6STAT_IP6S_TOTAL$])
+m4trace:configure.ac:2274: -1- AH_OUTPUT([HAVE_STRUCT_IP6STAT_IP6S_TOTAL], [/* Define to 1 if `ip6s_total\' is a member of `struct ip6stat\'. */
 @%:@undef HAVE_STRUCT_IP6STAT_IP6S_TOTAL])
-m4trace:configure.ac:2286: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_ICMPSTAT_ICPS_ERROR])
-m4trace:configure.ac:2286: -1- m4_pattern_allow([^HAVE_STRUCT_ICMPSTAT_ICPS_ERROR$])
-m4trace:configure.ac:2286: -1- AH_OUTPUT([HAVE_STRUCT_ICMPSTAT_ICPS_ERROR], [/* Define to 1 if `icps_error\' is a member of `struct icmpstat\'. */
+m4trace:configure.ac:2287: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_ICMPSTAT_ICPS_ERROR])
+m4trace:configure.ac:2287: -1- m4_pattern_allow([^HAVE_STRUCT_ICMPSTAT_ICPS_ERROR$])
+m4trace:configure.ac:2287: -1- AH_OUTPUT([HAVE_STRUCT_ICMPSTAT_ICPS_ERROR], [/* Define to 1 if `icps_error\' is a member of `struct icmpstat\'. */
 @%:@undef HAVE_STRUCT_ICMPSTAT_ICPS_ERROR])
-m4trace:configure.ac:2305: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_ICMP6STAT_ICP6S_ERROR])
-m4trace:configure.ac:2305: -1- m4_pattern_allow([^HAVE_STRUCT_ICMP6STAT_ICP6S_ERROR$])
-m4trace:configure.ac:2305: -1- AH_OUTPUT([HAVE_STRUCT_ICMP6STAT_ICP6S_ERROR], [/* Define to 1 if `icp6s_error\' is a member of `struct icmp6stat\'. */
+m4trace:configure.ac:2306: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_ICMP6STAT_ICP6S_ERROR])
+m4trace:configure.ac:2306: -1- m4_pattern_allow([^HAVE_STRUCT_ICMP6STAT_ICP6S_ERROR$])
+m4trace:configure.ac:2306: -1- AH_OUTPUT([HAVE_STRUCT_ICMP6STAT_ICP6S_ERROR], [/* Define to 1 if `icp6s_error\' is a member of `struct icmp6stat\'. */
 @%:@undef HAVE_STRUCT_ICMP6STAT_ICP6S_ERROR])
-m4trace:configure.ac:2318: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT])
-m4trace:configure.ac:2318: -1- m4_pattern_allow([^HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT$])
-m4trace:configure.ac:2318: -1- AH_OUTPUT([HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT], [/* Define to 1 if `tcps_connattempt\' is a member of `struct tcpstat\'. */
+m4trace:configure.ac:2319: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT])
+m4trace:configure.ac:2319: -1- m4_pattern_allow([^HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT$])
+m4trace:configure.ac:2319: -1- AH_OUTPUT([HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT], [/* Define to 1 if `tcps_connattempt\' is a member of `struct tcpstat\'. */
 @%:@undef HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT])
-m4trace:configure.ac:2334: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT])
-m4trace:configure.ac:2334: -1- m4_pattern_allow([^HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT$])
-m4trace:configure.ac:2334: -1- AH_OUTPUT([HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT], [/* Define to 1 if `tcps_connattempt\' is a member of `struct tcp_stats\'. */
+m4trace:configure.ac:2335: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT])
+m4trace:configure.ac:2335: -1- m4_pattern_allow([^HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT$])
+m4trace:configure.ac:2335: -1- AH_OUTPUT([HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT], [/* Define to 1 if `tcps_connattempt\' is a member of `struct tcp_stats\'. */
 @%:@undef HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT])
-m4trace:configure.ac:2340: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS])
-m4trace:configure.ac:2340: -1- m4_pattern_allow([^HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS$])
-m4trace:configure.ac:2340: -1- AH_OUTPUT([HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS], [/* Define to 1 if `udps_ipackets\' is a member of `struct udpstat\'. */
+m4trace:configure.ac:2341: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS])
+m4trace:configure.ac:2341: -1- m4_pattern_allow([^HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS$])
+m4trace:configure.ac:2341: -1- AH_OUTPUT([HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS], [/* Define to 1 if `udps_ipackets\' is a member of `struct udpstat\'. */
 @%:@undef HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS])
-m4trace:configure.ac:2356: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IFREQ_IFR_HWADDR])
-m4trace:configure.ac:2356: -1- m4_pattern_allow([^HAVE_STRUCT_IFREQ_IFR_HWADDR$])
-m4trace:configure.ac:2356: -1- AH_OUTPUT([HAVE_STRUCT_IFREQ_IFR_HWADDR], [/* Define to 1 if `ifr_hwaddr\' is a member of `struct ifreq\'. */
+m4trace:configure.ac:2357: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_IFREQ_IFR_HWADDR])
+m4trace:configure.ac:2357: -1- m4_pattern_allow([^HAVE_STRUCT_IFREQ_IFR_HWADDR$])
+m4trace:configure.ac:2357: -1- AH_OUTPUT([HAVE_STRUCT_IFREQ_IFR_HWADDR], [/* Define to 1 if `ifr_hwaddr\' is a member of `struct ifreq\'. */
 @%:@undef HAVE_STRUCT_IFREQ_IFR_HWADDR])
-m4trace:configure.ac:2363: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_SYSINFO_TOTALRAM])
-m4trace:configure.ac:2363: -1- m4_pattern_allow([^HAVE_STRUCT_SYSINFO_TOTALRAM$])
-m4trace:configure.ac:2363: -1- AH_OUTPUT([HAVE_STRUCT_SYSINFO_TOTALRAM], [/* Define to 1 if `totalram\' is a member of `struct sysinfo\'. */
+m4trace:configure.ac:2364: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_SYSINFO_TOTALRAM])
+m4trace:configure.ac:2364: -1- m4_pattern_allow([^HAVE_STRUCT_SYSINFO_TOTALRAM$])
+m4trace:configure.ac:2364: -1- AH_OUTPUT([HAVE_STRUCT_SYSINFO_TOTALRAM], [/* Define to 1 if `totalram\' is a member of `struct sysinfo\'. */
 @%:@undef HAVE_STRUCT_SYSINFO_TOTALRAM])
-m4trace:configure.ac:2363: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_SYSINFO_MEM_UNIT])
-m4trace:configure.ac:2363: -1- m4_pattern_allow([^HAVE_STRUCT_SYSINFO_MEM_UNIT$])
-m4trace:configure.ac:2363: -1- AH_OUTPUT([HAVE_STRUCT_SYSINFO_MEM_UNIT], [/* Define to 1 if `mem_unit\' is a member of `struct sysinfo\'. */
+m4trace:configure.ac:2364: -1- AC_DEFINE_TRACE_LITERAL([HAVE_STRUCT_SYSINFO_MEM_UNIT])
+m4trace:configure.ac:2364: -1- m4_pattern_allow([^HAVE_STRUCT_SYSINFO_MEM_UNIT$])
+m4trace:configure.ac:2364: -1- AH_OUTPUT([HAVE_STRUCT_SYSINFO_MEM_UNIT], [/* Define to 1 if `mem_unit\' is a member of `struct sysinfo\'. */
 @%:@undef HAVE_STRUCT_SYSINFO_MEM_UNIT])
-m4trace:configure.ac:2376: -1- AC_DEFINE_TRACE_LITERAL([HAVE___BUILTIN_POPCOUNT])
-m4trace:configure.ac:2376: -1- m4_pattern_allow([^HAVE___BUILTIN_POPCOUNT$])
-m4trace:configure.ac:2376: -1- AH_OUTPUT([HAVE___BUILTIN_POPCOUNT], [/* Define to 1 if you have the \'__builtin_popcount\' built-in function. */
+m4trace:configure.ac:2377: -1- AC_DEFINE_TRACE_LITERAL([HAVE___BUILTIN_POPCOUNT])
+m4trace:configure.ac:2377: -1- m4_pattern_allow([^HAVE___BUILTIN_POPCOUNT$])
+m4trace:configure.ac:2377: -1- AH_OUTPUT([HAVE___BUILTIN_POPCOUNT], [/* Define to 1 if you have the \'__builtin_popcount\' built-in function. */
 @%:@undef HAVE___BUILTIN_POPCOUNT])
-m4trace:configure.ac:2384: -1- AC_DEFINE_TRACE_LITERAL([HAVE___CLEAR_CACHE])
-m4trace:configure.ac:2384: -1- m4_pattern_allow([^HAVE___CLEAR_CACHE$])
-m4trace:configure.ac:2384: -1- AH_OUTPUT([HAVE___CLEAR_CACHE], [/* Define to 1 if you have the \'__clear_cache\' (potentially built-in)
+m4trace:configure.ac:2385: -1- AC_DEFINE_TRACE_LITERAL([HAVE___CLEAR_CACHE])
+m4trace:configure.ac:2385: -1- m4_pattern_allow([^HAVE___CLEAR_CACHE$])
+m4trace:configure.ac:2385: -1- AH_OUTPUT([HAVE___CLEAR_CACHE], [/* Define to 1 if you have the \'__clear_cache\' (potentially built-in)
    function. */
 @%:@undef HAVE___CLEAR_CACHE])
-m4trace:configure.ac:2430: -1- AH_OUTPUT([00001], [#ifndef __WINE_CONFIG_H
+m4trace:configure.ac:2432: -1- AH_OUTPUT([00001], [#ifndef __WINE_CONFIG_H
 #define __WINE_CONFIG_H])
-m4trace:configure.ac:2432: -1- AH_OUTPUT([zzzz2], [#endif /* __WINE_CONFIG_H */])
-m4trace:configure.ac:2443: -1- AC_CONFIG_LINKS([wine:tools/winewrapper])
-m4trace:configure.ac:2444: -1- AC_CONFIG_LINKS([wine64:tools/winewrapper])
-m4trace:configure.ac:3706: -1- AC_SUBST([SHELL], [/bin/sh])
-m4trace:configure.ac:3706: -1- AC_SUBST_TRACE([SHELL])
-m4trace:configure.ac:3706: -1- m4_pattern_allow([^SHELL$])
-m4trace:configure.ac:3801: -1- AC_SUBST([TAGSFLAGS], ["--langmap='c:+.idl.l.rh,make:(Make*.in)'"])
-m4trace:configure.ac:3801: -1- AC_SUBST_TRACE([TAGSFLAGS])
-m4trace:configure.ac:3801: -1- m4_pattern_allow([^TAGSFLAGS$])
-m4trace:configure.ac:3813: -1- AC_SUBST([LIB@&t@OBJS], [$ac_libobjs])
-m4trace:configure.ac:3813: -1- AC_SUBST_TRACE([LIB@&t@OBJS])
-m4trace:configure.ac:3813: -1- m4_pattern_allow([^LIB@&t@OBJS$])
-m4trace:configure.ac:3813: -1- AC_SUBST([LTLIBOBJS], [$ac_ltlibobjs])
-m4trace:configure.ac:3813: -1- AC_SUBST_TRACE([LTLIBOBJS])
-m4trace:configure.ac:3813: -1- m4_pattern_allow([^LTLIBOBJS$])
+m4trace:configure.ac:2434: -1- AH_OUTPUT([zzzz2], [#endif /* __WINE_CONFIG_H */])
+m4trace:configure.ac:2445: -1- AC_CONFIG_LINKS([wine:tools/winewrapper])
+m4trace:configure.ac:2446: -1- AC_CONFIG_LINKS([wine64:tools/winewrapper])
+m4trace:configure.ac:3714: -1- AC_SUBST([SHELL], [/bin/sh])
+m4trace:configure.ac:3714: -1- AC_SUBST_TRACE([SHELL])
+m4trace:configure.ac:3714: -1- m4_pattern_allow([^SHELL$])
+m4trace:configure.ac:3809: -1- AC_SUBST([TAGSFLAGS], ["--langmap='c:+.idl.l.rh,make:(Make*.in)'"])
+m4trace:configure.ac:3809: -1- AC_SUBST_TRACE([TAGSFLAGS])
+m4trace:configure.ac:3809: -1- m4_pattern_allow([^TAGSFLAGS$])
+m4trace:configure.ac:3821: -1- AC_SUBST([LIB@&t@OBJS], [$ac_libobjs])
+m4trace:configure.ac:3821: -1- AC_SUBST_TRACE([LIB@&t@OBJS])
+m4trace:configure.ac:3821: -1- m4_pattern_allow([^LIB@&t@OBJS$])
+m4trace:configure.ac:3821: -1- AC_SUBST([LTLIBOBJS], [$ac_ltlibobjs])
+m4trace:configure.ac:3821: -1- AC_SUBST_TRACE([LTLIBOBJS])
+m4trace:configure.ac:3821: -1- m4_pattern_allow([^LTLIBOBJS$])

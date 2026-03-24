@@ -625,7 +625,7 @@
 @ stdcall GetParent(long)
 @ stdcall GetPhysicalCursorPos(ptr)
 # @ stub GetPointerCursorId
-# @ stub GetPointerDevice
+@ stdcall GetPointerDevice(ptr ptr)
 # @ stub GetPointerDeviceCursors
 # @ stub GetPointerDeviceInputSpace
 # @ stub GetPointerDeviceOrientation
@@ -640,7 +640,7 @@
 # @ stub GetPointerFrameTouchInfo
 # @ stub GetPointerFrameTouchInfoHistory
 @ stdcall GetPointerInfo(long ptr)
-# @ stub GetPointerInfoHistory
+@ stub GetPointerInfoHistory(long ptr ptr)
 # @ stub GetPointerInputTransform
 @ stdcall GetPointerPenInfo(long ptr)
 # @ stub GetPointerPenInfoHistory
@@ -1139,7 +1139,7 @@
 @ stdcall ShutdownBlockReasonDestroy(long)
 # @ stub ShutdownBlockReasonQuery
 # @ stub SignalRedirectionStartComplete
-# @ stub SkipPointerFrameMessages
+@ stdcall SkipPointerFrameMessages(long)
 # @ stub SoftModalMessageBox
 # @ stub SoundSentry
 @ stdcall SubtractRect(ptr ptr ptr)

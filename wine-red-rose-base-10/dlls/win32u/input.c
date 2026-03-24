@@ -437,26 +437,40 @@ static void kbd_tables_init_vsc2vk( const KBDTABLES *tables, USHORT vsc2vk[0x300
 
 #define NEXT_ENTRY(t, e) ((void *)&(e)->wch[(t)->nModifications])
 
-static void kbd_tables_init_vk2char( const KBDTABLES *tables, BYTE vk2char[0x100] )
+static void kbd_tables_vkey_to_char( const KBDTABLES *tables, UINT vkey, UINT *vk2char )
 {
     const VK_TO_WCHAR_TABLE *table;
     const VK_TO_WCHARS1 *entry;
+    UINT is_dead = 0;
 
-    memset( vk2char, 0, 0x100 );
+    *vk2char = 0;
 
     for (table = tables->pVkToWcharTable; table->pVkToWchars; table++)
     {
         for (entry = table->pVkToWchars; entry->VirtualKey; entry = NEXT_ENTRY(table, entry))
         {
+            UINT temp_dead = is_dead;
+            WORD lower;
+
+            is_dead = 0;
+            lower = entry->wch[0];
+
             if (entry->VirtualKey & ~0xff) continue;
+            if (!lower) continue;
             if (entry->Attributes & SGCAPS) continue;
-            /*
-             * FIXME: implement dead keys
-             * MSDN says the top bit is set 1 in the return value of MAPVK_VK_TO_CHAR
-             */
-            /* don't overwrite an already set value */
-            if (entry->wch[0] & 0xff && entry->wch[0] != WCH_DEAD)
-                vk2char[entry->VirtualKey] = entry->wch[0];
+            if (entry->wch[0] == WCH_NONE) continue;
+            /* the next entry will be the actual character */
+            if (entry->wch[0] == WCH_DEAD)
+            {
+                is_dead |= (1u << 31);
+                continue;
+            }
+            /* for dead keys, MSDN says the top bit is set 1 in the return value of MAPVK_VK_TO_CHAR */
+            if (entry->VirtualKey == vkey)
+            {
+                *vk2char = temp_dead | lower;
+                break;
+            }
         }
     }
 }
@@ -1217,8 +1231,8 @@ WORD WINAPI NtUserVkKeyScanEx( WCHAR chr, HKL layout )
  */
 UINT WINAPI NtUserMapVirtualKeyEx( UINT code, UINT type, HKL layout )
 {
+    const UINT vk2char_size = 0x100;
     USHORT vsc2vk[0x300];
-    BYTE vk2char[0x100];
     const KBDTABLES *kbd_tables;
     UINT ret = 0;
 
@@ -1280,10 +1294,9 @@ UINT WINAPI NtUserMapVirtualKeyEx( UINT code, UINT type, HKL layout )
         }
         break;
     case MAPVK_VK_TO_CHAR:
-        kbd_tables_init_vk2char( kbd_tables, vk2char );
-        if (code >= ARRAY_SIZE(vk2char)) ret = 0;
+        if (code >= vk2char_size) ret = 0;
         else if (code >= 'A' && code <= 'Z') ret = code;
-        else ret = vk2char[code];
+        else kbd_tables_vkey_to_char(kbd_tables, code & 0xff, &ret);
         break;
     default:
         FIXME_(keyboard)( "unknown type %d\n", type );

@@ -364,7 +364,7 @@ system_fallback_config[] =
     { "FF00-FFEF",              L"Noto Sans CJK KR", L"ko" },
     { "FF00-FFEF",              L"Noto Sans CJK JP" },
 
-    { "1F800-1F8FF",            L"Noto Sans Symbols2, Noto Sans Symbols 2" },
+    { "1F300-1F8FF",            L"Noto Sans Symbols2, Noto Sans Symbols 2, Noto Emoji" },
 };
 
 struct text_source_context
@@ -2463,14 +2463,13 @@ static HRESULT fallback_map_characters(const struct dwrite_fontfallback *fallbac
         if (SUCCEEDED(create_matching_font(mapping->collection ? mapping->collection : fallback->systemcollection,
                 mapping->families[i], weight, style, stretch, &IID_IDWriteFont3, (void **)&font)))
         {
-            if (!(mapped = fallback_font_get_supported_length(font, source, position, mapped)))
+            if (!(*ret_length = fallback_font_get_supported_length(font, source, position, mapped)))
             {
                 IDWriteFont3_Release(font);
                 continue;
             }
 
             *ret_font = (IDWriteFont *)font;
-            *ret_length = mapped;
             *scale = mapping->scale;
 
             return S_OK;

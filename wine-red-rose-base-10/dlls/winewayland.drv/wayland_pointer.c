@@ -386,12 +386,7 @@ static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer)
         NtUserSendHardwareInput(hwnd, SEND_HWMSG_NO_RAW, &input, 0);
     }
 
-    /*
-     * Always send raw input
-     * FIXME: is this correct behavior?
-     * A: The value is probably correct but the way
-     * the input is sent is not quite right
-    */
+    /* FIXME: are we sending inputs correctly? */
     if (pointer->pointer_frame.flags & WAYLAND_POINTER_FRAME_REL)
     {
         input.mi.dx = round(pointer->pointer_frame.dx);
@@ -401,8 +396,15 @@ static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer)
         input.mi.dwFlags = MOUSEEVENTF_MOVE;
         if (input.mi.dx != 0 || input.mi.dy != 0)
         {
-            NtUserSendHardwareInput(hwnd, pointer->relative_only ? 0 : SEND_HWMSG_NO_MSG,
-                                    &input, 0);
+            NtUserSendHardwareInput(hwnd, SEND_HWMSG_NO_RAW, &input, 0);
+        }
+        input.mi.dx = round(pointer->pointer_frame.dx_raw);
+        input.mi.dy = round(pointer->pointer_frame.dy_raw);
+        pointer->pointer_frame.dx_raw -= input.mi.dx;
+        pointer->pointer_frame.dy_raw -= input.mi.dy;
+        if (input.mi.dx != 0 || input.mi.dy != 0)
+        {
+            NtUserSendHardwareInput(0, SEND_HWMSG_NO_MSG, &input, 0);
         }
     }
 
@@ -578,14 +580,16 @@ static void relative_pointer_v1_relative_motion(void *private,
 
     pthread_mutex_lock(&pointer->mutex);
 
+    pointer->pointer_frame.dx += f_dx;
+    pointer->pointer_frame.dy += f_dy;
 
     if (sensitivity == 0.0)
     {
-        pointer->pointer_frame.dx += f_dx;
-        pointer->pointer_frame.dy += f_dy;
+        pointer->pointer_frame.dx_raw += f_dx;
+        pointer->pointer_frame.dy_raw += f_dy;
     } else {
-        pointer->pointer_frame.dx += f_dxu * sensitivity;
-        pointer->pointer_frame.dy += f_dyu * sensitivity;
+        pointer->pointer_frame.dx_raw += f_dxu * sensitivity;
+        pointer->pointer_frame.dy_raw += f_dyu * sensitivity;
     }
 
     pointer->pointer_frame.flags |= WAYLAND_POINTER_FRAME_REL;
@@ -622,12 +626,10 @@ void wayland_pointer_init(struct wl_pointer *wl_pointer)
             zwp_relative_pointer_manager_v1_get_relative_pointer(
             process_wayland.zwp_relative_pointer_manager_v1,
             pointer->wl_pointer);
-
-            zwp_relative_pointer_v1_add_listener(
-            pointer->zwp_relative_pointer_v1,
-            &relative_pointer_v1_listener,
-            NULL
-        );
+        zwp_relative_pointer_v1_add_listener(
+        pointer->zwp_relative_pointer_v1,
+        &relative_pointer_v1_listener,
+        NULL);
     }
 }
 
@@ -770,6 +772,11 @@ static void wayland_pointer_update_cursor_buffer(HCURSOR hcursor, double scale)
     if (info.hbmColor)
     {
         HDC hdc = NtGdiCreateCompatibleDC(0);
+        if (!hdc)
+        {
+            ERR("Failed to create hdc.\n");
+            goto clear_cursor;
+        }
         cursor->shm_buffer =
             wayland_shm_buffer_from_color_bitmaps(hdc, info.hbmColor, info.hbmMask, FALSE);
         NtGdiDeleteObjectApp(hdc);

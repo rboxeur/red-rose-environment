@@ -3338,7 +3338,6 @@ HKLM
                     val 'America/Coral_Harbour' = s 'SA Pacific Standard Time'
                     val 'America/Cordoba' = s 'Argentina Standard Time'
                     val 'America/Costa_Rica' = s 'Central America Standard Time'
-                    val 'America/Coyhaique' = s 'Magallanes Standard Time'
                     val 'America/Creston' = s 'US Mountain Standard Time'
                     val 'America/Cuiaba' = s 'Central Brazilian Standard Time'
                     val 'America/Curacao' = s 'SA Western Standard Time'

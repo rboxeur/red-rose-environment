@@ -246,6 +246,9 @@
 /* Define to 1 if you have the <mach-o/loader.h> header file. */
 #undef HAVE_MACH_O_LOADER_H
 
+/* Define to 1 if you have the `memfd_create' function. */
+#undef HAVE_MEMFD_CREATE
+
 /* Define to 1 if you have the <mntent.h> header file. */
 #undef HAVE_MNTENT_H
 

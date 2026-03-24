@@ -63,7 +63,7 @@ typedef struct
 
 #define FIND_FIRST_MAGIC  0xc0ffee11
 
-static const UINT max_entry_size = offsetof( FILE_ID_EXTD_BOTH_DIRECTORY_INFORMATION, FileName[256] );
+static const UINT max_entry_size = offsetof( FILE_BOTH_DIRECTORY_INFORMATION, FileName[256] );
 
 const WCHAR windows_dir[] = L"C:\\windows";
 const WCHAR system_dir[] = L"C:\\windows\\system32";
@@ -1199,6 +1199,8 @@ HANDLE WINAPI DECLSPEC_HOTPATCH FindFirstFileExA( const char *filename, FINDEX_I
     dataA->ftLastWriteTime  = dataW.ftLastWriteTime;
     dataA->nFileSizeHigh    = dataW.nFileSizeHigh;
     dataA->nFileSizeLow     = dataW.nFileSizeLow;
+    dataA->dwReserved0      = dataW.dwReserved0;
+    dataA->dwReserved1      = dataW.dwReserved1;
     file_name_WtoA( dataW.cFileName, -1, dataA->cFileName, sizeof(dataA->cFileName) );
     file_name_WtoA( dataW.cAlternateFileName, -1, dataA->cAlternateFileName,
                     sizeof(dataA->cAlternateFileName) );
@@ -1376,7 +1378,7 @@ HANDLE WINAPI DECLSPEC_HOTPATCH FindFirstFileExW( LPCWSTR filename, FINDEX_INFO_
         {
             RtlInitUnicodeString( &mask_str, fixedup_mask );
             status = NtQueryDirectoryFile( info->handle, 0, NULL, NULL, &io, info->data, info->data_size,
-                                           FileIdExtdBothDirectoryInformation, FALSE, &mask_str, TRUE );
+                                           FileBothDirectoryInformation, FALSE, &mask_str, TRUE );
         }
         if (fixedup_mask != mask) HeapFree( GetProcessHeap(), 0, fixedup_mask );
         if (status)
@@ -1476,7 +1478,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH FindNextFileA( HANDLE handle, WIN32_FIND_DATAA *da
 BOOL WINAPI DECLSPEC_HOTPATCH FindNextFileW( HANDLE handle, WIN32_FIND_DATAW *data )
 {
     FIND_FIRST_INFO *info = handle;
-    FILE_ID_EXTD_BOTH_DIRECTORY_INFORMATION *dir_info;
+    FILE_BOTH_DIR_INFORMATION *dir_info;
     BOOL ret = FALSE;
     NTSTATUS status;
 
@@ -1499,7 +1501,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH FindNextFileW( HANDLE handle, WIN32_FIND_DATAW *da
 
             if (info->data_size)
                 status = NtQueryDirectoryFile( info->handle, 0, NULL, NULL, &io, info->data, info->data_size,
-                                               FileIdExtdBothDirectoryInformation, FALSE, NULL, FALSE );
+                                               FileBothDirectoryInformation, FALSE, NULL, FALSE );
             else
                 status = STATUS_NO_MORE_FILES;
 
@@ -1516,7 +1518,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH FindNextFileW( HANDLE handle, WIN32_FIND_DATAW *da
             info->data_pos = 0;
         }
 
-        dir_info = (FILE_ID_EXTD_BOTH_DIRECTORY_INFORMATION *)(info->data + info->data_pos);
+        dir_info = (FILE_BOTH_DIR_INFORMATION *)(info->data + info->data_pos);
 
         if (dir_info->NextEntryOffset) info->data_pos += dir_info->NextEntryOffset;
         else info->data_pos = info->data_len;
@@ -1536,7 +1538,12 @@ BOOL WINAPI DECLSPEC_HOTPATCH FindNextFileW( HANDLE handle, WIN32_FIND_DATAW *da
         data->ftLastWriteTime  = *(FILETIME *)&dir_info->LastWriteTime;
         data->nFileSizeHigh    = dir_info->EndOfFile.QuadPart >> 32;
         data->nFileSizeLow     = (DWORD)dir_info->EndOfFile.QuadPart;
-        data->dwReserved0      = dir_info->ReparsePointTag;
+        /* We intentionally do not use FileIdExtdBothDirectoryInformation here;
+         * it breaks certain hotpatchers. Windows returns the reparse tag in
+         * EaSize for FileBothDirectoryInformation. */
+        data->dwReserved0      = 0;
+        if (dir_info->FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+            data->dwReserved0  = dir_info->EaSize;
         data->dwReserved1      = 0;
 
         memcpy( data->cFileName, dir_info->FileName, dir_info->FileNameLength );

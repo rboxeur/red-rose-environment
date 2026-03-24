@@ -1311,10 +1311,14 @@ static BOOL write_gpu_to_registry( const struct gpu *gpu, const struct pci_id *p
         set_reg_value( hkey, bufferW, REG_SZ, desc, (lstrlenW( desc ) + 1) * sizeof(WCHAR) );
         if (pci->vendor && pci->device)
         {
+            DWORD val;
+
             asciiz_to_unicode( bufferW, "DeviceId" );
-            set_reg_value( hkey, bufferW, REG_DWORD, &pci->device, sizeof(pci->device) );
+            val = pci->device;
+            set_reg_value( hkey, bufferW, REG_DWORD, &val, sizeof(val) );
             asciiz_to_unicode( bufferW, "VendorId" );
-            set_reg_value( hkey, bufferW, REG_DWORD, &pci->vendor, sizeof(pci->vendor) );
+            val = pci->vendor;
+            set_reg_value( hkey, bufferW, REG_DWORD, &val, sizeof(val) );
         }
         NtClose( hkey );
     }
@@ -7814,6 +7818,18 @@ NTSTATUS WINAPI NtUserDisplayConfigGetDeviceInfo( DISPLAYCONFIG_DEVICE_INFO_HEAD
             color_info->advancedColorForceDisabled = 0;
             color_info->colorEncoding = DISPLAYCONFIG_COLOR_ENCODING_RGB;
             color_info->bitsPerColorChannel = 10;
+
+            return STATUS_SUCCESS;
+        }
+
+        if ((env = getenv("DXVK_NO_HDR")) && *env == '1')
+        {
+            color_info->advancedColorSupported = 0;
+            color_info->advancedColorEnabled = 0;
+            color_info->wideColorEnforced = 0;
+            color_info->advancedColorForceDisabled = 0;
+            color_info->colorEncoding = DISPLAYCONFIG_COLOR_ENCODING_RGB;
+            color_info->bitsPerColorChannel = 8;
 
             return STATUS_SUCCESS;
         }

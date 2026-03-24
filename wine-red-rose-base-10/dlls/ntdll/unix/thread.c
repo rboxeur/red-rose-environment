@@ -471,6 +471,7 @@ static NTSTATUS context_to_server( struct context_data *to, USHORT to_machine, c
         {
             to->flags |= SERVER_CTX_FLOATING_POINT;
             memcpy( to->fp.x86_64_regs.fpregs, &from->FltSave, sizeof(to->fp.x86_64_regs.fpregs) );
+            ((XSAVE_FORMAT *)to->fp.x86_64_regs.fpregs)->MxCsr = from->MxCsr;
         }
         if (flags & CONTEXT_AMD64_DEBUG_REGISTERS)
         {
@@ -1483,11 +1484,15 @@ void abort_thread( int status )
 }
 
 
+extern void delete_eac_wine_pid(void);
+
+
 /***********************************************************************
  *           abort_process
  */
 void abort_process( int status )
 {
+    delete_eac_wine_pid();
     _exit( get_unix_exit_code( status ));
 }
 

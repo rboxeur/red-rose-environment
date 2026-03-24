@@ -595,6 +595,7 @@ static const WCHAR *hack_append_command_line( const WCHAR *cmd )
 
     static const struct option options[] =
     {
+        {L"Blaite\\nw.exe", L" --disable_direct_composition=1"},
         {L"Click&Fight.exe", L" --disable_direct_composition=1"},
         {L"Willful.exe", L" --disable_direct_composition=1"},
         {L"Banyu Lintar Angin - Little Storm -.exe", L" --disable_direct_composition=1"},
@@ -776,36 +777,6 @@ BOOL WINAPI DECLSPEC_HOTPATCH CreateProcessInternalW( HANDLE token, const WCHAR 
     product_name = get_product_name( app_name );
     if (battleye_launcher_redirect_hack( app_name, name, ARRAY_SIZE(name), &orig_app_name, product_name ))
         app_name = name;
-
-    /* Warhammer Vermintide 2 Directory Correction Hack (Steam AppID 552500) */
-    {
-        char sgi[64] = {0};
-        GetEnvironmentVariableA("SteamGameId", sgi, sizeof(sgi));
-
-        /* If this is Vermintide 2 and we are launching the protected game... */
-        if (!strcmp(sgi, "552500") && tidy_cmdline && wcsstr(tidy_cmdline, L"start_protected_game.exe"))
-        {
-            static WCHAR root_path[MAX_PATH];
-            WCHAR *dir_sep;
-
-            /* 1. Get the current directory (which is currently .../launcher/) */
-            if (GetCurrentDirectoryW(MAX_PATH, root_path))
-            {
-                /* 2. Find the last backslash and check if we are in the launcher folder */
-                dir_sep = wcsrchr(root_path, L'\\');
-                if (dir_sep && !wcsicmp(dir_sep, L"\\launcher"))
-                {
-                    /* 3. Strip "\launcher" to move the working directory to the Game Root */
-                    *dir_sep = L'\0';
-
-                    /* 4. Apply the fix to the actual process creation parameter */
-                    cur_dir = root_path;
-
-                    FIXME("Vermintide 2: Corrected Working Directory to %s\n", debugstr_w(cur_dir));
-                }
-            }
-        }
-    }
 
     /* Warn if unsupported features are used */
 
