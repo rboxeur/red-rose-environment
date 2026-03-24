@@ -109,6 +109,15 @@ typedef unsigned short TCOMP;
     (((w) << tcompSHIFT_LZX_WINDOW) | \
      ( tcompTYPE_LZX              ))
 
+/**********************************************************************/
+
+typedef enum {
+    ALGORITHM_MSZIP = 2,
+    ALGORITHM_XPRESS,
+    ALGORITHM_XPRESS_HUFF,
+    ALGORITHM_LZMS,
+} COMPRESSIONALGORITHM;
+
 #endif /* !defined(INCLUDED_TYPES_FCI_FDI) */
 
 /***********************************************************************
@@ -203,6 +212,10 @@ typedef struct {
 
 /**********************************************************************/
 
+typedef void *HFDIDECOMPRESSOR;
+
+/**********************************************************************/
+
 typedef void * (__WINE_ALLOC_SIZE(1) __cdecl *PFNALLOC)(ULONG cb);
 #define FNALLOC(fn) void * __WINE_ALLOC_SIZE(1) __cdecl fn(ULONG cb)
 
@@ -287,6 +300,10 @@ BOOL __cdecl FDICopy(HFDI, char *, char *, int, PFNFDINOTIFY,
 		     PFNFDIDECRYPT, void *pvUser);
 BOOL __cdecl FDIDestroy(HFDI);
 BOOL __cdecl FDITruncateCabinet(HFDI, char *, USHORT);
+
+BOOL __cdecl FDIDecompressorCreate( COMPRESSIONALGORITHM, void *, HFDIDECOMPRESSOR );
+BOOL __cdecl FDIDecompressorDecompress( HFDIDECOMPRESSOR, LPCVOID, SIZE_T, PVOID, SIZE_T, PSIZE_T );
+BOOL __cdecl FDIDecompressorClose( HFDIDECOMPRESSOR );
 
 /**********************************************************************/
 

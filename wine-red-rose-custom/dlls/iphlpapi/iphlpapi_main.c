@@ -1152,15 +1152,15 @@ static DWORD call_families( DWORD (*fn)( IP_ADAPTER_ADDRESSES *aa, ULONG family,
 {
     DWORD err;
 
-    if (family != AF_INET)
-    {
-        err = fn( aa, AF_INET6, flags );
-        if (err) return err;
-    }
-
     if (family != AF_INET6)
     {
         err = fn( aa, AF_INET, flags );
+        if (err) return err;
+    }
+
+    if (family != AF_INET)
+    {
+        err = fn( aa, AF_INET6, flags );
         if (err) return err;
     }
     return err;

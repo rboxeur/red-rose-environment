@@ -466,6 +466,14 @@ static int parse_next_token(void *lval, unsigned *loc, parser_ctx_t *ctx)
             ctx->ptr++;
             return '.';
         }
+        /* After line continuation, ptr[-1] is a newline or space, but the dot
+         * is logically on the same line as the previous token. */
+        if(ctx->after_continuation
+                && (ctx->last_token == tIdentifier || ctx->last_token == ')'
+                || ctx->last_token == tEMPTYBRACKETS)) {
+            ctx->ptr++;
+            return '.';
+        }
         c = ctx->ptr[1];
         if('0' <= c && c <= '9')
             return parse_numeric_literal(ctx, lval);
@@ -476,7 +484,8 @@ static int parse_next_token(void *lval, unsigned *loc, parser_ctx_t *ctx)
             return comment_line(ctx);
         ctx->ptr++;
         return '-';
-    case '(':
+    case '(': {
+        const WCHAR *paren_pos = ctx->ptr;
         /* NOTE:
          * We resolve empty brackets in lexer instead of parser to avoid complex conflicts
          * in call statement special case |f()| without 'call' keyword
@@ -490,10 +499,39 @@ static int parse_next_token(void *lval, unsigned *loc, parser_ctx_t *ctx)
         /*
          * Parser can't predict if bracket is part of argument expression or an argument
          * in call expression. We predict it here instead.
+         *
+         * In VBScript, 'f(x)' treats parens as call argument parens, but in a statement
+         * like 'f (x) * 8, y' the parens are expression grouping. We detect this by
+         * checking for whitespace before '(' and then looking past the matching ')' for
+         * an operator that cannot start an expression (*, /, \, ^). Such an operator
+         * after ')' means the '(' must be expression grouping.
          */
-        if(ctx->last_token == tIdentifier || ctx->last_token == ')')
+        if(ctx->last_token == tIdentifier || ctx->last_token == ')') {
+            if(paren_pos > ctx->code && (paren_pos[-1] == ' ' || paren_pos[-1] == '\t')) {
+                const WCHAR *p = ctx->ptr;
+                int depth = 1;
+
+                while(p < ctx->end && depth > 0) {
+                    if(*p == '(')
+                        depth++;
+                    else if(*p == ')')
+                        depth--;
+                    if(depth > 0)
+                        p++;
+                }
+
+                if(depth == 0) {
+                    p++;
+                    while(p < ctx->end && (*p == ' ' || *p == '\t'))
+                        p++;
+                    if(p < ctx->end && (*p == '*' || *p == '/' || *p == '\\' || *p == '^'))
+                        return tEXPRLBRACKET;
+                }
+            }
             return '(';
+        }
         return tEXPRLBRACKET;
+    }
     case '"':
         return parse_string_literal(ctx, lval);
     case '#':
@@ -564,6 +602,7 @@ int parser_lex(void *lval, unsigned *loc, parser_ctx_t *ctx)
                 ctx->ptr++;
             if(*ctx->ptr == '\n')
                 ctx->ptr++;
+            ctx->after_continuation = TRUE;
             continue;
         }
         if(ret != tNL || ctx->last_token != tNL)
@@ -572,5 +611,6 @@ int parser_lex(void *lval, unsigned *loc, parser_ctx_t *ctx)
         ctx->last_nl = ctx->ptr-ctx->code;
     }
 
+    ctx->after_continuation = FALSE;
     return (ctx->last_token = ret);
 }

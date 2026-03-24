@@ -63,6 +63,8 @@ typedef struct {
 
     function_t *func;
     function_decl_t *func_decls;
+
+    DWORD flags;
 } compile_ctx_t;
 
 static HRESULT compile_expression(compile_ctx_t*,expression_t*);
@@ -402,6 +404,12 @@ static HRESULT compile_error(script_ctx_t *ctx, compile_ctx_t *compiler, HRESULT
     ctx->ei.scode = error;
     ctx->ei.bstrSource = get_vbscript_string(VBS_COMPILE_ERROR);
     map_vbs_exception(&ctx->ei);
+
+    /* For internal calls (Eval/Execute/ExecuteGlobal), don't report to OnScriptError.
+     * Just return SCRIPT_E_RECORDED to indicate ctx->ei is populated. */
+    if(compiler->flags & SCRIPTTEXT_NOERRORREPORT)
+        return SCRIPT_E_RECORDED;
+
     return report_script_error(ctx, compiler->code, compiler->loc);
 }
 
@@ -864,7 +872,7 @@ static HRESULT compile_foreach_statement(compile_ctx_t *ctx, foreach_statement_t
 static HRESULT compile_forto_statement(compile_ctx_t *ctx, forto_statement_t *stat)
 {
     statement_ctx_t loop_ctx = {2};
-    unsigned step_instr, instr;
+    unsigned step_instr, loop_start, instr;
     BSTR identifier;
     HRESULT hres;
 
@@ -918,27 +926,30 @@ static HRESULT compile_forto_statement(compile_ctx_t *ctx, forto_statement_t *st
     if(!emit_catch(ctx, 2))
         return E_OUTOFMEMORY;
 
+    loop_start = ctx->instr_cnt;
     hres = compile_statement(ctx, &loop_ctx, stat->body);
     if(FAILED(hres))
         return hres;
 
-    /* FIXME: Error handling can't be done compatible with native using OP_incc here. */
+    /* We need a separated OP_step here so that errors jump to the end-of-loop catch. */
+    ctx->loc = stat->stat.loc;
     instr = push_instr(ctx, OP_incc);
     if(!instr)
         return E_OUTOFMEMORY;
     instr_ptr(ctx, instr)->arg1.bstr = identifier;
 
-    hres = push_instr_addr(ctx, OP_jmp, step_instr);
-    if(FAILED(hres))
-        return hres;
+    instr = push_instr(ctx, OP_step);
+    if(!instr)
+        return E_OUTOFMEMORY;
+    instr_ptr(ctx, instr)->arg2.bstr = identifier;
+    instr_ptr(ctx, instr)->arg1.uint = loop_ctx.for_end_label;
 
-    hres = push_instr_uint(ctx, OP_pop, 2);
+    hres = push_instr_addr(ctx, OP_jmp, loop_start);
     if(FAILED(hres))
         return hres;
 
     label_set_addr(ctx, loop_ctx.for_end_label);
 
-    /* FIXME: reconsider after OP_incc fixup. */
     if(!emit_catch(ctx, 0))
         return E_OUTOFMEMORY;
 
@@ -1074,7 +1085,30 @@ static HRESULT compile_assignment(compile_ctx_t *ctx, expression_t *left, expres
         break;
     case EXPR_CALL:
         call_expr = (call_expression_t*)left;
-        assert(call_expr->call_expr->type == EXPR_MEMBER);
+        if(call_expr->call_expr->type != EXPR_MEMBER) {
+            /* Chained call assignment, e.g. aryOrder(0)(1) = 5:
+             * compile the inner expression as a read, then assign to the result. */
+            hres = compile_expression(ctx, call_expr->call_expr);
+            if(FAILED(hres))
+                return hres;
+
+            hres = compile_expression(ctx, value_expr);
+            if(FAILED(hres))
+                return hres;
+
+            hres = compile_args(ctx, call_expr->args, &args_cnt);
+            if(FAILED(hres))
+                return hres;
+
+            hres = push_instr_uint(ctx, is_set ? OP_set_call : OP_assign_call, args_cnt);
+            if(FAILED(hres))
+                return hres;
+
+            if(!emit_catch(ctx, 0))
+                return E_OUTOFMEMORY;
+
+            return S_OK;
+        }
         member_expr = (member_expression_t*)call_expr->call_expr;
         break;
     default:
@@ -1206,10 +1240,11 @@ static HRESULT compile_const_statement(compile_ctx_t *ctx, const_statement_t *st
     do {
         decl = next_decl;
 
-        if(lookup_const_decls(ctx, decl->name, FALSE) || lookup_args_name(ctx, decl->name)
-                || lookup_dim_decls(ctx, decl->name)) {
-            FIXME("%s redefined\n", debugstr_w(decl->name));
-            return E_FAIL;
+        if(!lookup_const_decls(ctx, decl->name, FALSE)) {
+            if(lookup_args_name(ctx, decl->name) || lookup_dim_decls(ctx, decl->name)) {
+                FIXME("%s redefined\n", debugstr_w(decl->name));
+                return E_FAIL;
+            }
         }
 
         if(ctx->func->type == FUNC_GLOBAL) {
@@ -1228,8 +1263,10 @@ static HRESULT compile_const_statement(compile_ctx_t *ctx, const_statement_t *st
         }
 
         next_decl = decl->next;
-        decl->next = ctx->const_decls;
-        ctx->const_decls = decl;
+        if(!lookup_const_decls(ctx, decl->name, FALSE)) {
+            decl->next = ctx->const_decls;
+            ctx->const_decls = decl;
+        }
     } while(next_decl);
 
     return S_OK;
@@ -1361,6 +1398,107 @@ static HRESULT compile_retval_statement(compile_ctx_t *ctx, retval_statement_t *
     if(FAILED(hres))
         return hres;
 
+    return S_OK;
+}
+
+static HRESULT collect_const_decls(compile_ctx_t *ctx, statement_t *stat)
+{
+    HRESULT hres;
+
+    while(stat) {
+        switch(stat->type) {
+        case STAT_CONST: {
+            const_statement_t *const_stat = (const_statement_t*)stat;
+            const_decl_t *decl;
+
+            for(decl = const_stat->decls; decl; decl = decl->next) {
+                const_decl_t *new_decl;
+
+                if(lookup_const_decls(ctx, decl->name, FALSE))
+                    break; /* already collected */
+
+                if(lookup_args_name(ctx, decl->name) || lookup_dim_decls(ctx, decl->name)) {
+                    FIXME("%s redefined\n", debugstr_w(decl->name));
+                    return E_FAIL;
+                }
+
+                new_decl = compiler_alloc(ctx->code, sizeof(*new_decl));
+                if(!new_decl)
+                    return E_OUTOFMEMORY;
+                new_decl->name = decl->name;
+                new_decl->value_expr = decl->value_expr;
+                new_decl->next = ctx->const_decls;
+                ctx->const_decls = new_decl;
+            }
+            break;
+        }
+        case STAT_IF: {
+            if_statement_t *if_stat = (if_statement_t*)stat;
+            elseif_decl_t *elseif;
+
+            hres = collect_const_decls(ctx, if_stat->if_stat);
+            if(FAILED(hres))
+                return hres;
+            for(elseif = if_stat->elseifs; elseif; elseif = elseif->next) {
+                hres = collect_const_decls(ctx, elseif->stat);
+                if(FAILED(hres))
+                    return hres;
+            }
+            hres = collect_const_decls(ctx, if_stat->else_stat);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_WHILE:
+        case STAT_WHILELOOP:
+        case STAT_DOWHILE:
+        case STAT_DOUNTIL:
+        case STAT_UNTIL: {
+            while_statement_t *while_stat = (while_statement_t*)stat;
+            hres = collect_const_decls(ctx, while_stat->body);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_FORTO: {
+            forto_statement_t *forto_stat = (forto_statement_t*)stat;
+            hres = collect_const_decls(ctx, forto_stat->body);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_FOREACH: {
+            foreach_statement_t *foreach_stat = (foreach_statement_t*)stat;
+            hres = collect_const_decls(ctx, foreach_stat->body);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_SELECT: {
+            select_statement_t *select_stat = (select_statement_t*)stat;
+            case_clausule_t *clause;
+            for(clause = select_stat->case_clausules; clause; clause = clause->next) {
+                hres = collect_const_decls(ctx, clause->stat);
+                if(FAILED(hres))
+                    return hres;
+            }
+            break;
+        }
+        case STAT_WITH: {
+            with_statement_t *with_stat = (with_statement_t*)stat;
+            hres = collect_const_decls(ctx, with_stat->body);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_FUNC:
+            /* Don't recurse into sub/function bodies; they are compiled separately */
+            break;
+        default:
+            break;
+        }
+        stat = stat->next;
+    }
     return S_OK;
 }
 
@@ -1536,6 +1674,11 @@ static HRESULT compile_func(compile_ctx_t *ctx, statement_t *stat, function_t *f
     ctx->func = func;
     ctx->dim_decls = ctx->dim_decls_tail = NULL;
     ctx->const_decls = NULL;
+
+    hres = collect_const_decls(ctx, stat);
+    if(FAILED(hres))
+        return hres;
+
     hres = compile_statement(ctx, NULL, stat);
     ctx->func = NULL;
     if(FAILED(hres))
@@ -2011,6 +2154,7 @@ HRESULT compile_script(script_ctx_t *script, const WCHAR *src, const WCHAR *item
     }
 
     memset(&ctx, 0, sizeof(ctx));
+    ctx.flags = flags;
     code = ctx.code = alloc_vbscode(&ctx, src, cookie, start_line);
     if(!ctx.code)
         return E_OUTOFMEMORY;

@@ -23,6 +23,7 @@
 #include "winsock2.h"
 #include "ws2ipdef.h"
 #include "ws2tcpip.h"
+#include "schannel.h"
 #include "winhttp.h"
 #include "winreg.h"
 #include "winternl.h"
@@ -802,6 +803,23 @@ static BOOL request_query_option( struct object_header *hdr, DWORD option, void 
         *buflen = sizeof(flags);
         return TRUE;
     }
+    case WINHTTP_OPTION_SECURITY_INFO:
+    {
+        WINHTTP_SECURITY_INFO *info = (WINHTTP_SECURITY_INFO *)buffer;
+        SECURITY_STATUS res;
+
+        if (!validate_buffer( buffer, buflen, sizeof(WINHTTP_SECURITY_INFO) )) return FALSE;
+
+        memset(info, 0 , sizeof(WINHTTP_SECURITY_INFO));
+        if (!request->netconn->secure) return TRUE;
+        res = QueryContextAttributesW(&request->netconn->ssl_ctx, SECPKG_ATTR_CONNECTION_INFO, (void*)&info->ConnectionInfo);
+        if(res != SEC_E_OK)
+            WARN( "QueryContextAttributesW failed: %#lx\n", res );
+        res = QueryContextAttributesW(&request->netconn->ssl_ctx, SECPKG_ATTR_CIPHER_INFO, (void*)&info->CipherInfo);
+        if(res != SEC_E_OK)
+            WARN( "QueryContextAttributesW failed: %#lx\n", res );
+        return TRUE;
+    }
     case WINHTTP_OPTION_SERVER_CERT_CONTEXT:
     {
         const CERT_CONTEXT *cert;
@@ -811,6 +829,26 @@ static BOOL request_query_option( struct object_header *hdr, DWORD option, void 
         if (!(cert = CertDuplicateCertificateContext( request->server_cert ))) return FALSE;
         *(CERT_CONTEXT **)buffer = (CERT_CONTEXT *)cert;
         *buflen = sizeof(cert);
+        return TRUE;
+    }
+    case WINHTTP_OPTION_SERVER_CERT_CHAIN_CONTEXT:
+    {
+        const CERT_CHAIN_CONTEXT *cert_chain;
+
+        char oid_server_auth[] = szOID_PKIX_KP_SERVER_AUTH;
+        char *server_auth[] = { oid_server_auth };
+
+        CERT_CHAIN_PARA chainPara = { sizeof(chainPara), { 0 } };
+
+        chainPara.RequestedUsage.Usage.cUsageIdentifier = 1;
+        chainPara.RequestedUsage.Usage.rgpszUsageIdentifier = server_auth;
+
+        if (!validate_buffer( buffer, buflen, sizeof(cert_chain) )) return FALSE;
+        if (!CertGetCertificateChain(NULL, request->server_cert, NULL, NULL, &chainPara, 0, NULL, &cert_chain)) return FALSE;
+
+        *(CERT_CHAIN_CONTEXT **)buffer = (CERT_CHAIN_CONTEXT *)cert_chain;
+        *buflen = sizeof(cert_chain);
+
         return TRUE;
     }
     case WINHTTP_OPTION_SECURITY_CERTIFICATE_STRUCT:
@@ -1452,6 +1490,11 @@ static BOOL set_option( struct object_header *hdr, DWORD option, void *buffer, D
         hdr->context = *(DWORD_PTR *)buffer;
         return TRUE;
     }
+
+    case WINHTTP_OPTION_DECOMPRESSION:
+        FIXME( "WINHTTP_OPTION_DECOMPRESSION, %#lx stub.\n", *(DWORD *)buffer );
+        return TRUE;
+
     default:
         if (hdr->vtbl->set_option) ret = hdr->vtbl->set_option( hdr, option, buffer, buflen );
         else

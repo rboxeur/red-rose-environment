@@ -40,6 +40,7 @@ STRINGTABLE
     VBSE_PATH_FILE_ACCESS              "Path/File access error"
     VBSE_PATH_NOT_FOUND                "Path not found"
     VBSE_OBJECT_VARIABLE_NOT_SET       "Object variable not set"
+    VBSE_FOR_LOOP_NOT_INITIALIZED      "For loop not initialized"
     VBSE_ILLEGAL_NULL_USE              "Invalid use of Null"
     VBSE_CANT_CREATE_TMP_FILE          "Can't create necessary temporary file"
     VBSE_CANT_CREATE_OBJECT            "ActiveX component can't create object"
@@ -57,6 +58,7 @@ STRINGTABLE
     VBSE_INVALID_TYPELIB_VARIABLE      "Variable uses an Automation type not supported in VBScript"
     VBSE_SERVER_NOT_FOUND              "The remote server machine does not exist or is unavailable"
     VBSE_UNQUALIFIED_REFERENCE         "Invalid or unqualified reference"
+    VBSE_SYNTAX_ERROR                  "Syntax error"
 
     VBS_COMPILE_ERROR                  "Microsoft VBScript compilation error"
     VBS_RUNTIME_ERROR                  "Microsoft VBScript runtime error"

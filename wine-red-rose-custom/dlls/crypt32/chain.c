@@ -224,13 +224,31 @@ BOOL WINAPI CertCreateCertificateChainEngine(PCERT_CHAIN_ENGINE_CONFIG pConfig,
     BOOL ret;
 
     TRACE("(%p, %p)\n", pConfig, phChainEngine);
-
+    TRACE("cbSize %lu\n", pConfig->cbSize);
+    TRACE("hRestrictedRoot %p\n", pConfig->hRestrictedRoot);
+    TRACE("hRestrictedTrust %p\n", pConfig->hRestrictedTrust);
+    TRACE("hRestrictedOther %p\n", pConfig->hRestrictedOther);
+    TRACE("cAdditionalStore %lu\n", pConfig->cAdditionalStore);
+    TRACE("dwFlags %lx\n", pConfig->dwFlags);
+    TRACE("dwUrlRetrievalTimeout %lu\n", pConfig->dwUrlRetrievalTimeout);
+    TRACE("MaximumCachedCertificates %lu\n", pConfig->MaximumCachedCertificates);
+    TRACE("CycleDetectionModulus %lu\n", pConfig->CycleDetectionModulus);
     if (pConfig->cbSize != sizeof(CERT_CHAIN_ENGINE_CONFIG_NO_EXCLUSIVE_ROOT)
      && pConfig->cbSize != sizeof(CERT_CHAIN_ENGINE_CONFIG))
     {
         SetLastError(E_INVALIDARG);
         return FALSE;
     }
+
+    if (pConfig->cbSize == sizeof(CERT_CHAIN_ENGINE_CONFIG))
+    {
+        TRACE("hExclusiveRoot %p\n", pConfig->hExclusiveRoot);
+        TRACE("hExclusiveTrustedPeople %p\n", pConfig->hExclusiveTrustedPeople);
+        TRACE("dwExclusiveFlags %lx\n", pConfig->dwExclusiveFlags);
+        if (pConfig->dwExclusiveFlags)
+            FIXME("dwExclusiveFlags %lx not supported\n", pConfig->dwExclusiveFlags);
+    }
+
     ret = CRYPT_CheckRestrictedRoot(pConfig->hRestrictedRoot);
     if (!ret)
     {

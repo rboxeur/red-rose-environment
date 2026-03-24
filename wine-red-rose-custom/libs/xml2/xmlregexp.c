@@ -4924,6 +4924,13 @@ xmlFAParseCharRange(xmlRegParserCtxtPtr ctxt) {
 	    case 'n': start = 0xA; break;
 	    case 'r': start = 0xD; break;
 	    case 't': start = 0x9; break;
+	    case 'u':
+		start = parse_escaped_codepoint(ctxt);
+		if (start < 0) {
+		    ERROR("Invalid codepoint");
+		    return;
+		}
+		break;
 	    case '\\': case '|': case '.': case '-': case '^': case '?':
 	    case '*': case '+': case '{': case '}': case '(': case ')':
 	    case '[': case ']':
@@ -4969,6 +4976,13 @@ xmlFAParseCharRange(xmlRegParserCtxtPtr ctxt) {
 	    case 'n': end = 0xA; break;
 	    case 'r': end = 0xD; break;
 	    case 't': end = 0x9; break;
+	    case 'u':
+		end = parse_escaped_codepoint(ctxt);
+		if (end < 0) {
+		    ERROR("Invalid codepoint");
+		    return;
+		}
+		break;
 	    case '\\': case '|': case '.': case '-': case '^': case '?':
 	    case '*': case '+': case '{': case '}': case '(': case ')':
 	    case '[': case ']':
@@ -5010,7 +5024,7 @@ xmlFAParseCharRange(xmlRegParserCtxtPtr ctxt) {
 static void
 xmlFAParsePosCharGroup(xmlRegParserCtxtPtr ctxt) {
     do {
-	if (CUR == '\\') {
+	if (CUR == '\\' && NXT(1) != 'u') {
 	    xmlFAParseCharClassEsc(ctxt);
 	} else {
 	    xmlFAParseCharRange(ctxt);

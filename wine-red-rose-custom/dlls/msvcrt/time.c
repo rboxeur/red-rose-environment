@@ -787,7 +787,7 @@ __time64_t CDECL _time64(__time64_t *buf)
 
     _ftime64(&tb);
 
-    curtime = tb.time;
+    curtime = (tb.time == (__time32_t)tb.time) ? tb.time : -1;
     return buf ? *buf = curtime : curtime;
 }
 

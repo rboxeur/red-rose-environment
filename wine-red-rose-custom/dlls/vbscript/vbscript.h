@@ -205,6 +205,9 @@ struct _script_ctx_t {
     BuiltinDisp *global_obj;
     BuiltinDisp *err_obj;
 
+    void *current_exec;
+    void *caller_exec;
+
     EXCEPINFO ei;
     vbscode_t *error_loc_code;
     unsigned error_loc_offset;
@@ -235,6 +238,7 @@ typedef enum {
     X(and,            1, 0,           0)          \
     X(assign_ident,   1, ARG_BSTR,    ARG_UINT)   \
     X(assign_member,  1, ARG_BSTR,    ARG_UINT)   \
+    X(assign_call,    1, ARG_UINT,    0)          \
     X(bool,           1, ARG_INT,     0)          \
     X(catch,          1, ARG_ADDR,    ARG_UINT)   \
     X(case,           0, ARG_ADDR,    0)          \
@@ -288,6 +292,7 @@ typedef enum {
     X(retval,         1, 0,           0)          \
     X(set_ident,      1, ARG_BSTR,    ARG_UINT)   \
     X(set_member,     1, ARG_BSTR,    ARG_UINT)   \
+    X(set_call,       1, ARG_UINT,    0)          \
     X(stack,          1, ARG_UINT,    0)          \
     X(step,           0, ARG_ADDR,    ARG_BSTR)   \
     X(stop,           1, 0,           0)          \
@@ -387,9 +392,13 @@ static inline void grab_vbscode(vbscode_t *code)
 }
 
 void release_vbscode(vbscode_t*);
+/* Internal flag to suppress OnScriptError reporting - used by Eval/Execute/ExecuteGlobal */
+#define SCRIPTTEXT_NOERRORREPORT 0x80000000
 HRESULT compile_script(script_ctx_t*,const WCHAR*,const WCHAR*,const WCHAR*,DWORD_PTR,unsigned,DWORD,vbscode_t**);
 HRESULT compile_procedure(script_ctx_t*,const WCHAR*,const WCHAR*,const WCHAR*,DWORD_PTR,unsigned,DWORD,class_desc_t**);
 HRESULT exec_script(script_ctx_t*,BOOL,function_t*,vbdisp_t*,DISPPARAMS*,VARIANT*);
+HRESULT exec_global_code(script_ctx_t*,vbscode_t*,VARIANT*);
+BOOL is_exec_local_scope(void*);
 void release_dynamic_var(dynamic_var_t*);
 named_item_t *lookup_named_item(script_ctx_t*,const WCHAR*,unsigned);
 void release_named_item(named_item_t*);

@@ -1901,6 +1901,7 @@ TAB_DrawItemInterior(const TAB_INFO *infoPtr, HDC hdc, INT iItem, RECT *drawRect
 
       logfont.lfEscapement = nEscapement;
       logfont.lfOrientation = nOrientation;
+      logfont.lfOutPrecision = OUT_TT_ONLY_PRECIS;
       hFont = CreateFontIndirectW(&logfont);
       SelectObject(hdc, hFont);
 

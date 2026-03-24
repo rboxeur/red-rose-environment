@@ -1567,7 +1567,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH SetProcessWorkingSetSizeEx( HANDLE process, SIZE_T
 /******************************************************************************
  *           TerminateProcess   (kernelbase.@)
  */
-BOOL WINAPI DECLSPEC_HOTPATCH TerminateProcess( HANDLE handle, DWORD exit_code )
+BOOL WINAPI DECLSPEC_HOTPATCH TerminateProcess( HANDLE handle, UINT exit_code )
 {
     if (!handle)
     {

@@ -251,6 +251,7 @@
 #define VBSE_PATH_FILE_ACCESS              75
 #define VBSE_PATH_NOT_FOUND                76
 #define VBSE_OBJECT_VARIABLE_NOT_SET       91
+#define VBSE_FOR_LOOP_NOT_INITIALIZED      92
 #define VBSE_ILLEGAL_NULL_USE              94
 #define VBSE_CANT_CREATE_TMP_FILE         322
 #define VBSE_CANT_CREATE_OBJECT           429
@@ -269,6 +270,7 @@
 #define VBSE_SERVER_NOT_FOUND             462
 #define VBSE_ILLEGAL_ASSIGNMENT           501
 #define VBSE_UNQUALIFIED_REFERENCE        505
+#define VBSE_SYNTAX_ERROR                1002
 
 #define VBS_COMPILE_ERROR                4096
 #define VBS_RUNTIME_ERROR                4097

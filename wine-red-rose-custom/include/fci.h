@@ -109,6 +109,15 @@ typedef unsigned short TCOMP;
     (((w) << tcompSHIFT_LZX_WINDOW) | \
      ( tcompTYPE_LZX              ))
 
+/**********************************************************************/
+
+typedef enum {
+    ALGORITHM_MSZIP = 2,
+    ALGORITHM_XPRESS,
+    ALGORITHM_XPRESS_HUFF,
+    ALGORITHM_LZMS,
+} COMPRESSIONALGORITHM;
+
 #endif /* !defined(INCLUDED_TYPES_FCI_FDI) */
 
 /***********************************************************************
@@ -162,6 +171,10 @@ typedef struct {
     char szCab[CB_MAX_CABINET_NAME]; /* Current cabinet name */
     char szCabPath[CB_MAX_CAB_PATH]; /* Path for creating cabinet */
 } CCAB, *PCCAB;
+
+/**********************************************************************/
+
+typedef void *HFCICOMPRESSOR;
 
 /**********************************************************************/
 
@@ -249,6 +262,10 @@ BOOL __cdecl FCIAddFile(HFCI, char *, char *, BOOL, PFNFCIGETNEXTCABINET,
 BOOL __cdecl FCIFlushCabinet(HFCI, BOOL, PFNFCIGETNEXTCABINET, PFNFCISTATUS);
 BOOL __cdecl FCIFlushFolder(HFCI, PFNFCIGETNEXTCABINET, PFNFCISTATUS);
 BOOL __cdecl FCIDestroy(HFCI hfci);
+
+BOOL __cdecl FCICompressorCreate( COMPRESSIONALGORITHM, void *, HFCICOMPRESSOR );
+BOOL __cdecl FCICompressorCompress( HFCICOMPRESSOR, LPCVOID, SIZE_T, PVOID, SIZE_T, PSIZE_T );
+BOOL __cdecl FCICompressorClose( HFCICOMPRESSOR );
 
 /**********************************************************************/
 

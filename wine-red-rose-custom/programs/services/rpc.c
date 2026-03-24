@@ -1202,16 +1202,22 @@ static BOOL process_send_command(struct process_entry *process, const void *data
         if (ret == WAIT_TIMEOUT)
         {
             WINE_ERR("receiving command result timed out\n");
-            *result = ERROR_SERVICE_REQUEST_TIMEOUT;
-            return FALSE;
+            if (!CancelIoEx(process->control_pipe, &overlapped))
+                WINE_ERR("Failed to cancel IO, %#lx\n", GetLastError());
         }
         r = GetOverlappedResult(process->control_pipe, &overlapped, &count, FALSE);
     }
     if (!r || count != sizeof *result)
     {
-        WINE_ERR("service protocol error - failed to read pipe "
-            "r = %d  count = %ld!\n", r, count);
-        *result = (!r ? GetLastError() : ERROR_READ_FAULT);
+        DWORD error = GetLastError();
+        if (error == ERROR_OPERATION_ABORTED)
+            *result = ERROR_SERVICE_REQUEST_TIMEOUT;
+        else
+        {
+            WINE_ERR("service protocol error - failed to read pipe "
+                "r = %d  count = %ld!\n", r, count);
+            *result = (!r ? GetLastError() : ERROR_READ_FAULT);
+        }
         return FALSE;
     }
 

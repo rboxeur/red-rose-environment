@@ -265,6 +265,12 @@ void CDECL abort(void)
       _cputs("\nabnormal program termination\n");
   }
 #endif
+
+#if _MSVCR_VER > 0
+  if (MSVCRT_abort_behavior & _CALL_REPORTFAULT)
+    DebugBreak();
+#endif
+
   raise(SIGABRT);
   /* in case raise() returns */
   _exit(3);
@@ -304,8 +310,7 @@ void DECLSPEC_NORETURN CDECL _wassert(const wchar_t* str, const wchar_t* file, u
   else
     fwprintf(MSVCRT_stderr, L"Assertion failed: %ls, file %ls, line %d\n\n", str, file, line);
 
-  raise(SIGABRT);
-  _exit(3);
+  abort();
 }
 
 /*********************************************************************

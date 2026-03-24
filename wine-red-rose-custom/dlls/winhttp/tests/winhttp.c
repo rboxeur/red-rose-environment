@@ -24,6 +24,7 @@
 #include <windef.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <schannel.h>
 #include <winhttp.h>
 #include <wincrypt.h>
 #include <winreg.h>
@@ -69,6 +70,7 @@ static void test_WinHttpQueryOption(void)
     BOOL ret;
     HINTERNET session, request, connection;
     DWORD feature, size;
+    WINHTTP_SECURITY_INFO info;
 
     SetLastError(0xdeadbeef);
     session = WinHttpOpen(L"winetest", 0, 0, 0, 0);
@@ -165,6 +167,17 @@ static void test_WinHttpQueryOption(void)
     ok(GetLastError() == ERROR_WINHTTP_INCORRECT_HANDLE_TYPE,
        "expected ERROR_WINHTTP_INCORRECT_HANDLE_TYPE, got %lu\n", GetLastError());
 
+    feature = WINHTTP_DECOMPRESSION_FLAG_ALL;
+    ret = WinHttpSetOption(session, WINHTTP_OPTION_DECOMPRESSION, &feature, sizeof(feature));
+    ok(ret, "failed to set option %lu\n", GetLastError());
+
+    feature = 0xdeadbeef;
+    size = sizeof(feature);
+    SetLastError(0xdeadbeef);
+    ret = WinHttpQueryOption(session, WINHTTP_OPTION_DECOMPRESSION, &feature, &size);
+    ok(!ret, "should fail to query option\n");
+    ok( GetLastError() == ERROR_INVALID_PARAMETER, "expected ERROR_INVALID_PARAMETER, got %lu\n", GetLastError() );
+
     SetLastError(0xdeadbeef);
     request = WinHttpOpenRequest(connection, NULL, NULL, NULL, WINHTTP_NO_REFERER,
                                  WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
@@ -260,6 +273,26 @@ static void test_WinHttpQueryOption(void)
     size = sizeof(feature);
     ret = WinHttpSetOption(request, WINHTTP_OPTION_CONNECT_RETRIES, &feature, sizeof(feature));
     ok(ret, "failed to set WINHTTP_OPTION_CONNECT_RETRIES %lu\n", GetLastError());
+
+    feature = WINHTTP_DECOMPRESSION_FLAG_ALL;
+    ret = WinHttpSetOption(request, WINHTTP_OPTION_DECOMPRESSION, &feature, sizeof(feature));
+    ok(ret, "failed to set option %lu\n", GetLastError());
+
+    feature = 0xdeadbeef;
+    size = sizeof(feature);
+    SetLastError(0xdeadbeef);
+    ret = WinHttpQueryOption(request, WINHTTP_OPTION_DECOMPRESSION, &feature, &size);
+    ok(!ret, "should fail to query option\n");
+    ok( GetLastError() == ERROR_INVALID_PARAMETER, "expected ERROR_INVALID_PARAMETER, got %lu\n", GetLastError() );
+
+    size = sizeof(info);
+    ret = WinHttpQueryOption(request, WINHTTP_OPTION_SECURITY_INFO, &info, &size);
+    ok(ret, "got %lu\n", GetLastError());
+    if (ret)
+    {
+        ok(info.ConnectionInfo.dwProtocol == 0, "got %lu\n", info.ConnectionInfo.dwProtocol);
+        ok(info.ConnectionInfo.dwCipherStrength == 0, "got %lu\n", info.ConnectionInfo.dwCipherStrength);
+    }
 
     SetLastError(0xdeadbeef);
     ret = WinHttpCloseHandle(request);
@@ -1066,6 +1099,7 @@ static void test_secure_connection(void)
     BOOL ret;
     CERT_CONTEXT *cert;
     WINHTTP_CERTIFICATE_INFO info;
+    WINHTTP_SECURITY_INFO secinfo;
     char buffer[32];
 
     ses = WinHttpOpen(L"winetest", 0, NULL, NULL, 0);
@@ -1189,6 +1223,15 @@ static void test_secure_connection(void)
         trace("dwKeySize %lu\n", info.dwKeySize);
         LocalFree( info.lpszSubjectInfo );
         LocalFree( info.lpszIssuerInfo );
+    }
+
+    size = sizeof(secinfo);
+    ret = WinHttpQueryOption(req, WINHTTP_OPTION_SECURITY_INFO, &secinfo, &size);
+    ok(ret, "got %lu\n", GetLastError());
+    if (ret)
+    {
+        ok(secinfo.ConnectionInfo.dwProtocol == SP_PROT_TLS1_2_CLIENT, "got %lu\n", secinfo.ConnectionInfo.dwProtocol);
+        ok(secinfo.ConnectionInfo.dwCipherStrength == info.dwKeySize, "got %lu\n", secinfo.ConnectionInfo.dwCipherStrength);
     }
 
     ret = WinHttpReceiveResponse(req, NULL);

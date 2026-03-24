@@ -603,6 +603,40 @@ static int parse_input_file( DLLSPEC *spec )
 }
 
 
+static void set_module_extension( DLLSPEC *spec )
+{
+    if (!spec->file_name)
+        return;
+
+    if (strendswith( spec->file_name, ".tlb" ) ||
+        strendswith( spec->file_name, ".cpl" ) ||
+        strendswith( spec->file_name, ".drv" ) ||
+        strendswith( spec->file_name, ".ocx" ) ||
+        strendswith( spec->file_name, ".sys" ) ||
+        strendswith( spec->file_name, ".vxd" ) ||
+        strendswith( spec->file_name, ".acm" ) ||
+        strendswith( spec->file_name, ".ax" ) ||
+        strendswith( spec->file_name, ".ds" ) ||
+        strendswith( spec->file_name, ".exe" ) ||
+        strendswith( spec->file_name, ".dll" ) ||
+        strendswith( spec->file_name, ".com" ) ||
+        strendswith( spec->file_name, ".drv16" ) ||
+        strendswith( spec->file_name, ".exe16" ) ||
+        strendswith( spec->file_name, ".mod16" ) ||
+        strendswith( spec->file_name, ".dll16" ))
+        return;
+
+    /* ignore some naming schemes (WinRT, test DLLs) */
+    if ((!strstr( spec->file_name, "windows." ) &&
+         !strstr( spec->file_name, "wine." ) &&
+         !strendswith( spec->file_name, ".appcore" )) && strchr( spec->file_name, '.' ))
+    {
+        fatal_error( "file %s has unknown extension\n", spec->file_name );
+    }
+
+    strcat( spec->file_name, exec_mode == MODE_EXE ? ".exe" : ".dll" );
+}
+
 /*******************************************************************
  *         main
  */
@@ -620,8 +654,7 @@ int main(int argc, char **argv)
 
     atexit( cleanup );  /* make sure we remove the output file on exit */
 
-    if (spec->file_name && !strchr( spec->file_name, '.' ))
-        strcat( spec->file_name, exec_mode == MODE_EXE ? ".exe" : ".dll" );
+    set_module_extension( spec );
     init_dll_name( spec );
 
     if (force_pointer_size) set_target_ptr_size( &target, force_pointer_size );

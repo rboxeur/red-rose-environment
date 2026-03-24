@@ -114,6 +114,21 @@ static HRESULT get_propput_arg(script_ctx_t *ctx, const DISPPARAMS *dp, WORD fla
     return S_OK;
 }
 
+static HRESULT get_array_from_variant(VARIANT *v, SAFEARRAY **array)
+{
+    switch(V_VT(v)) {
+    case VT_ARRAY|VT_BYREF|VT_VARIANT:
+        *array = *V_ARRAYREF(v);
+        break;
+    case VT_ARRAY|VT_VARIANT:
+        *array = V_ARRAY(v);
+        break;
+    default:
+        return E_FAIL;
+    }
+    return S_OK;
+}
+
 static HRESULT invoke_variant_prop(script_ctx_t *ctx, VARIANT *v, WORD flags, DISPPARAMS *dp, VARIANT *res)
 {
     HRESULT hres;
@@ -122,13 +137,21 @@ static HRESULT invoke_variant_prop(script_ctx_t *ctx, VARIANT *v, WORD flags, DI
     case DISPATCH_PROPERTYGET|DISPATCH_METHOD:
     case DISPATCH_PROPERTYGET:
         if(dp->cArgs) {
+            SAFEARRAY *array;
+
             if (!V_ISARRAY(v))
             {
                 WARN("called with arguments for non-array property\n");
                 return DISP_E_MEMBERNOTFOUND; /* That's what tests show */
             }
 
-            if (FAILED(hres = array_access(V_ARRAY(v), dp, &v)))
+            if(FAILED(hres = get_array_from_variant(v, &array)))
+            {
+                FIXME("Unsupported array type %x\n", V_VT(v));
+                return hres;
+            }
+
+            if (FAILED(hres = array_access(array, dp, &v)))
             {
                 WARN("failed to access array element\n");
                 return hres;
@@ -149,17 +172,39 @@ static HRESULT invoke_variant_prop(script_ctx_t *ctx, VARIANT *v, WORD flags, DI
             return hres;
 
         if(arg_cnt(dp)) {
-            FIXME("Arguments not supported\n");
-            return E_NOTIMPL;
+            SAFEARRAY *array;
+
+            if(!V_ISARRAY(v)) {
+                FIXME("Arguments not supported for type %x\n", V_VT(v));
+                if(own_val)
+                    VariantClear(&put_val);
+                return E_NOTIMPL;
+            }
+
+            if(FAILED(hres = get_array_from_variant(v, &array))) {
+                FIXME("Unsupported array type %x\n", V_VT(v));
+                if(own_val)
+                    VariantClear(&put_val);
+                return hres;
+            }
+
+            hres = array_access(array, dp, &v);
+            if(FAILED(hres)) {
+                if(own_val)
+                    VariantClear(&put_val);
+                return hres;
+            }
         }
 
         if(res)
             V_VT(res) = VT_EMPTY;
 
-        if(own_val)
+        if(own_val) {
+            VariantClear(v);
             *v = put_val;
-        else
+        } else {
             hres = VariantCopyInd(v, &put_val);
+        }
         break;
     }
 
@@ -219,14 +264,14 @@ static HRESULT invoke_vbdisp(vbdisp_t *This, DISPID id, DWORD flags, BOOL extern
                 dp.rgvarg = buf;
             }
 
-            hres = get_propput_arg(This->desc->ctx, params, flags, dp.rgvarg, &needs_release);
+            hres = get_propput_arg(This->desc->ctx, params, flags | DISPATCH_PROPERTYPUTREF, dp.rgvarg, &needs_release);
             if(FAILED(hres)) {
                 if(dp.rgvarg != buf)
                     free(dp.rgvarg);
                 return hres;
             }
 
-            func = This->desc->funcs[id].entries[V_VT(dp.rgvarg) == VT_DISPATCH ? VBDISP_SET : VBDISP_LET];
+            func = This->desc->funcs[id].entries[(flags & DISPATCH_PROPERTYPUTREF) ? VBDISP_SET : VBDISP_LET];
             if(!func) {
                 FIXME("no letter/setter\n");
                 if(dp.rgvarg != buf)

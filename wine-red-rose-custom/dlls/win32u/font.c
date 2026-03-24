@@ -4159,6 +4159,10 @@ static DWORD font_GetGlyphIndices( PHYSDEV dev, const WCHAR *str, INT count, WOR
     {
         UINT glyph = str[i];
 
+        /* Combine UTF-16 surrogate pairs into a single codepoint */
+        if (glyph >= 0xd800 && glyph <= 0xdbff && i + 1 < count && str[i + 1] >= 0xdc00 && str[i + 1] <= 0xdfff)
+            glyph = 0x10000 + ((glyph - 0xd800) << 10) + (str[i + 1] - 0xdc00);
+
         if (!font_funcs->get_glyph_index( physdev->font, &glyph, TRUE ))
         {
             glyph = 0;
@@ -4180,6 +4184,13 @@ static DWORD font_GetGlyphIndices( PHYSDEV dev, const WCHAR *str, INT count, WOR
             gi[i] = default_char;
         }
         else gi[i] = get_GSUB_vert_glyph( physdev->font, glyph );
+
+        /* For surrogate pairs, copy the glyph index to the low surrogate position and advance */
+        if (str[i] >= 0xd800 && str[i] <= 0xdbff && i + 1 < count && str[i + 1] >= 0xdc00 && str[i + 1] <= 0xdfff)
+        {
+            i++;
+            gi[i] = gi[i - 1];
+        }
     }
 
     pthread_mutex_unlock( &font_lock );
@@ -5668,8 +5679,13 @@ static RECT get_total_extents( HDC hdc, INT x, INT y, UINT flags, UINT aa_flags,
     for (i = 0; i < count; i++)
     {
         GLYPHMETRICS metrics;
+        UINT ch = str[i];
 
-        if (get_glyph_bitmap( hdc, str[i], flags, aa_flags, &metrics, NULL )) continue;
+        /* Combine UTF-16 surrogate pairs into a single codepoint */
+        if (ch >= 0xd800 && ch <= 0xdbff && i + 1 < count && str[i + 1] >= 0xdc00 && str[i + 1] <= 0xdfff)
+            ch = 0x10000 + ((ch - 0xd800) << 10) + (str[i + 1] - 0xdc00);
+
+        if (get_glyph_bitmap( hdc, ch, flags, aa_flags, &metrics, NULL )) goto next;
 
         rect.left   = x + metrics.gmptGlyphOrigin.x;
         rect.top    = y - metrics.gmptGlyphOrigin.y;
@@ -5677,6 +5693,7 @@ static RECT get_total_extents( HDC hdc, INT x, INT y, UINT flags, UINT aa_flags,
         rect.bottom = rect.top  + metrics.gmBlackBoxY;
         add_bounds_rect( &bounds, &rect );
 
+    next:
         if (dx)
         {
             if (flags & ETO_PDY)
@@ -5690,6 +5707,21 @@ static RECT get_total_extents( HDC hdc, INT x, INT y, UINT flags, UINT aa_flags,
         {
             x += metrics.gmCellIncX;
             y += metrics.gmCellIncY;
+        }
+
+        /* Skip the low surrogate — its dx contribution was already consumed */
+        if (str[i] >= 0xd800 && str[i] <= 0xdbff && i + 1 < count && str[i + 1] >= 0xdc00 && str[i + 1] <= 0xdfff)
+        {
+            if (dx)
+            {
+                if (flags & ETO_PDY)
+                {
+                    x += dx[ (i + 1) * 2 ];
+                    y += dx[ (i + 1) * 2 + 1];
+                }
+                else x += dx[ i + 1 ];
+            }
+            i++;
         }
     }
     return bounds;
@@ -5860,13 +5892,19 @@ BOOL nulldrv_ExtTextOut( PHYSDEV dev, INT x, INT y, UINT flags, const RECT *rect
     {
         GLYPHMETRICS metrics;
         struct gdi_image_bits image;
+        UINT ch = str[i];
 
-        err = get_glyph_bitmap( dev->hdc, str[i], flags, GGO_BITMAP, &metrics, &image );
-        if (err) continue;
+        /* Combine UTF-16 surrogate pairs into a single codepoint */
+        if (ch >= 0xd800 && ch <= 0xdbff && i + 1 < count && str[i + 1] >= 0xdc00 && str[i + 1] <= 0xdfff)
+            ch = 0x10000 + ((ch - 0xd800) << 10) + (str[i + 1] - 0xdc00);
+
+        err = get_glyph_bitmap( dev->hdc, ch, flags, GGO_BITMAP, &metrics, &image );
+        if (err) goto next_glyph;
 
         if (image.ptr) draw_glyph( dc, x, y, &metrics, &image, (flags & ETO_CLIPPED) ? rect : NULL );
         if (image.free) image.free( &image );
 
+    next_glyph:
         if (dx)
         {
             if (flags & ETO_PDY)
@@ -5880,6 +5918,21 @@ BOOL nulldrv_ExtTextOut( PHYSDEV dev, INT x, INT y, UINT flags, const RECT *rect
         {
             x += metrics.gmCellIncX;
             y += metrics.gmCellIncY;
+        }
+
+        /* Skip the low surrogate */
+        if (str[i] >= 0xd800 && str[i] <= 0xdbff && i + 1 < count && str[i + 1] >= 0xdc00 && str[i + 1] <= 0xdfff)
+        {
+            if (dx)
+            {
+                if (flags & ETO_PDY)
+                {
+                    x += dx[ (i + 1) * 2 ];
+                    y += dx[ (i + 1) * 2 + 1];
+                }
+                else x += dx[ i + 1 ];
+            }
+            i++;
         }
     }
 

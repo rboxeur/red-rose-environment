@@ -92,6 +92,30 @@ Call ok(not(false = true = ""), "false = true = """" is true")
 Call ok(not (false = false <> false = false), "false = false <> false = false is true")
 Call ok(not ("" <> false = false), """"" <> false = false is true")
 
+x = "0"
+Call ok(not (x > 30), """0"" > 30 should be false")
+Call ok(x < 30, """0"" < 30 should be true")
+Call ok(not ("0" > 30), """0"" > 30 literal should be false")
+Call ok("0" < 30, """0"" < 30 literal should be true")
+Call ok("10" > 9, """10"" > 9 should be true")
+Call ok(not ("10" > 100), """10"" > 100 should be false")
+Call ok("10" < 100, """10"" < 100 should be true")
+Call ok("42" = 42, """42"" = 42 should be true")
+Call ok(not ("42" = 43), """42"" = 43 should be false")
+Call ok(doubleAsString(0.5) > 0, """0.5"" > 0 should be true")
+Call ok(doubleAsString(0.5) < 1, """0.5"" < 1 should be true")
+Call ok(doubleAsString(3.5) = 3.5, """3.5"" = 3.5 should be true")
+Call ok(not (doubleAsString(1.5) > 2), """1.5"" > 2 should be false")
+Call ok(doubleAsString(2.5) > 2, """2.5"" > 2 should be true")
+
+Call ok(true <> Not true, "true <> Not true should be true")
+Call ok(false <> Not false, "false <> Not false should be true")
+Call ok(true = Not false, "true = Not false should be true")
+Call ok(Not false = true, "Not false = true should be true")
+Call ok(Not true <> true, "Not true <> true should be true")
+Call ok(Not true = false, "Not true = false should be true")
+Call ok(Not 1 > 2, "Not 1 > 2 should be true")
+
 Call ok(getVT(false) = "VT_BOOL", "getVT(false) is not VT_BOOL")
 Call ok(getVT(true) = "VT_BOOL", "getVT(true) is not VT_BOOL")
 Call ok(getVT("") = "VT_BSTR", "getVT("""") is not VT_BSTR")
@@ -247,6 +271,21 @@ x _
 
 x = 3
 
+Class ChainedCallTarget
+    Public Function Ret()
+        Set Ret = Me
+    End Function
+End Class
+
+Dim chainObj
+Set chainObj = New ChainedCallTarget
+chainObj.Ret().Ret()
+chainObj.Ret() _
+.Ret()
+chainObj _
+.Ret() _
+.Ret()
+
 if true then y = true : x = y
 ok x, "x is false"
 
@@ -322,6 +361,59 @@ Else
 End If
 Call ok(x, "else not called?")
 
+' Else with trailing End If on same line
+x = 1
+If false Then
+   x = 2
+Else x = 3 End If
+Call ok(x = 3, "Else with trailing End If failed")
+
+' Else with colon separator before End If
+x = 1
+If false Then
+   x = 2
+Else x = 3:End If
+Call ok(x = 3, "Else with colon before End If failed")
+
+' Else with colon then statement with trailing End If
+x = 1
+If false Then
+   x = 2
+Else:x = 3 End If
+Call ok(x = 3, "Else colon then statement with trailing End If failed")
+
+' Else with multiple statements and trailing End If
+x = 1
+y = 1
+If false Then
+   x = 2
+Else x = 3:y = 4 End If
+Call ok(x = 3, "Else multi-statement trailing End If failed for x")
+Call ok(y = 4, "Else multi-statement trailing End If failed for y")
+
+' Else with body statement on next line with trailing End If
+x = 1
+If false Then
+   x = 2
+Else
+   x = 3 End If
+Call ok(x = 3, "Else body statement with trailing End If failed")
+
+' ElseIf single-line with trailing End If
+x = 1
+If false Then
+   x = 2
+ElseIf true Then x = 3 End If
+Call ok(x = 3, "ElseIf single-line with trailing End If failed")
+
+' Empty Else block with newline
+x = 1
+If false Then
+   x = 2
+Else
+End If
+Call ok(x = 1, "empty Else block should be accepted")
+
 x = false
 If false Then
    Call ok(false, "inside if false")
@@ -358,6 +450,15 @@ ElseIf not False Then
 : x = true
 End If
 Call ok(x, "elseif not called?")
+
+If false Then x = 1 Else
+If false Then x = 1 Else:
+
+x = false
+If true Then
+  :x = true
+End If
+Call ok(x, "colon-prefixed statement in If block not executed")
 
 x = false
 if 1 then x = true
@@ -706,6 +807,21 @@ if (isEnglishLang) then
     Call testfor ("1", "2.5", "0.5", 4)
 end if
 
+' Empty is treated as 0 in for-to loop expressions
+y = 0
+for x = empty to 3
+    y = y + 1
+next
+call ok(y = 4, "for empty to 3: y = " & y)
+call ok(x = 4, "for empty to 3: x = " & x)
+
+y = 0
+for x = 0 to empty
+    y = y + 1
+next
+call ok(y = 1, "for 0 to empty: y = " & y)
+call ok(x = 1, "for 0 to empty: x = " & x)
+
 for x = 1.5 to 1
     Call ok(false, "for..to called when unexpected")
 next
@@ -736,6 +852,19 @@ do while true
         exit do
     next
 loop
+
+On Error Resume Next
+x = Empty
+y = 0
+z = 99
+For z = 1 To UBound(x)
+    y = y + 1
+Next
+call ok(Err.Number = 92, "for to UBound(Empty): Err.Number = " & Err.Number)
+call ok(y = 1, "for to UBound(Empty): y = " & y)
+call todo_wine_ok(z = 99, "for to UBound(Empty): z = " & z)
+Err.Clear
+On Error GoTo 0
 
 if null then call ok(false, "if null evaluated")
 
@@ -982,6 +1111,14 @@ Call TestSubExit2
 
 TestSubMultiArgs 1, 2, 3, 4, 5
 Call TestSubMultiArgs(1, 2, 3, 4, 5)
+
+Sub TestSubParenExpr(a, b)
+    Call ok(a=16, "a = " & a)
+    Call ok(b=7, "b = " & b)
+End Sub
+
+TestSubParenExpr (2) * 8, 7
+TestSubParenExpr 8 * (2), 7
 
 Sub TestSubLocalVal
     x = false
@@ -1578,6 +1715,25 @@ ok arr2(1,2) = 2, "arr2(1,2) = " & arr2(1,2)
 x = Array(Array(3))
 call ok(x(0)(0) = 3, "x(0)(0) = " & x(0)(0))
 
+Class ArrayReturnContainer
+    Public Default Property Get Item(key)
+        If key = "Key" Then
+            Item = Array("Value1", Array("SubValue1", "SubValue2"))
+        End If
+    End Property
+End Class
+
+Dim containerObj
+Set containerObj = New ArrayReturnContainer
+call ok(containerObj.Item("Key")(0) = "Value1", "containerObj.Item(Key)(0) = " & containerObj.Item("Key")(0))
+call ok(containerObj.Item("Key")(1)(0) = "SubValue1", "containerObj.Item(Key)(1)(0) = " & containerObj.Item("Key")(1)(0))
+call ok(containerObj.Item("Key")(1)(1) = "SubValue2", "containerObj.Item(Key)(1)(1) = " & containerObj.Item("Key")(1)(1))
+call ok(containerObj("Key")(0) = "Value1", "containerObj(Key)(0) = " & containerObj("Key")(0))
+call ok(containerObj("Key")(1)(0) = "SubValue1", "containerObj(Key)(1)(0) = " & containerObj("Key")(1)(0))
+
+call ok(Split("1;2", ";")(0) = "1", "Split(""1;2"", "";"")(0) = " & Split("1;2", ";")(0))
+call ok(Split("1;2", ";")(1) = "2", "Split(""1;2"", "";"")(1) = " & Split("1;2", ";")(1))
+
 function seta0(arr)
     arr(0) = 2
     seta0 = 1
@@ -1606,6 +1762,34 @@ call ok(x(0)(0) = 2, "x(0)(0) = " & x(0)(0))
 x = Array(Array(3))
 seta0 (x(0))
 call ok(x(0)(0) = 3, "x(0)(0) = " & x(0)(0))
+
+x = Array(Array("a", 0))
+x(0)(1) = 5
+call ok(x(0)(1) = 5, "x(0)(1) = " & x(0)(1))
+
+x = Array(Array(Empty, Empty))
+Set x(0)(1) = New EmptyClass
+call ok(getVT(x(0)(1)) = "VT_DISPATCH*", "getVT(x(0)(1)) = " & getVT(x(0)(1)))
+Set x(0)(0) = Nothing
+call ok(x(0)(0) Is Nothing, "x(0)(0) is not Nothing")
+
+On Error Resume Next
+x = Array(Nothing)
+x(0)(0) = 5
+call ok(Err.Number = 13, "assign to Nothing(0): Err.Number = " & Err.Number)
+Err.Clear
+x = Array(42)
+x(0)(0) = 5
+call ok(Err.Number = 13, "assign to Integer(0): Err.Number = " & Err.Number)
+Err.Clear
+x = Array(Empty)
+x(0)(0) = 5
+call ok(Err.Number = 13, "assign to Empty(0): Err.Number = " & Err.Number)
+Err.Clear
+x = Array(Null)
+x(0)(0) = 5
+call ok(Err.Number = 13, "assign to Null(0): Err.Number = " & Err.Number)
+On Error GoTo 0
 
 y = (seta0)(x)
 ok y = 1, "y = " & y
@@ -1858,7 +2042,7 @@ End Class
 
 Set obj = new ArrClass
 Call ok(getVT(obj.classarr) = "VT_ARRAY|VT_VARIANT", "getVT(obj.classarr) = " & getVT(obj.classarr))
-'todo_wine Call ok(obj.classarr(1) = 2, "obj.classarr(1) = " & obj.classarr(1))
+Call ok(obj.classarr(1) = 2, "obj.classarr(1) = " & obj.classarr(1))
 
 obj.var = arr
 Call ok(getVT(obj.var) = "VT_ARRAY|VT_VARIANT", "getVT(obj.var) = " & getVT(obj.var))
@@ -2126,6 +2310,7 @@ Class TestPropParam
     Public oDict
     Public gotNothing
     Public m_obj
+    Public m_objType
 
     Public Property Set bar(obj)
         Set m_obj = obj
@@ -2144,6 +2329,14 @@ Class TestPropParam
     Public Property Let ten(a,b,c,d,e,f,g,h,i,j)
         oDict = a & b & c & d & e & f & g & h & i & j
     End Property
+    Public Property Let objProp(aInput)
+        m_objType = getVT(aInput)
+        If IsObject(aInput) Then
+            Set m_obj = aInput
+        Else
+            m_obj = aInput
+        End If
+    End Property
 End Class
 
 Set x = new TestPropParam
@@ -2159,6 +2352,24 @@ Set x.foo("123") = Nothing
 call ok(x.oDict = "123","x.oDict = " & x.oDict & " expected 123")
 call ok(x.gotNothing=True,"x.gotNothing = " & x.gotNothing  & " expected true")
 
+' Property Let receives VT_DISPATCH argument as-is (does not extract default value)
+Set y = New EndTestClassWithProperty
+y.x = 42
+x.objProp = y
+call ok(x.m_objType = "VT_DISPATCH*", "Property Let aInput type: " & x.m_objType & " expected VT_DISPATCH*")
+call ok(x.m_obj = 42, "Property Let with object argument failed, m_obj = " & x.m_obj)
+
+' Property Let receives object without default property as VT_DISPATCH
+Set z = New EmptyClass
+x.objProp = z
+call ok(x.m_objType = "VT_DISPATCH*", "Property Let no-default aInput type: " & x.m_objType & " expected VT_DISPATCH*")
+
+' Set with only Property Let defined should fail (no fallback to Let)
+On Error Resume Next
+Set x.objProp = y
+call ok(Err.Number = 438, "Set Property Let only: Err.Number = " & Err.Number & " expected 438")
+On Error GoTo 0
+
 set x = new TestPropSyntax
 set x.prop = new TestPropSyntax
 set x.prop.prop = new TestPropSyntax
@@ -2172,7 +2383,7 @@ set x.getprop.getprop().prop = obj
 call ok(x.getprop.getprop().prop is obj, "x.getprop.getprop().prop is not obj (emptyclass)")
 
 ok getVT(x) = "VT_DISPATCH*", "getVT(x) = " & getVT(x)
-todo_wine_ok getVT(x()) = "VT_BSTR", "getVT(x()) = " & getVT(x())
+ok getVT(x()) = "VT_BSTR", "getVT(x()) = " & getVT(x())
 
 Class TestClassVariablesMulti
     Public pub1, pub2
@@ -2202,8 +2413,7 @@ call ok(x.pub2 = 2, "x.pub2 = " & x.pub2)
 call ok(ubound(x.pubArray) = 3, "ubound(x.pubArray) = " & ubound(x.pubArray))
 call ok(ubound(x.pubArray2, 1) = 5, "ubound(x.pubArray2, 1) = " & ubound(x.pubArray2, 1))
 call ok(ubound(x.pubArray2, 2) = 10, "ubound(x.pubArray2, 2) = " & ubound(x.pubArray2, 2))
-' TODO: this does not parse: accessing class variable of array type element directly
-' call ok(x.pubArray(0) = 3, "x.pubArray(0) = " & x.pubArray(0))
+call ok(x.pubArray(0) = 3, "x.pubArray(0) = " & x.pubArray(0))
 call ok(x.dim1 = 7, "x.dim1 = " & x.dim1)
 call ok(x.dim2 = 8, "x.dim2 = " & x.dim2)
 
@@ -2214,9 +2424,9 @@ err.clear
 x.priv2 = 2
 call ok(err.number = 438, "err.number = " & err.number)
 err.clear
-' TODO: set class variable of array type element directly
 x.pubArray(0) = 1
-call todo_wine_ok(err.number = 0, "set x.pubArray(0) err.number = " & err.number)
+call ok(err.number = 0, "set x.pubArray(0) err.number = " & err.number)
+call ok(x.pubArray(0) = 1, "x.pubArray(0) = " & x.pubArray(0))
 on error goto 0
 
 funcCalled = ""
@@ -2333,5 +2543,118 @@ end function
 
 Call wmi_array_bstr()
 
+
+Const normal_const = 42
+if normal_const = 42 then
+    ok true, "normal_const = 42"
+else
+    ok false, "normal_const <> 42"
+end if
+
+if forward_const = 99 Then
+    ok true, "forward_const = 99"
+else
+    ok false, "forward_const <> 99"
+end if
+Const forward_const = 99
+
+
+' Test calling a named item object with arguments (DISPID_VALUE)
+Call ok(indexedObj(3) = 6, "indexedObj(3) = " & indexedObj(3))
+Call ok(indexedObj(0) = 0, "indexedObj(0) = " & indexedObj(0))
+
+' Eval tests
+Call ok(Eval("1 + 2") = 3, "Eval(""1 + 2"") = " & Eval("1 + 2"))
+Call ok(Eval("""test""") = "test", "Eval(""""""test"""""") = " & Eval("""test"""))
+Call ok(Eval("true") = true, "Eval(""true"") = " & Eval("true"))
+
+x = 5
+Call ok(Eval("x + 1") = 6, "Eval(""x + 1"") = " & Eval("x + 1"))
+Call ok(Eval("x * x") = 25, "Eval(""x * x"") = " & Eval("x * x"))
+
+Sub TestEvalLocalScope
+    Dim a
+    a = 10
+    Call ok(Eval("a") = 10, "Eval(""a"") in local scope = " & Eval("a"))
+    Call ok(Eval("a + 5") = 15, "Eval(""a + 5"") in local scope = " & Eval("a + 5"))
+End Sub
+Call TestEvalLocalScope
+
+Function TestEvalLocalArgs(x)
+    TestEvalLocalArgs = Eval("x * 2")
+End Function
+Call ok(TestEvalLocalArgs(7) = 14, "TestEvalLocalArgs(7) = " & TestEvalLocalArgs(7))
+
+Dim evalLocal
+Sub TestEvalNoLeak
+    Dim evalLocal
+    evalLocal = 77
+    Call ok(Eval("evalLocal") = 77, "Eval evalLocal = " & Eval("evalLocal"))
+End Sub
+Call TestEvalNoLeak
+Call ok(getVT(evalLocal) = "VT_EMPTY*", "evalLocal leaked from Eval scope: " & getVT(evalLocal))
+
+' ExecuteGlobal tests
+x = 0
+ExecuteGlobal "x = 42"
+Call ok(x = 42, "ExecuteGlobal x = " & x)
+
+ExecuteGlobal "Function evalTestFunc : evalTestFunc = 7 : End Function"
+Call ok(evalTestFunc() = 7, "evalTestFunc() = " & evalTestFunc())
+
+' Execute tests
+x = 0
+Execute "x = 99"
+Call ok(x = 99, "Execute x = " & x)
+
+Sub TestExecuteLocalScope
+    Dim a
+    a = 10
+    Execute "a = 20"
+    Call ok(a = 20, "Execute local assign: a = " & a)
+End Sub
+Call TestExecuteLocalScope
+
+Dim executeLocal
+Sub TestExecuteNoLeak
+    Dim executeLocal
+    executeLocal = 10
+    Execute "executeLocal = 55"
+    Call ok(executeLocal = 55, "executeLocal = " & executeLocal)
+End Sub
+Call TestExecuteNoLeak
+Call ok(getVT(executeLocal) = "VT_EMPTY*", "executeLocal leaked from Execute scope: " & getVT(executeLocal))
+
+' Eval/Execute/ExecuteGlobal error handling tests
+On Error Resume Next
+
+' Test Eval with syntax error
+Err.Clear
+Call Eval("1 + ")
+Call ok(Err.Number = 1002, "Eval syntax error: Err.Number = " & Err.Number & " expected 1002")
+Call ok(Err.Description = "Syntax error", "Eval syntax error: Err.Description = """ & Err.Description & """ expected ""Syntax error""")
+Call ok(Err.Source = "Microsoft VBScript compilation error", "Eval syntax error: Err.Source = """ & Err.Source & """")
+
+' Test Execute with syntax error
+Err.Clear
+Execute "x = "
+Call ok(Err.Number = 1002, "Execute syntax error: Err.Number = " & Err.Number & " expected 1002")
+Call ok(Err.Description = "Syntax error", "Execute syntax error: Err.Description = """ & Err.Description & """ expected ""Syntax error""")
+Call ok(Err.Source = "Microsoft VBScript compilation error", "Execute syntax error: Err.Source = """ & Err.Source & """")
+
+' Test ExecuteGlobal with syntax error
+Err.Clear
+ExecuteGlobal "y = "
+Call ok(Err.Number = 1002, "ExecuteGlobal syntax error: Err.Number = " & Err.Number & " expected 1002")
+Call ok(Err.Description = "Syntax error", "ExecuteGlobal syntax error: Err.Description = """ & Err.Description & """ expected ""Syntax error""")
+Call ok(Err.Source = "Microsoft VBScript compilation error", "ExecuteGlobal syntax error: Err.Source = """ & Err.Source & """")
+
+' TODO: Test runtime errors in Eval/Execute - currently triggers unexpected OnScriptError
+' Err.Clear
+' Call Eval("CBool(""notabool"")")
+' Call ok(Err.Number = 13, "Eval type mismatch: Err.Number = " & Err.Number & " expected 13")
+' Call ok(Err.Source = "Microsoft VBScript runtime error", "Eval type mismatch: Err.Source = """ & Err.Source & """")
+
+On Error Goto 0
 
 reportSuccess()

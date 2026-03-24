@@ -137,14 +137,14 @@ static statement_t *link_statements(statement_t*,statement_t*);
 %token <date> tDate
 
 %type <statement> Statement SimpleStatement StatementNl StatementsNl StatementsNl_opt BodyStatements IfStatement Else_opt
-%type <statement> GlobalDimDeclaration
+%type <statement> GlobalDimDeclaration StatementsBody InlineStatements InlineStatements_opt
 %type <expression> Expression LiteralExpression PrimaryExpression EqualityExpression CallExpression ExpressionNl_opt
 %type <expression> ConcatExpression AdditiveExpression ModExpression IntdivExpression MultiplicativeExpression ExpExpression
 %type <expression> NotExpression UnaryExpression AndExpression OrExpression XorExpression EqvExpression SignExpression
 %type <expression> ConstExpression NumericLiteralExpression
 %type <member> MemberExpression
 %type <expression> Arguments ArgumentList ArgumentList_opt Step_opt ExpressionList
-%type <boolean> DoType Preserve_opt
+%type <boolean> DoType Preserve_opt ElseSep_opt
 %type <arg_decl> ArgumentsDecl ArgumentsDecl_opt ArgumentDeclList ArgumentDecl
 %type <func_decl> FunctionDecl PropertyDecl
 %type <elseif> ElseIfs_opt ElseIfs ElseIf
@@ -304,11 +304,13 @@ Step_opt
     | tSTEP Expression                      { $$ = $2; }
 
 IfStatement
-    : tIF Expression tTHEN tNL StatementsNl_opt ElseIfs_opt Else_opt tEND tIF
-                                               { $$ = new_if_statement(ctx, @$, $2, $5, $6, $7); CHECK_ERROR; }
+    : tIF Expression tTHEN tNL StSep_opt StatementsNl_opt ElseIfs_opt Else_opt tEND tIF
+                                                { $$ = new_if_statement(ctx, @$, $2, $6, $7, $8); CHECK_ERROR; }
     | tIF Expression tTHEN Statement EndIf_opt { $$ = new_if_statement(ctx, @$, $2, $4, NULL, NULL); CHECK_ERROR; }
     | tIF Expression tTHEN Statement tELSE Statement EndIf_opt
-                                               { $$ = new_if_statement(ctx, @$, $2, $4, NULL, $6); CHECK_ERROR; }
+                                                { $$ = new_if_statement(ctx, @$, $2, $4, NULL, $6); CHECK_ERROR; }
+    | tIF Expression tTHEN Statement tELSE EndIf_opt
+                                                { $$ = new_if_statement(ctx, @$, $2, $4, NULL, NULL); CHECK_ERROR; }
 
 EndIf_opt
     : /* empty */
@@ -323,12 +325,16 @@ ElseIfs
     | ElseIf ElseIfs                        { $1->next = $2; $$ = $1; }
 
 ElseIf
-    : tELSEIF Expression tTHEN StSep_opt StatementsNl_opt
-                                            { $$ = new_elseif_decl(ctx, @$, $2, $5); }
+    : tELSEIF Expression tTHEN StSep_opt BodyStatements
+                                             { $$ = new_elseif_decl(ctx, @$, $2, $5); }
 
 Else_opt
     : /* empty */                           { $$ = NULL; }
-    | tELSE StSep_opt StatementsNl_opt      { $$ = $3; }
+    | tELSE ElseSep_opt BodyStatements     { if(!$2 && !$3) { ctx->error_loc = @1; ctx->hres = E_FAIL; YYABORT; } $$ = $3; }
+
+ElseSep_opt
+    : /* empty */                           { $$ = FALSE; }
+    | StSep                                 { $$ = TRUE; }
 
 CaseClausules
     : /* empty */                                                      { $$ = NULL; }
@@ -423,6 +429,7 @@ SignExpression
     : UnaryExpression               { $$ = $1; }
     | '-' SignExpression            { $$ = new_unary_expression(ctx, EXPR_NEG, $2); CHECK_ERROR; }
     | '+' SignExpression            { $$ = $2; }
+    | tNOT SignExpression           { $$ = new_unary_expression(ctx, EXPR_NOT, $2); CHECK_ERROR; }
 
 UnaryExpression
     : LiteralExpression             { $$ = $1; }
@@ -744,6 +751,7 @@ static call_expression_t *make_call_expression(parser_ctx_t *ctx, expression_t *
     if(call_expr->args->next) {
         FIXME("Invalid syntax: invalid use of parentheses for arguments\n");
         ctx->hres = E_FAIL;
+        ctx->error_loc = ctx->ptr - ctx->code;
         return NULL;
     }
 

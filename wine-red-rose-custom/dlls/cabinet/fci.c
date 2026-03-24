@@ -1914,3 +1914,79 @@ BOOL __cdecl FCIDestroy(HFCI hfci)
     p_fci_internal->free(hfci);
     return TRUE;
 }
+
+/***********************************************************************
+ *		FCICompressorCreate (CABINET.30)
+ *
+ * Create a compressor handle
+ *
+ * PARAMS
+ *   algo       [I]  Compression algoritm to use
+ *   settings   [I]  Optional settings struct (Unused)
+ *   handle     [IO] On success, handle.
+ *
+ * RETURNS
+ *   TRUE for success
+ *   FALSE for failure
+ */
+BOOL __cdecl FCICompressorCreate( COMPRESSIONALGORITHM algo, void *settings, HFCICOMPRESSOR handle )
+{
+    FIXME("algo (%d) stub\n", algo);
+    return TRUE;
+}
+
+/***********************************************************************
+ *		FCICompressorCompress (CABINET.33)
+ *
+ * Compress data
+ *
+ * PARAMS
+ *   handle       [I]  Compressor handle
+ *   data         [I]  Data to compress
+ *   dataSize     [I]  Size of data to compress
+ *   buff         [IO] Output buffer
+ *   buffSize     [I] Output buffer size
+ *   compDataSize [IO] Size of compressed data
+ *
+ * RETURNS
+ *   TRUE for success
+ *   FALSE for failure
+ */
+BOOL __cdecl FCICompressorCompress( 
+    HFCICOMPRESSOR handle, 
+    LPCVOID data, 
+    SIZE_T dataSize, 
+    PVOID buff, 
+    SIZE_T buffSize, 
+    PSIZE_T compDataSize)
+{
+    FIXME("stub\n");
+
+    *compDataSize = dataSize;
+
+    if( buffSize < dataSize )
+    {
+        SetLastError( ERROR_INSUFFICIENT_BUFFER );
+        return FALSE;
+    }
+    memcpy(buff, data, dataSize);
+    return TRUE;
+}
+
+/***********************************************************************
+ *		FCICompressorClose  (CABINET.35)
+ *
+ * Closes a compressor handle
+ *
+ * PARAMS
+ *   handle     [I] On success, handle.
+ *
+ * RETURNS
+ *   TRUE for success
+ *   FALSE for failure
+ */
+BOOL __cdecl FCICompressorClose( HFCICOMPRESSOR handle )
+{
+    FIXME("stub\n");
+    return TRUE;
+}

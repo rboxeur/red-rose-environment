@@ -536,6 +536,7 @@ static IDropTarget* get_droptarget_pointer(HWND hwnd)
  */
 HRESULT WINAPI RegisterDragDrop(HWND hwnd, LPDROPTARGET pDropTarget)
 {
+  WNDCLASSW wndClass;
   DWORD pid = 0;
   HRESULT hr;
   IStream *stream;
@@ -544,9 +545,10 @@ HRESULT WINAPI RegisterDragDrop(HWND hwnd, LPDROPTARGET pDropTarget)
 
   TRACE("(%p,%p)\n", hwnd, pDropTarget);
 
-  if (!COM_CurrentApt())
+  /* for bug-for-bug compatibility, just verify class existence */
+  if (!GetClassInfoW(NULL, OLEDD_DRAGTRACKERCLASS, &wndClass))
   {
-    ERR("COM not initialized\n");
+    ERR("OleInitialize not called\n");
     return E_OUTOFMEMORY;
   }
 

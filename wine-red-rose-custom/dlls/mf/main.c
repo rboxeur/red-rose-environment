@@ -899,6 +899,17 @@ done:
     return hr;
 }
 
+/***********************************************************************
+ *      MFCreateDeviceSource (mf.@)
+ */
+HRESULT WINAPI MFCreateDeviceSource(IMFAttributes *attributes, IMFMediaSource **source)
+{
+    FIXME("%p %p: stub!\n", attributes, source);
+
+    if (!attributes || !source) return E_INVALIDARG;
+    return E_NOTIMPL;
+}
+
 struct simple_type_handler
 {
     IMFMediaTypeHandler IMFMediaTypeHandler_iface;

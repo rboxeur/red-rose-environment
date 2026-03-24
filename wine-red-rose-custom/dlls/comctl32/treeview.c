@@ -2340,21 +2340,29 @@ TREEVIEW_ToggleItemState(const TREEVIEW_INFO *infoPtr, TREEVIEW_ITEM *item)
 {
     if (infoPtr->dwStyle & TVS_CHECKBOXES)
     {
-	static const unsigned int state_table[] = { 0, 2, 1 };
+        unsigned int state, stateImage, numStates;
 
-	unsigned int state;
+        // Toggle item state cycles through images other than zero, if image list with more state images is set
+        numStates = 0;
+        if ( infoPtr->himlState ) numStates = ImageList_GetImageCount(infoPtr->himlState);
+        if ( numStates < 3 ) numStates = 3;
+        
+        state = item->state;
+        stateImage = STATEIMAGEINDEX(state);
+        TRACE("stateImage: 0x%x\n", stateImage);
+        state &= ~TVIS_STATEIMAGEMASK;
 
-	state = STATEIMAGEINDEX(item->state);
-	TRACE("state: 0x%x\n", state);
-	item->state &= ~TVIS_STATEIMAGEMASK;
+        if ( stateImage > 0 ) {
+            ++ stateImage;
+            if ( stateImage >= numStates ) stateImage = 1;
+        }
 
-	if (state < 3)
-	    state = state_table[state];
+        state |= INDEXTOSTATEIMAGEMASK(stateImage);
 
-	item->state |= INDEXTOSTATEIMAGEMASK(state);
+        TRACE("stateImage: 0x%x\n", stateImage);
 
-	TRACE("state: 0x%x\n", state);
-	TREEVIEW_Invalidate(infoPtr, item);
+        item->state = state;
+        TREEVIEW_Invalidate(infoPtr, item);
     }
 }
 
@@ -2654,7 +2662,7 @@ TREEVIEW_DrawItem(const TREEVIEW_INFO *infoPtr, HDC hdc, TREEVIEW_ITEM *item)
      */
 
     /* Don't paint item's text if it's being edited */
-    if (!infoPtr->hwndEdit || (infoPtr->selectedItem != item))
+    if (!infoPtr->hwndEdit || (infoPtr->editItem != item))
     {
 	if (item->pszText)
 	{
@@ -4295,9 +4303,11 @@ TREEVIEW_LButtonDown(TREEVIEW_INFO *infoPtr, LPARAM lParam)
 
         if (do_focus)
         {
-            infoPtr->focusedItem = ht.hItem;
             TREEVIEW_InvalidateItem(infoPtr, infoPtr->focusedItem);
-            TREEVIEW_InvalidateItem(infoPtr, infoPtr->selectedItem);
+            if (infoPtr->focusedItem != ht.hItem) {
+                infoPtr->focusedItem = ht.hItem;
+                TREEVIEW_InvalidateItem(infoPtr, infoPtr->focusedItem);
+            }
         }
     }
 

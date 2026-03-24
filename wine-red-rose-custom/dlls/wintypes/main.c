@@ -213,7 +213,8 @@ static HRESULT STDMETHODCALLTYPE api_information_statics_IsTypePresent(
     if (!type_name)
         return E_INVALIDARG;
 
-    return E_NOTIMPL;
+    *value = FALSE;
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE api_information_statics_IsMethodPresent(
@@ -225,7 +226,9 @@ static HRESULT STDMETHODCALLTYPE api_information_statics_IsMethodPresent(
     if (!type_name)
         return E_INVALIDARG;
 
-    return E_NOTIMPL;
+    /* Add interface IDataTransferManagerStatics2, then this can return TRUE */
+    *value = FALSE;
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE api_information_statics_IsMethodPresentWithArity(

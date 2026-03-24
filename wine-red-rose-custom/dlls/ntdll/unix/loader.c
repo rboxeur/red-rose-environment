@@ -554,7 +554,7 @@ static NTSTATUS loader_exec( char **argv, WORD machine )
 {
     if (((argv[1] = get_alternate_wineloader( machine )))) preloader_exec( argv );
 
-    argv[1] = strdup( wineloader );
+    argv[1] = wineloader;
     preloader_exec( argv );
     return STATUS_INVALID_IMAGE_FORMAT;
 }

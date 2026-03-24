@@ -3459,6 +3459,16 @@ BOOL WINAPI CoIsOle1Class(REFCLSID clsid)
 }
 
 /***********************************************************************
+ *           CoRegisterActivationFilter  (combase.@)
+ */
+HRESULT WINAPI CoRegisterActivationFilter(IActivationFilter *filter)
+{
+    FIXME("%p stub\n", filter);
+
+    return E_NOTIMPL;
+}
+
+/***********************************************************************
  *            DllMain     (combase.@)
  */
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD reason, LPVOID reserved)

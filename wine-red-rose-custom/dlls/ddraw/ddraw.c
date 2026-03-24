@@ -1599,9 +1599,8 @@ static HRESULT WINAPI ddraw7_GetCaps(IDirectDraw7 *iface, DDCAPS *DriverCaps, DD
         if (TRACE_ON(ddraw))
         {
             TRACE("Driver Caps :\n");
-            DDRAW_dump_DDCAPS(DriverCaps);
+            DDRAW_dump_DDCAPS(&caps);
         }
-
     }
     if(HELCaps)
     {
@@ -1609,7 +1608,7 @@ static HRESULT WINAPI ddraw7_GetCaps(IDirectDraw7 *iface, DDCAPS *DriverCaps, DD
         if (TRACE_ON(ddraw))
         {
             TRACE("HEL Caps :\n");
-            DDRAW_dump_DDCAPS(HELCaps);
+            DDRAW_dump_DDCAPS(&caps);
         }
     }
 

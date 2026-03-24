@@ -1317,7 +1317,7 @@ INT macdrv_GetKeyNameText(LONG lparam, LPWSTR buffer, INT size)
     scan = (lparam >> 16) & 0x1FF;
     for (keyc = 0; keyc < ARRAY_SIZE(thread_data->keyc2scan); keyc++)
     {
-        if (thread_data->keyc2scan[keyc] == scan)
+        if (thread_data->keyc2scan[keyc] == scan && scan)
         {
             static const WCHAR dead[] = {' ','d','e','a','d',0};
             const UCKeyboardLayout *uchr;

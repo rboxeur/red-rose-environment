@@ -6954,7 +6954,7 @@ static void test_mpeg4_media_sink(void)
     IMFMediaType *audio_type, *video_type, *media_type, *media_type_out;
     DWORD id, count, flags, width = 96, height = 96;
     IMFMediaTypeHandler *type_handler = NULL;
-    IMFPresentationClock *clock;
+    IMFPresentationClock *clock, *clock2;
     IMFStreamSink *stream_sink;
     HRESULT hr;
     GUID guid;
@@ -7152,14 +7152,25 @@ static void test_mpeg4_media_sink(void)
     /* Test PresentationClock. */
     hr = MFCreatePresentationClock(&clock);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFMediaSink_GetPresentationClock(sink, NULL);
+    ok(hr == E_POINTER, "Unexpected hr %#lx.\n", hr);
+
+    clock2 = (void *)0xdeadbeef;
+    hr = IMFMediaSink_GetPresentationClock(sink, &clock2);
+    ok(hr == MF_E_NO_CLOCK, "Unexpected hr %#lx.\n", hr);
+    ok(clock2 == (void *)0xdeadbeef, "Unexpected pointer %p.\n", clock2);
+
     hr = IMFMediaSink_SetPresentationClock(sink, NULL);
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    todo_wine
     hr = IMFMediaSink_SetPresentationClock(sink, clock);
-    todo_wine
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    IMFPresentationClock_Release(clock);
+
+    clock2 = NULL;
+    hr = IMFMediaSink_GetPresentationClock(sink, &clock2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(clock2 == clock, "Unexpected pointer %p.\n", clock2);
+    IMFPresentationClock_Release(clock2);
 
     /* Test stream. */
     hr = IMFMediaSink_GetStreamSinkByIndex(sink_audio, 0, &stream_sink);
@@ -7243,7 +7254,20 @@ static void test_mpeg4_media_sink(void)
     todo_wine
     ok(hr == MF_E_SHUTDOWN, "Unexpected hr %#lx.\n", hr);
 
+    hr = IMFMediaSink_SetPresentationClock(sink, NULL);
+    ok(hr == MF_E_SHUTDOWN, "Unexpected hr %#lx.\n", hr);
+    hr = IMFMediaSink_SetPresentationClock(sink, clock);
+    ok(hr == MF_E_SHUTDOWN, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMFMediaSink_GetPresentationClock(sink, NULL);
+    ok(hr == E_POINTER, "Unexpected hr %#lx.\n", hr);
+    clock2 = (void *)0xdeadbeef;
+    hr = IMFMediaSink_GetPresentationClock(sink, &clock2);
+    ok(hr == MF_E_SHUTDOWN, "Unexpected hr %#lx.\n", hr);
+    ok(clock2 == (void *)0xdeadbeef, "Unexpected pointer %p.\n", clock2);
+
     IMFMediaTypeHandler_Release(type_handler);
+    IMFPresentationClock_Release(clock);
     IMFMediaSink_Release(sink);
     IMFMediaSink_Release(sink_video);
     IMFMediaSink_Release(sink_audio);

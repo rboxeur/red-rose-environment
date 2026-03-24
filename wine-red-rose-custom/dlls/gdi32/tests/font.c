@@ -1701,6 +1701,88 @@ static void test_GetGlyphIndices(void)
     ok(ret, "Failed to delete font file, %ld.\n", GetLastError());
 }
 
+static void test_GetGlyphIndices_surrogate_pairs(void)
+{
+    HDC hdc;
+    HFONT hfont, hfont_old;
+    LOGFONTA lf;
+    DWORD count;
+    WORD glyphs[4];
+    /* U+1F600 GRINNING FACE = D83D DE00 as UTF-16 surrogate pair */
+    static const WCHAR surrogate_str[] = { 0xd83d, 0xde00, 0 };
+    /* U+1F604 = D83D DE04 */
+    static const WCHAR two_surrogates[] = { 0xd83d, 0xde00, 0xd83d, 0xde04 };
+    /* Lone high surrogate followed by BMP char (U+23F9, present in emoji fonts) */
+    static const WCHAR lone_high[] = { 0xd83d, 0x23f9, 0 };
+    /* Lone low surrogate followed by BMP char */
+    static const WCHAR lone_low[] = { 0xde00, 0x23f9, 0 };
+
+    hdc = GetDC(0);
+
+    /* Try Segoe UI Emoji (available on Windows 8.1+) */
+    if (!is_font_installed("Segoe UI Emoji"))
+    {
+        skip("Segoe UI Emoji not installed, skipping surrogate pair tests\n");
+        ReleaseDC(0, hdc);
+        return;
+    }
+
+    memset(&lf, 0, sizeof(lf));
+    strcpy(lf.lfFaceName, "Segoe UI Emoji");
+    lf.lfHeight = 24;
+    lf.lfCharSet = DEFAULT_CHARSET;
+    hfont = CreateFontIndirectA(&lf);
+    ok(hfont != 0, "CreateFontIndirect failed\n");
+    hfont_old = SelectObject(hdc, hfont);
+
+    /* Test 1: Surrogate pair should return valid glyph (not .notdef) for both positions.
+     * Windows maps the combined codepoint and copies the glyph index to both WORD positions. */
+    memset(glyphs, 0, sizeof(glyphs));
+    count = GetGlyphIndicesW(hdc, surrogate_str, 2, glyphs, GGI_MARK_NONEXISTING_GLYPHS);
+    ok(count == 2, "expected 2, got %lu\n", count);
+    ok(glyphs[0] != 0 && glyphs[0] != 0xffff,
+       "surrogate pair high: expected valid glyph, got %#x\n", glyphs[0]);
+    ok(glyphs[1] == glyphs[0],
+       "surrogate pair low: expected same glyph %#x, got %#x\n", glyphs[0], glyphs[1]);
+
+    /* Test 2: Two consecutive surrogate pairs */
+    memset(glyphs, 0, sizeof(glyphs));
+    count = GetGlyphIndicesW(hdc, two_surrogates, 4, glyphs, GGI_MARK_NONEXISTING_GLYPHS);
+    ok(count == 4, "expected 4, got %lu\n", count);
+    ok(glyphs[0] != 0 && glyphs[0] != 0xffff,
+       "first pair high: expected valid glyph, got %#x\n", glyphs[0]);
+    ok(glyphs[1] == glyphs[0],
+       "first pair low: expected same glyph %#x, got %#x\n", glyphs[0], glyphs[1]);
+    ok(glyphs[2] != 0 && glyphs[2] != 0xffff,
+       "second pair high: expected valid glyph, got %#x\n", glyphs[2]);
+    ok(glyphs[3] == glyphs[2],
+       "second pair low: expected same glyph %#x, got %#x\n", glyphs[2], glyphs[3]);
+    /* The two emoji should map to different glyphs */
+    ok(glyphs[0] != glyphs[2],
+       "two different emoji should have different glyph indices: %#x vs %#x\n", glyphs[0], glyphs[2]);
+
+    /* Test 3: Lone high surrogate followed by non-surrogate — should NOT combine */
+    memset(glyphs, 0, sizeof(glyphs));
+    count = GetGlyphIndicesW(hdc, lone_high, 2, glyphs, GGI_MARK_NONEXISTING_GLYPHS);
+    ok(count == 2, "expected 2, got %lu\n", count);
+    ok(glyphs[0] == 0xffff || glyphs[0] == 0x001f,
+       "lone high surrogate: expected .notdef, got %#x\n", glyphs[0]);
+    ok(glyphs[1] != 0xffff && glyphs[1] != 0,
+       "BMP char after lone high surrogate: expected valid glyph, got %#x\n", glyphs[1]);
+
+    /* Test 4: Lone low surrogate — should not combine with anything */
+    memset(glyphs, 0, sizeof(glyphs));
+    count = GetGlyphIndicesW(hdc, lone_low, 2, glyphs, GGI_MARK_NONEXISTING_GLYPHS);
+    ok(count == 2, "expected 2, got %lu\n", count);
+    ok(glyphs[0] == 0xffff || glyphs[0] == 0x001f,
+       "lone low surrogate: expected .notdef, got %#x\n", glyphs[0]);
+    ok(glyphs[1] != 0xffff && glyphs[1] != 0,
+       "BMP char after lone low surrogate: expected valid glyph, got %#x\n", glyphs[1]);
+
+    DeleteObject(SelectObject(hdc, hfont_old));
+    ReleaseDC(0, hdc);
+}
+
 static void test_GetKerningPairs(void)
 {
     static const struct kerning_data
@@ -7994,6 +8076,7 @@ START_TEST(font)
     test_GetCharABCWidths();
     test_text_extents();
     test_GetGlyphIndices();
+    test_GetGlyphIndices_surrogate_pairs();
     test_GetKerningPairs();
     test_GetOutlineTextMetrics();
     test_GetOutlineTextMetrics_subst();
