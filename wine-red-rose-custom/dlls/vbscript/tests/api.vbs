@@ -1711,6 +1711,17 @@ Dim regex
 set regex = new RegExp
 Call ok(TypeName(regex) = "IRegExp2", "TypeName(regex) = " & TypeName(regex))
 
+' TypeName for VBScript class instances
+Dim emptyClsObj
+Set emptyClsObj = New EmptyClass
+Call ok(TypeName(emptyClsObj) = "EmptyClass", "TypeName(EmptyClass) = " & TypeName(emptyClsObj))
+Call ok(getVT(TypeName(emptyClsObj)) = "VT_BSTR", "getVT(TypeName(EmptyClass)) = " & getVT(TypeName(emptyClsObj)))
+Dim valClsObj
+Set valClsObj = New ValClass
+Call ok(TypeName(valClsObj) = "ValClass", "TypeName(ValClass) = " & TypeName(valClsObj))
+Set emptyClsObj = Nothing
+Call ok(TypeName(emptyClsObj) = "Nothing", "TypeName after Set Nothing = " & TypeName(emptyClsObj))
+
 Call ok(VarType(Empty) = vbEmpty, "VarType(Empty) = " & VarType(Empty))
 Call ok(getVT(VarType(Empty)) = "VT_I2", "getVT(VarType(Empty)) = " & getVT(VarType(Empty)))
 Call ok(VarType(Null) = vbNull, "VarType(Null) = " & VarType(Null))
@@ -2341,6 +2352,257 @@ call testDateAdd(DateSerial(2000, 1, 1), "ww", 1, DateSerial(2000, 1, 8))
 call testDateAdd(DateSerial(2000, 1, 1), "ww", -1, DateSerial(1999, 12, 25))
 call testDateAdd(DateSerial(2000, 1, 1), "Ww", -1, DateSerial(1999, 12, 25))
 call testDateAddError()
+
+sub testDatePart(interval, d, expected)
+    dim x
+    x = DatePart(interval, d)
+    call ok(x = expected, "DatePart(""" & interval & """, " & d & ") = " & x & " expected " & expected)
+    call ok(getVT(x) = "VT_I2*", "getVT = " & getVT(x))
+end sub
+
+sub testDatePartFdow(interval, d, fdow, expected)
+    dim x
+    x = DatePart(interval, d, fdow)
+    call ok(x = expected, "DatePart(""" & interval & """, " & d & ", " & fdow & ") = " & x & " expected " & expected)
+end sub
+
+sub testDatePartFull(interval, d, fdow, fwoy, expected)
+    dim x
+    x = DatePart(interval, d, fdow, fwoy)
+    call ok(x = expected, "DatePart(""" & interval & """, " & d & ", " & fdow & ", " & fwoy & ") = " & x & " expected " & expected)
+end sub
+
+dim datepartDate
+datepartDate = DateSerial(2000, 3, 15) + TimeSerial(14, 30, 45)
+
+' Basic interval tests
+call testDatePart("yyyy", datepartDate, 2000)
+call testDatePart("q", datepartDate, 1)
+call testDatePart("m", datepartDate, 3)
+call testDatePart("y", datepartDate, 75)
+call testDatePart("d", datepartDate, 15)
+call testDatePart("w", datepartDate, 4)
+call testDatePart("ww", datepartDate, 12)
+call testDatePart("h", datepartDate, 14)
+call testDatePart("n", datepartDate, 30)
+call testDatePart("s", datepartDate, 45)
+
+' Case insensitive
+call testDatePart("YYYY", datepartDate, 2000)
+call testDatePart("Q", datepartDate, 1)
+
+' Quarter boundaries
+call testDatePart("q", DateSerial(2000, 1, 1), 1)
+call testDatePart("q", DateSerial(2000, 3, 31), 1)
+call testDatePart("q", DateSerial(2000, 4, 1), 2)
+call testDatePart("q", DateSerial(2000, 6, 30), 2)
+call testDatePart("q", DateSerial(2000, 7, 1), 3)
+call testDatePart("q", DateSerial(2000, 9, 30), 3)
+call testDatePart("q", DateSerial(2000, 10, 1), 4)
+call testDatePart("q", DateSerial(2000, 12, 31), 4)
+
+' Day of year
+call testDatePart("y", DateSerial(2000, 1, 1), 1)
+call testDatePart("y", DateSerial(2000, 12, 31), 366)
+call testDatePart("y", DateSerial(2000, 3, 1), 61)
+
+' Weekday with firstdayofweek (2000-01-01 is Saturday)
+call testDatePartFdow("w", DateSerial(2000, 1, 1), vbSunday, 7)
+call testDatePartFdow("w", DateSerial(2000, 1, 1), vbMonday, 6)
+call testDatePartFdow("w", DateSerial(2000, 1, 1), vbSaturday, 1)
+
+' Week of year with firstdayofweek and firstweekofyear
+call testDatePartFull("ww", DateSerial(2000, 1, 1), vbSunday, vbFirstJan1, 1)
+call testDatePartFull("ww", DateSerial(2000, 1, 1), vbMonday, vbFirstJan1, 1)
+call testDatePartFull("ww", DateSerial(2000, 1, 1), vbSunday, vbFirstFourDays, 52)
+call testDatePartFull("ww", DateSerial(2000, 1, 1), vbSunday, vbFirstFullWeek, 52)
+
+sub testDatePartError()
+    on error resume next
+    dim x
+
+    ' Null date returns Null
+    err.clear
+    x = DatePart("yyyy", null)
+    call ok(getVT(x) = "VT_NULL*", "null date getVT = " & getVT(x))
+    call ok(err.number = 0, "null date err = " & err.number)
+
+    ' Null interval is error 94
+    err.clear
+    x = DatePart(null, datepartDate)
+    call ok(err.number = 94, "null interval err = " & err.number)
+
+    ' Invalid interval is error 5
+    err.clear
+    x = DatePart("k", datepartDate)
+    call ok(err.number = 5, "invalid interval err = " & err.number)
+
+    ' String date conversion
+    err.clear
+    x = DatePart("yyyy", "2000-03-15")
+    call ok(x = 2000, "string date = " & x)
+    call ok(err.number = 0, "string date err = " & err.number)
+
+    ' Invalid firstdayofweek
+    err.clear
+    x = DatePart("w", datepartDate, 8)
+    call ok(err.number = 5, "fdow=8 err = " & err.number)
+
+    err.clear
+    x = DatePart("w", datepartDate, -1)
+    call ok(err.number = 5, "fdow=-1 err = " & err.number)
+
+    ' Invalid firstweekofyear
+    err.clear
+    x = DatePart("ww", datepartDate, vbSunday, 4)
+    call ok(err.number = 5, "fwoy=4 err = " & err.number)
+end sub
+
+call testDatePartError()
+
+sub testDateDiff(interval, d1, d2, expected)
+    dim x
+    x = DateDiff(interval, d1, d2)
+    call ok(x = expected, "DateDiff(""" & interval & """, " & d1 & ", " & d2 & ") = " & x & " expected " & expected)
+    call ok(getVT(x) = "VT_I4*", "DateDiff getVT = " & getVT(x))
+end sub
+
+sub testDateDiffFdow(interval, d1, d2, fdow, expected)
+    dim x
+    x = DateDiff(interval, d1, d2, fdow)
+    call ok(x = expected, "DateDiff(""" & interval & """, " & d1 & ", " & d2 & ", " & fdow & ") = " & x & " expected " & expected)
+    call ok(getVT(x) = "VT_I4*", "DateDiff fdow getVT = " & getVT(x))
+end sub
+
+' yyyy (year)
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 1)
+call testDateDiff("yyyy", DateSerial(2000, 12, 31), DateSerial(2001, 1, 1), 1)
+call testDateDiff("yyyy", DateSerial(2001, 1, 1), DateSerial(2000, 1, 1), -1)
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("yyyy", DateSerial(2000, 6, 15), DateSerial(2005, 3, 15), 5)
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2000, 12, 31), 0)
+
+' Case insensitive
+call testDateDiff("YYYY", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 1)
+call testDateDiff("Yyyy", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 1)
+
+' q (quarter)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2000, 4, 1), 1)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2000, 3, 31), 0)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2000, 7, 1), 2)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 4)
+call testDateDiff("q", DateSerial(2000, 3, 31), DateSerial(2000, 4, 1), 1)
+call testDateDiff("q", DateSerial(2000, 4, 1), DateSerial(2000, 1, 1), -1)
+call testDateDiff("q", DateSerial(2000, 1, 15), DateSerial(2001, 12, 15), 7)
+
+' m (month)
+call testDateDiff("m", DateSerial(2000, 1, 1), DateSerial(2000, 2, 1), 1)
+call testDateDiff("m", DateSerial(2000, 1, 31), DateSerial(2000, 2, 1), 1)
+call testDateDiff("m", DateSerial(2000, 1, 1), DateSerial(2000, 1, 31), 0)
+call testDateDiff("m", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 12)
+call testDateDiff("m", DateSerial(2000, 2, 1), DateSerial(2000, 1, 1), -1)
+call testDateDiff("m", DateSerial(2000, 3, 15), DateSerial(2002, 6, 15), 27)
+
+' y (day of year) - same as d
+call testDateDiff("y", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 1)
+call testDateDiff("y", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 366)
+call testDateDiff("y", DateSerial(2000, 1, 2), DateSerial(2000, 1, 1), -1)
+
+' d (day)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 1)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 366)
+call testDateDiff("d", DateSerial(2000, 1, 2), DateSerial(2000, 1, 1), -1)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 12, 31), 365)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+
+' w (weekday) - integer division of day diff by 7
+call testDateDiff("w", DateSerial(2000, 1, 1), DateSerial(2000, 1, 8), 1)
+call testDateDiff("w", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 0)
+call testDateDiff("w", DateSerial(2000, 1, 1), DateSerial(2000, 1, 7), 0)
+call testDateDiff("w", DateSerial(2000, 1, 1), DateSerial(2000, 1, 15), 2)
+call testDateDiff("w", DateSerial(2000, 1, 8), DateSerial(2000, 1, 1), -1)
+
+' ww (calendar week) with firstdayofweek
+' 1/1/2000 = Saturday, 1/3/2000 = Monday
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 3), vbSunday, 1)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 3), vbMonday, 1)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 3), vbSaturday, 0)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 8), vbSunday, 1)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 15), vbSunday, 2)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 8), DateSerial(2000, 1, 1), vbSunday, -1)
+
+' h (hour)
+call testDateDiff("h", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 24)
+call testDateDiff("h", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 8784)
+
+' n (minute)
+call testDateDiff("n", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 1440)
+
+' s (second)
+call testDateDiff("s", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 86400)
+
+' Same date for all intervals
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("m", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("h", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("n", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("s", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+
+sub testDateDiffError()
+    on error resume next
+    dim x
+
+    ' Null date1 returns Null
+    err.clear
+    x = DateDiff("d", null, DateSerial(2000, 1, 1))
+    call ok(getVT(x) = "VT_NULL*", "null date1 getVT = " & getVT(x))
+    call ok(err.number = 0, "null date1 err = " & err.number)
+
+    ' Null date2 returns Null
+    err.clear
+    x = DateDiff("d", DateSerial(2000, 1, 1), null)
+    call ok(getVT(x) = "VT_NULL*", "null date2 getVT = " & getVT(x))
+    call ok(err.number = 0, "null date2 err = " & err.number)
+
+    ' Null interval is error 94
+    err.clear
+    x = DateDiff(null, DateSerial(2000, 1, 1), DateSerial(2001, 1, 1))
+    call ok(err.number = 94, "null interval err = " & err.number)
+
+    ' Invalid interval is error 5
+    err.clear
+    x = DateDiff("k", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1))
+    call ok(err.number = 5, "invalid interval err = " & err.number)
+
+    ' Empty interval is error 5
+    err.clear
+    x = DateDiff("", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1))
+    call ok(err.number = 5, "empty interval err = " & err.number)
+
+    ' Invalid date is error 13
+    err.clear
+    x = DateDiff("d", "not a date", DateSerial(2001, 1, 1))
+    call ok(err.number = 13, "invalid date1 err = " & err.number)
+
+    ' String date conversion
+    err.clear
+    x = DateDiff("d", "1/1/2000", "1/2/2000")
+    call ok(err.number = 0, "string date err = " & err.number)
+
+    ' Null firstdayofweek is error 94
+    err.clear
+    x = DateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), null)
+    call ok(err.number = 94, "null fdow err = " & err.number)
+
+    ' Null firstweekofyear is error 94
+    err.clear
+    x = DateDiff("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 8), vbSunday, null)
+    call ok(err.number = 94, "null fwoy err = " & err.number)
+end sub
+
+call testDateDiffError()
 
 sub testWeekday(d, firstday, wd)
     dim x, x2

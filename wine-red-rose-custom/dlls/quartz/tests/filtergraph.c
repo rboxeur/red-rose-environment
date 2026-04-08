@@ -5767,6 +5767,80 @@ static void test_event_dispatch(void)
     ok(!ref, "Got outstanding refcount %ld.\n", ref);
 }
 
+static void test_event_completion(void)
+{
+    WCHAR *filename = load_resource(L"test_32bpp.avi");
+    IFilterGraph2 *graph = create_graph();
+    IMediaControl *control;
+    IMediaSeeking *seeking;
+    IMediaEvent *event;
+    LONGLONG pos;
+    HRESULT hr;
+    ULONG ref;
+    LONG code;
+    BOOL ret;
+
+    hr = IFilterGraph2_RenderFile(graph, filename, NULL);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IFilterGraph2_QueryInterface(graph, &IID_IMediaControl, (void **)&control);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IFilterGraph2_QueryInterface(graph, &IID_IMediaSeeking, (void **)&seeking);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IFilterGraph2_QueryInterface(graph, &IID_IMediaEvent, (void **)&event);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IMediaEvent_WaitForCompletion(event, 0, &code);
+    ok(hr == VFW_E_WRONG_STATE, "Got hr %#lx.\n", hr);
+
+    /* play to 200ms */
+    pos = 200 * 10000;
+    hr = IMediaSeeking_SetPositions(seeking, NULL, AM_SEEKING_NoPositioning,
+            &pos, AM_SEEKING_AbsolutePositioning);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IMediaControl_Run(control);
+    ok(SUCCEEDED(hr), "Got hr %#lx.\n", hr);
+
+    code = 0xdeadbeef;
+    hr = IMediaEvent_WaitForCompletion(event, 500, &code);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    ok(code == EC_COMPLETE, "Got %ld.\n", code);
+
+    hr = IMediaEvent_WaitForCompletion(event, 0, &code);
+    todo_wine ok(hr == VFW_E_WRONG_STATE, "Got hr %#lx.\n", hr);
+
+    /* seek to beginning */
+    pos = 0;
+    hr = IMediaSeeking_SetPositions(seeking, &pos, AM_SEEKING_AbsolutePositioning,
+            NULL, AM_SEEKING_NoPositioning);
+    ok(SUCCEEDED(hr), "Got hr %#lx.\n", hr);
+
+    hr = IMediaEvent_WaitForCompletion(event, 0, &code);
+    ok(hr == E_ABORT, "Got hr %#lx.\n", hr);
+
+    hr = IMediaControl_Pause(control);
+    ok(SUCCEEDED(hr), "Got hr %#lx.\n", hr);
+
+    hr = IMediaEvent_WaitForCompletion(event, 0, &code);
+    ok(hr == VFW_E_WRONG_STATE, "Got hr %#lx.\n", hr);
+
+    hr = IMediaControl_Run(control);
+    ok(SUCCEEDED(hr), "Got hr %#lx.\n", hr);
+
+    hr = IMediaEvent_WaitForCompletion(event, 0, &code);
+    ok(hr == E_ABORT, "Got hr %#lx.\n", hr);
+
+    IMediaEvent_Release(event);
+    IMediaSeeking_Release(seeking);
+    IMediaControl_Release(control);
+    ref = IFilterGraph2_Release(graph);
+    ok(!ref, "Got outstanding refcount %ld.\n", ref);
+
+    ret = DeleteFileW(filename);
+    ok(ret, "Failed to delete file, error %lu.\n", GetLastError());
+}
+
 START_TEST(filtergraph)
 {
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
@@ -5795,6 +5869,7 @@ START_TEST(filtergraph)
     test_set_notify_flags();
     test_events();
     test_event_dispatch();
+    test_event_completion();
 
     CoUninitialize();
     test_render_with_multithread();

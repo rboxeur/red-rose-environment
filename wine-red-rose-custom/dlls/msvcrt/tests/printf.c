@@ -33,6 +33,7 @@
 #include "windef.h"
 #include "winbase.h"
 #include "winnls.h"
+#include "winternl.h"
 
 #include "wine/test.h"
 
@@ -170,6 +171,7 @@ static void test_sprintf( void )
         { "% d", " 1", 0, INT_ARG, 1 },
         { "%+ d", "+1", 0, INT_ARG, 1 },
         { "%S", "wide", 0, PTR_ARG, 0, 0, 0, L"wide" },
+        { "%Z", "ansi", 0, PTR_ARG, 0, 0, 0, &(ANSI_STRING){ 4, 4, (char *)"ansi" } },
         { "%04c", "0001", 0, INT_ARG, '1' },
         { "%-04c", "1   ", 0, INT_ARG, '1' },
         { "%#012x", "0x0000000001", 0, INT_ARG, 1 },
@@ -194,6 +196,8 @@ static void test_sprintf( void )
         { "%w-s", "-s", 0, PTR_ARG, 0, 0, 0, L"wide" },
         { "%ls", "wide", 0, PTR_ARG, 0, 0, 0, L"wide" },
         { "%Ls", "not wide", 0, PTR_ARG, 0, 0, 0, "not wide" },
+        { "%wZ", "wide", 0, PTR_ARG, 0, 0, 0, &(UNICODE_STRING){ 8, 8, (wchar_t *)L"wide" } },
+        { "%hZ", "not wide", 0, PTR_ARG, 0, 0, 0, &(ANSI_STRING){ 8, 8, (char *)"not wide" } },
         { "%b", "b", 0, NO_ARG },
         { "%3c", "  a", 0, INT_ARG, 'a' },
         { "%3d", "1234", 0, INT_ARG, 1234 },
@@ -215,6 +219,10 @@ static void test_sprintf( void )
         { "%o", "12", 0, INT_ARG, 10 },
         { "%s", "(null)", 0, PTR_ARG, 0, 0, 0, NULL },
         { "%s", "%%%%", 0, PTR_ARG, 0, 0, 0, "%%%%" },
+        { "%Z", "(null)", 0, PTR_ARG, 0, 0, 0, NULL },
+        { "%Z", "(null)", 0, PTR_ARG, 0, 0, 0, &(ANSI_STRING){ 0, 0, NULL } },
+        { "%Z", "(null)", 0, PTR_ARG, 0, 0, 0, &(ANSI_STRING){ 1, 1, NULL } },
+        { "%Z", "wi", 0, PTR_ARG, 0, 0, 0, &(ANSI_STRING){ 2, 4, (char *)"wide" } },
         { "%u", "4294967295", 0, INT_ARG, -1 },
         { "%w", "", 0, INT_ARG, -1 },
         { "%h", "", 0, INT_ARG, -1 },

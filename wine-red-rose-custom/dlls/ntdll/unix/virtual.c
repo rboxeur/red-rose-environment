@@ -3862,7 +3862,10 @@ void virtual_init(void)
  */
 ULONG_PTR get_system_affinity_mask(void)
 {
-    ULONG num_cpus = peb->NumberOfProcessors;
+    ULONG num_cpus;
+
+    if (system_cpu_mask) return system_cpu_mask;
+    num_cpus = peb->NumberOfProcessors;
     if (num_cpus >= sizeof(ULONG_PTR) * 8) return ~(ULONG_PTR)0;
     return ((ULONG_PTR)1 << num_cpus) - 1;
 }

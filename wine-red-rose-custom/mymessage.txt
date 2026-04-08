@@ -1,0 +1,64 @@
+Wine-upstream: 62 merge requests
+
+1. https://gitlab.winehq.org/wine/wine/-/merge_requests/10335: msxml3: Don&#39;t add cloned doc to orphan list. 
+2. https://gitlab.winehq.org/wine/wine/-/merge_requests/10333: vbscript: Fix ElseIf and Else handling for inline and multi-line forms. 
+3. https://gitlab.winehq.org/wine/wine/-/merge_requests/10332: ddraw/tests: Fix vertex winding in test_ck_rgba. 
+4. https://gitlab.winehq.org/wine/wine/-/merge_requests/10318: Draft: vbscript: Allow End If on the same line as the preceding statement. 
+5. https://gitlab.winehq.org/wine/wine/-/merge_requests/10317: vbscript: Allow Not operator as operand of comparison expressions. 
+6. https://gitlab.winehq.org/wine/wine/-/merge_requests/10316: d2d1: Do not reference layer objects when recording to the command list. 
+7. https://gitlab.winehq.org/wine/wine/-/merge_requests/10315: mfplay: Remove incorrect fixme for MFP_EVENT_TYPE_ERROR. 
+8. https://gitlab.winehq.org/wine/wine/-/merge_requests/10314: vbscript: Convert string to number for comparison operators. 
+9. https://gitlab.winehq.org/wine/wine/-/merge_requests/10312: vbscript: Fix dot member access after line continuation. 
+10. https://gitlab.winehq.org/wine/wine/-/merge_requests/10311: vbscript: Do not fail on colon-prefixed statements in If blocks. 
+11. https://gitlab.winehq.org/wine/wine/-/merge_requests/10310: vbscript: Allow empty Else blocks in If statements. 
+12. https://gitlab.winehq.org/wine/wine/-/merge_requests/10309: vbscript: Split() should return an empty array for empty strings. 
+13. https://gitlab.winehq.org/wine/wine/-/merge_requests/10308: vbscript: Fix chained array indexing on call expression results. 
+14. https://gitlab.winehq.org/wine/wine/-/merge_requests/10305: mfmediaengine: Add IMFMediaEngineClassFactoryEx interface. 
+15. https://gitlab.winehq.org/wine/wine/-/merge_requests/10304: ddraw: Fix caps tracing in IDirectDraw7::GetCaps(). 
+16. https://gitlab.winehq.org/wine/wine/-/merge_requests/10302: vbscript: Allow Const to be used before its declaration. 
+17. https://gitlab.winehq.org/wine/wine/-/merge_requests/10300: jscript: Treat empty string as NULL in GetScriptDispatch 
+18. https://gitlab.winehq.org/wine/wine/-/merge_requests/10297: d3d8: Build a valid box in d3d8_vertexbuffer_Lock. 
+19. https://gitlab.winehq.org/wine/wine/-/merge_requests/10295: Fix ImageGetDigestStream 
+20. https://gitlab.winehq.org/wine/wine/-/merge_requests/10290: winebuild: Better handle file extensions. 
+21. https://gitlab.winehq.org/wine/wine/-/merge_requests/10289: SDK conformance (part I) 
+22. https://gitlab.winehq.org/wine/wine/-/merge_requests/10288: wshom.ocx: Implement WshShortcut_get_TargetPath(). 
+23. https://gitlab.winehq.org/wine/wine/-/merge_requests/10287: shcore: Add RecordFeatureUsage() stub. 
+24. https://gitlab.winehq.org/wine/wine/-/merge_requests/10282: wintypes: Return S_OK for api_information_statics_IsMethodPresent(). 
+25. https://gitlab.winehq.org/wine/wine/-/merge_requests/10281: Add some ninput function stubs. 
+26. https://gitlab.winehq.org/wine/wine/-/merge_requests/10279: configure.ac: fixes libusb detection on FreeBSD 
+27. https://gitlab.winehq.org/wine/wine/-/merge_requests/10278: d3dxof: Return isolated buffers from IDirectXFileData_GetData(). 
+28. https://gitlab.winehq.org/wine/wine/-/merge_requests/10272: wbemprox: Correct IP address order when calling Win32_NetworkAdapterConfiguration. 
+29. https://gitlab.winehq.org/wine/wine/-/merge_requests/10270: advapi32: Add SaferiIsExecutableFileType stub. 
+30. https://gitlab.winehq.org/wine/wine/-/merge_requests/10266: ole32: Add stub for CoRegisterActivationFilter. 
+31. https://gitlab.winehq.org/wine/wine/-/merge_requests/10264: winmm: Don&#39;t access WAVEFORMATEXTENSIBLE if cbSize is too small (ASan). 
+32. https://gitlab.winehq.org/wine/wine/-/merge_requests/10254: winhttp: Stub WinHttpSetOption( WINHTTP_OPTION_DECOMPRESSION ). 
+33. https://gitlab.winehq.org/wine/wine/-/merge_requests/10252: wintypes: IApiInformationStatics::IsMethodPresent return S_OK. 
+34. https://gitlab.winehq.org/wine/wine/-/merge_requests/10250: Call abort if _wassert error behavior is set to _OUT_TO_STDERR and trigger a debug break. 
+35. https://gitlab.winehq.org/wine/wine/-/merge_requests/10247: server, ntoskrnl.exe: Implement FsRtlGetFileSize(). 
+36. https://gitlab.winehq.org/wine/wine/-/merge_requests/10245: ole32: Relax COM initialization check in RegisterDragDrop. 
+37. https://gitlab.winehq.org/wine/wine/-/merge_requests/10244: vbscript: Fix Sub first argument parentheses handling. 
+38. https://gitlab.winehq.org/wine/wine/-/merge_requests/10236: dwmapi: Add DwmShowContact() stub. 
+39. https://gitlab.winehq.org/wine/wine/-/merge_requests/10234: include: Add windows.graphics.display.idl. 
+40. https://gitlab.winehq.org/wine/wine/-/merge_requests/10231: winegstreamer: Implement presentation clock functions for media sink. 
+41. https://gitlab.winehq.org/wine/wine/-/merge_requests/10228: ntoskrnl.exe: Add stub for KdChangeOption(). 
+42. https://gitlab.winehq.org/wine/wine/-/merge_requests/10211: include: Add IDataTransferManagerInterop interface 
+43. https://gitlab.winehq.org/wine/wine/-/merge_requests/10210: kernelbase: Fix GetNativeSystemInfo() in an x86_64 process on ARM64. 
+44. https://gitlab.winehq.org/wine/wine/-/merge_requests/10207: comctl32/treeview: Cycle all state images from custom image list when toggling checkboxes 
+45. https://gitlab.winehq.org/wine/wine/-/merge_requests/10206: comctl32/treeview: Fixed missing redraw of item being unfocused 
+46. https://gitlab.winehq.org/wine/wine/-/merge_requests/10205: comctl32/treeview: Fixed wrong check for currently edited item 
+47. https://gitlab.winehq.org/wine/wine/-/merge_requests/10201: dwrite: Add locales to locale list. 
+48. https://gitlab.winehq.org/wine/wine/-/merge_requests/10198: crypt32: Support importing cert-only PKCS12 blobs in PFXImportCertStore. 
+49. https://gitlab.winehq.org/wine/wine/-/merge_requests/10194: dlls/shell32：Implement FolderView2_GetSelection 
+50. https://gitlab.winehq.org/wine/wine/-/merge_requests/10193: dlls/comdlg32：Add the implementation of IServiceProvider_fnQueryService to obtain IFolderView2 
+51. https://gitlab.winehq.org/wine/wine/-/merge_requests/10192: kernelbase: Handle extended length path prefix in GetLongPathNameW 
+52. https://gitlab.winehq.org/wine/wine/-/merge_requests/10186: ntdll: Remove unnecessary strdup call 
+53. https://gitlab.winehq.org/wine/wine/-/merge_requests/10177: ntdll: Fix threadpool timer behavior on system time change. 
+54. https://gitlab.winehq.org/wine/wine/-/merge_requests/10174: bcryptprimitives: Abort if `ProcessPrng` fails 
+55. https://gitlab.winehq.org/wine/wine/-/merge_requests/10169: msvcrt: Add overflow check in _time32(). 
+56. https://gitlab.winehq.org/wine/wine/-/merge_requests/10168: winmm: Call WINMM_InitMMDevices once on systems without sound devices. 
+57. https://gitlab.winehq.org/wine/wine/-/merge_requests/10167: mmdevapi: Don&#39;t fail initialization when no drivers were loaded. 
+58. https://gitlab.winehq.org/wine/wine/-/merge_requests/10165: msvcp140: Don&#39;t validate callback in _Schedule_chore. 
+59. https://gitlab.winehq.org/wine/wine/-/merge_requests/10164: msvcr100: Fix leak in __ExceptionPtrAssign. 
+60. https://gitlab.winehq.org/wine/wine/-/merge_requests/10162: d2d1: Clamp opacity value for d2d_device_context_draw_bitmap(). 
+61. https://gitlab.winehq.org/wine/wine/-/merge_requests/10161: include: Add some vcruntime headers. 
+62. https://gitlab.winehq.org/wine/wine/-/merge_requests/10159: msvcrt: Add __ExceptionPtrSwap implementation. 

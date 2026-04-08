@@ -200,6 +200,10 @@ static inline int FUNC_NAME(pf_output_format_wstr)(FUNC_NAME(puts_clbk) pf_puts,
 {
     int r, ret;
 
+    /* UNICODE_STRING passes the number of bytes. */
+    if(len > 0 && flags->Format == 'Z')
+        len /= sizeof(wchar_t);
+
     if(len < 0) {
         /* Do not search past the length specified by the precision. */
         if(flags->Precision>=0)
@@ -261,9 +265,10 @@ static inline int FUNC_NAME(pf_handle_string)(FUNC_NAME(puts_clbk) pf_puts, void
     BOOL api_is_wide = sizeof(APICHAR) == sizeof(wchar_t);
     BOOL complement_is_narrow = legacy_wide ? api_is_wide : FALSE;
 #ifdef PRINTF_WIDE
-
+    BOOL len_is_bytes = flags->Format == 'Z';
     if(!str)
-        return FUNC_NAME(pf_output_format_wstr)(pf_puts, puts_ctx, L"(null)", 6, flags, locale);
+        return FUNC_NAME(pf_output_format_wstr)(pf_puts, puts_ctx, L"(null)",
+                    6 * (len_is_bytes ? sizeof(wchar_t) : 1), flags, locale);
 #else
     if(!str)
         return FUNC_NAME(pf_output_format_str)(pf_puts, puts_ctx, "(null)", 6, flags, locale);
@@ -272,6 +277,9 @@ static inline int FUNC_NAME(pf_handle_string)(FUNC_NAME(puts_clbk) pf_puts, void
     if((flags->NaturalString && api_is_wide) || flags->WideString || flags->IntegerLength == LEN_LONG)
         return FUNC_NAME(pf_output_format_wstr)(pf_puts, puts_ctx, str, len, flags, locale);
     if((flags->NaturalString && !api_is_wide) || flags->IntegerLength == LEN_SHORT)
+        return FUNC_NAME(pf_output_format_str)(pf_puts, puts_ctx, str, len, flags, locale);
+
+    if(flags->Format=='Z')
         return FUNC_NAME(pf_output_format_str)(pf_puts, puts_ctx, str, len, flags, locale);
 
     if((flags->Format=='S' || flags->Format=='C') == complement_is_narrow)
@@ -1142,6 +1150,15 @@ int FUNC_NAME(pf_printf)(FUNC_NAME(puts_clbk) pf_puts, void *puts_ctx, const API
 
             i = FUNC_NAME(pf_handle_string)(pf_puts, puts_ctx, &ch, 1, &flags, locale, legacy_wide);
             if(i < 0) i = 0; /* ignore conversion error */
+        } else if(flags.Format == 'Z') {
+            /* UNICODE_STRING and ANSI_STRING have the same layout. */
+            UNICODE_STRING *str = pf_args(args_ctx, pos, VT_PTR, valist).get_ptr;
+            if(!str)
+                i = FUNC_NAME(pf_handle_string)(pf_puts, puts_ctx, NULL, -1,
+                        &flags, locale, legacy_wide);
+            else
+                i = FUNC_NAME(pf_handle_string)(pf_puts, puts_ctx, str->Buffer, str->Length,
+                        &flags, locale, legacy_wide);
         } else if(flags.Format == 'p') {
             flags.Format = 'X';
             flags.PadZero = TRUE;

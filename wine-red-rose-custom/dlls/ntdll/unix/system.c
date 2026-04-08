@@ -238,7 +238,7 @@ static SYSTEM_LOGICAL_PROCESSOR_INFORMATION *logical_proc_info;
 static unsigned int logical_proc_info_len, logical_proc_info_alloc_len;
 static SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *logical_proc_info_ex;
 static unsigned int logical_proc_info_ex_size, logical_proc_info_ex_alloc_size;
-static ULONG_PTR system_cpu_mask;
+ULONG_PTR system_cpu_mask;
 
 static pthread_mutex_t timezone_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -1576,6 +1576,145 @@ static void init_tsc_frequency(void)
 
 #endif
 
+#ifdef linux
+static long read_cgroup_cpu_limit(void)
+{
+    char line[512], path[512], buf[1024], data[512];
+    FILE *f;
+    long quota, period;
+    long result = 0;
+    char *s, *last_sep;
+
+    /* Try cgroup v2 first: walk up the hierarchy for the lowest quota */
+    f = fopen("/proc/self/cgroup", "r");
+    if (f)
+    {
+        while (fgets(line, sizeof(line), f))
+        {
+            if (!strncmp(line, "0::", 3))
+            {
+                if ((s = strchr(line + 3, '\n'))) *s = 0;
+                snprintf(path, sizeof(path), "%s", line + 3);
+                fclose(f);
+
+                while (*path)
+                {
+                    snprintf(buf, sizeof(buf), "/sys/fs/cgroup%s/cpu.max", path);
+                    f = fopen(buf, "r");
+                    if (f)
+                    {
+                        if (fgets(data, sizeof(data), f) && strncmp(data, "max", 3) != 0)
+                        {
+                            quota = strtol(data, &s, 10);
+                            if (*s == ' ')
+                            {
+                                period = strtol(s + 1, NULL, 10);
+                                if (period > 0)
+                                {
+                                    long ncpus = (long)((double)quota / period + 0.5);
+                                    if (ncpus < 1) ncpus = 1;
+                                    if (!result || ncpus < result) result = ncpus;
+                                }
+                            }
+                        }
+                        fclose(f);
+                        if (result == 1) return 1;
+                    }
+
+                    last_sep = strrchr(path, '/');
+                    if (!last_sep) break;
+                    if (last_sep == path && *(path + 1))
+                        *(path + 1) = 0;  /* iterate on "/" too */
+                    else
+                        *last_sep = 0;
+                }
+
+                return result;
+            }
+        }
+        fclose(f);
+    }
+
+    /* cgroup v1 fallback */
+    f = fopen("/proc/self/cgroup", "r");
+    if (!f) return 0;
+
+    path[0] = 0;
+    while (fgets(line, sizeof(line), f))
+    {
+        /* look for a line containing "cpu" controller, e.g. "4:cpu,cpuacct:/path" or "4:cpu:/path" */
+        char *controllers, *cgroup_path;
+        s = strchr(line, ':');
+        if (!s) continue;
+        controllers = s + 1;
+        s = strchr(controllers, ':');
+        if (!s) continue;
+        *s = 0;
+        cgroup_path = s + 1;
+        if ((s = strchr(cgroup_path, '\n'))) *s = 0;
+
+        /* check if "cpu" is one of the controllers */
+        s = controllers;
+        while (*s)
+        {
+            char *end = s;
+            while (*end && *end != ',') end++;
+            if (end - s == 3 && !strncmp(s, "cpu", 3))
+            {
+                snprintf(path, sizeof(path), "%s", cgroup_path);
+                break;
+            }
+            s = *end ? end + 1 : end;
+        }
+        if (path[0]) break;
+    }
+    fclose(f);
+
+    if (!path[0]) return 0;
+
+    /* try cpu,cpuacct mount point first, then cpu */
+    snprintf(buf, sizeof(buf), "/sys/fs/cgroup/cpu,cpuacct%s/cpu.cfs_quota_us", path);
+    f = fopen(buf, "r");
+    if (!f)
+    {
+        snprintf(buf, sizeof(buf), "/sys/fs/cgroup/cpu%s/cpu.cfs_quota_us", path);
+        f = fopen(buf, "r");
+    }
+    if (!f) return 0;
+
+    if (!fgets(buf, sizeof(buf), f))
+    {
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+    quota = strtol(buf, NULL, 10);
+    if (quota <= 0) return 0;
+
+    /* read period */
+    snprintf(buf, sizeof(buf), "/sys/fs/cgroup/cpu,cpuacct%s/cpu.cfs_period_us", path);
+    f = fopen(buf, "r");
+    if (!f)
+    {
+        snprintf(buf, sizeof(buf), "/sys/fs/cgroup/cpu%s/cpu.cfs_period_us", path);
+        f = fopen(buf, "r");
+    }
+    if (!f) return 0;
+
+    if (!fgets(buf, sizeof(buf), f))
+    {
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+    period = strtol(buf, NULL, 10);
+    if (period <= 0) return 0;
+
+    result = (long)((double)quota / period + 0.5);
+    return result < 1 ? 1 : result;
+}
+#endif
+
 /******************************************************************
  *		init_cpu_info
  *
@@ -1609,6 +1748,16 @@ void init_cpu_info(void)
 #else
     num = 1;
     FIXME("Detecting the number of processors is not supported.\n");
+#endif
+#ifdef linux
+    {
+        long cgroup_cpus = read_cgroup_cpu_limit();
+        if (cgroup_cpus > 0 && cgroup_cpus < num)
+        {
+            TRACE( "limiting to %ld CPUs from cgroup\n", cgroup_cpus );
+            num = cgroup_cpus;
+        }
+    }
 #endif
 
     fill_cpu_override(num);

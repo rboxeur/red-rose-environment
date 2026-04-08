@@ -116,8 +116,9 @@ static void dump_sequence( struct msg_sequence **seq, int sequence_index,
     trace_(file, line)("Failed sequence %s:\n", context );
     while (expected->message && actual->message)
     {
-        trace_(file, line)( "  %u: expected: %04x - actual: %04x wp %08Ix lp %08Ix\n",
-                            count, expected->message, actual->message, actual->wParam, actual->lParam );
+        trace_(file, line)( "  %u: expected: %04x id %i - actual: %04x wp %08Ix lp %08Ix id %i\n",
+                            count, expected->message, (int)expected->id, actual->message, actual->wParam, actual->lParam, (int)actual->id );
+
 
 	if (expected->message == actual->message)
 	{
@@ -158,8 +159,8 @@ static void dump_sequence( struct msg_sequence **seq, int sequence_index,
 
     while (actual->message)
     {
-        trace_(file, line)( "  %u: expected: nothing - actual: %04x wp %08Ix lp %08Ix\n",
-                            count, actual->message, actual->wParam, actual->lParam );
+        trace_(file, line)( "  %u: expected: nothing - actual: %04x wp %08Ix lp %08Ix id %i\n",
+                            count, actual->message, actual->wParam, actual->lParam, (int)actual->id );
         actual++;
         count++;
     }

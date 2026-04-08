@@ -2289,6 +2289,9 @@ GpStatus WINGDIPAPI GdipGetImageHeight(GpImage *image, UINT *height)
     if(!image || !height)
         return InvalidParameter;
 
+    if(!((GpMetafile*)image)->hemf)
+        return InvalidParameter;
+
     if(image->type == ImageTypeMetafile)
         *height = units_to_pixels(((GpMetafile*)image)->bounds.Height, ((GpMetafile*)image)->unit,
                                   image->yres, ((GpMetafile*)image)->printer_display);
@@ -2308,6 +2311,9 @@ GpStatus WINGDIPAPI GdipGetImageHeight(GpImage *image, UINT *height)
 GpStatus WINGDIPAPI GdipGetImageHorizontalResolution(GpImage *image, REAL *res)
 {
     if(!image || !res)
+        return InvalidParameter;
+
+    if(!((GpMetafile*)image)->hemf)
         return InvalidParameter;
 
     *res = image->xres;
@@ -2385,6 +2391,9 @@ GpStatus WINGDIPAPI GdipGetImageVerticalResolution(GpImage *image, REAL *res)
     if(!image || !res)
         return InvalidParameter;
 
+    if(!((GpMetafile*)image)->hemf)
+        return InvalidParameter;
+
     *res = image->yres;
 
     TRACE("(%p) <-- %0.2f\n", image, *res);
@@ -2397,6 +2406,9 @@ GpStatus WINGDIPAPI GdipGetImageWidth(GpImage *image, UINT *width)
     TRACE("%p %p\n", image, width);
 
     if(!image || !width)
+        return InvalidParameter;
+    
+    if(!((GpMetafile*)image)->hemf)
         return InvalidParameter;
 
     if(image->type == ImageTypeMetafile)
