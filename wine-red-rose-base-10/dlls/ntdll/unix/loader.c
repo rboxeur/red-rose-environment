@@ -621,7 +621,6 @@ NTSTATUS exec_wineloader( char **argv, int socketfd, const struct pe_image_info 
     WORD machine = pe_info->machine;
     ULONGLONG res_start = pe_info->base;
     ULONGLONG res_end = pe_info->base + pe_info->map_size;
-    const char *ld_preload = getenv( "LD_PRELOAD" );
     char preloader_reserve[64], socket_env[64];
 
     if (pe_info->wine_fakedll) res_start = res_end = 0;
@@ -2305,6 +2304,7 @@ static void hacks_init(void)
                                        || !strcmp(sgi, "2329630") /* Lovey-Dovey Lockdown */
                                        || !strcmp(sgi, "2209020") /* Gemstones */
                                        || !strcmp(sgi, "223750") /* DCS World */
+                                       || !strcmp(sgi, "2495160") /* Puppeteer : Control */
                                        || !strcmp(sgi, "2361360"); /* Hentai Maid Memories */
 
     if (sgi) wine_allocs_2g_limit = !strcmp(sgi, "359870");

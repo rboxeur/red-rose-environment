@@ -42,7 +42,7 @@ CAPTION "Red Rose"
 FONT 8, "MS Shell Dlg"
 BEGIN
     ICON "", IDC_WAITICON, 3, 3, 32, 32
-    LTEXT "The Red Rose configuration in %s is being updated, please wai t...",
+    LTEXT "The Red Rose configuration in %s is being updated, please wait...",
           IDC_WAITTEXT, 40, 5, 150, 40, SS_NOPREFIX | SS_EDITCONTROL
 END
 
