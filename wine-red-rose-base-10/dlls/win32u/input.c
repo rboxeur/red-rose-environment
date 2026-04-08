@@ -467,10 +467,7 @@ static void kbd_tables_vkey_to_char( const KBDTABLES *tables, UINT vkey, UINT *v
             }
             /* for dead keys, MSDN says the top bit is set 1 in the return value of MAPVK_VK_TO_CHAR */
             if (entry->VirtualKey == vkey)
-            {
                 *vk2char = temp_dead | lower;
-                break;
-            }
         }
     }
 }
@@ -1231,7 +1228,6 @@ WORD WINAPI NtUserVkKeyScanEx( WCHAR chr, HKL layout )
  */
 UINT WINAPI NtUserMapVirtualKeyEx( UINT code, UINT type, HKL layout )
 {
-    const UINT vk2char_size = 0x100;
     USHORT vsc2vk[0x300];
     const KBDTABLES *kbd_tables;
     UINT ret = 0;
@@ -1294,7 +1290,7 @@ UINT WINAPI NtUserMapVirtualKeyEx( UINT code, UINT type, HKL layout )
         }
         break;
     case MAPVK_VK_TO_CHAR:
-        if (code >= vk2char_size) ret = 0;
+        if (code >= 0x100) ret = 0;
         else if (code >= 'A' && code <= 'Z') ret = code;
         else kbd_tables_vkey_to_char(kbd_tables, code & 0xff, &ret);
         break;

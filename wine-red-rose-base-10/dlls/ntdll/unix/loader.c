@@ -621,6 +621,7 @@ NTSTATUS exec_wineloader( char **argv, int socketfd, const struct pe_image_info 
     WORD machine = pe_info->machine;
     ULONGLONG res_start = pe_info->base;
     ULONGLONG res_end = pe_info->base + pe_info->map_size;
+    const char *ld_preload = getenv( "LD_PRELOAD" );
     char preloader_reserve[64], socket_env[64];
 
     if (pe_info->wine_fakedll) res_start = res_end = 0;

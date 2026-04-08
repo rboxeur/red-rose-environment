@@ -833,6 +833,13 @@ BOOL WINAPI SetGestureConfig( HWND hwnd, DWORD reserved, UINT count,
     return FALSE;
 }
 
+BOOL WINAPI GetPointerDevice( HANDLE device, POINTER_DEVICE_INFO *info )
+{
+    FIXME( "device %p, info %p stub.\n", device, info );
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+    return FALSE;
+}
+
 BOOL WINAPI GetPointerDeviceProperties( HANDLE device, UINT32 *count,
                                         POINTER_DEVICE_PROPERTY *properties)
 {
@@ -852,13 +859,6 @@ BOOL WINAPI GetPointerDeviceRects( HANDLE device, RECT *device_rect, RECT *displ
 BOOL WINAPI GetPointerPenInfo( UINT32 id, POINTER_PEN_INFO *info )
 {
     FIXME( "id %u, info %p stub!\n", id, info );
-    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
-    return FALSE;
-}
-
-BOOL WINAPI GetPointerDevice( HANDLE device, POINTER_DEVICE_INFO *info )
-{
-    FIXME( "device %p, info %p stub.\n", device, info );
     SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
     return FALSE;
 }

@@ -336,7 +336,10 @@ static void wayland_surface_update_state_toplevel(struct wayland_surface *surfac
             if (surface->current.state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN)
             {
                 if (surface->requested_output != output)
+                {
                     xdg_toplevel_unset_fullscreen(surface->xdg_toplevel);
+                    wl_display_flush(process_wayland.wl_display);
+                }
                 else
                     goto skip_fullscreen;
             }
@@ -651,6 +654,11 @@ static void wayland_configure_window(HWND hwnd)
     if ((state ^ surface->current.state) &
         (WAYLAND_SURFACE_CONFIG_STATE_MAXIMIZED |
          WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN))
+    {
+        flags |= SWP_FRAMECHANGED;
+    }
+    /* Transitions between CSD and SSD modes may entail a frame change. */
+    else if (surface->processing.decor != surface->current.decor)
     {
         flags |= SWP_FRAMECHANGED;
     }

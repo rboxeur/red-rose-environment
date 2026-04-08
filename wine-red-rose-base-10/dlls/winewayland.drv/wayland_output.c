@@ -191,11 +191,6 @@ static void wayland_output_done(struct wayland_output *output)
         output->current.make = output->pending.make;
     }
 
-
-    /* Copy here as well in case this gets called first */
-
-    /* FIXME: Remove redundant mutex locks in below event handlers,
-     * and read over protocol again to check if this is needed */
     if (output->pending_flags & WAYLAND_OUTPUT_CHANGED_PRIMARIES)
     {
         output->current.primaries = output->pending.primaries;
@@ -221,7 +216,15 @@ static void wayland_output_done(struct wayland_output *output)
         output->current.ref_lum = output->pending.ref_lum;
     }
 
-    output->current.supports_hdr = (output->current.max_target_lum > output->current.ref_lum);
+    output->current.supports_hdr = FALSE;
+
+    if (process_wayland.supports_extended_volume &&
+        process_wayland.supports_pq &&
+        process_wayland.supports_scrgb)
+    {
+        output->current.supports_hdr = (output->current.max_target_lum > output->current.ref_lum);
+    }
+
     output->pending_flags = 0;
 
     /* Ensure the logical dimensions have sane values. */
@@ -232,19 +235,23 @@ static void wayland_output_done(struct wayland_output *output)
         output->current.logical_h = output->current.current_mode->height;
     }
 
-    pthread_mutex_unlock(&process_wayland.output_mutex);
-
-    TRACE("name=%s logical=%d,%d+%dx%d\n",
+    TRACE("name=%s logical=%d,%d+%dx%d hdr=%u\n",
           output->current.name,
           output->current.logical_x, output->current.logical_y,
-          output->current.logical_w, output->current.logical_h);
+          output->current.logical_w, output->current.logical_h,
+          output->current.supports_hdr);
 
-    RB_FOR_EACH_ENTRY(mode, &output->current.modes, struct wayland_output_mode, entry)
+    if (TRACE_ON(waylanddrv))
     {
-        TRACE("mode %dx%d @ %d %s\n",
-              mode->width, mode->height, mode->refresh,
-              output->current.current_mode == mode ? "*" : "");
+        RB_FOR_EACH_ENTRY(mode, &output->current.modes, struct wayland_output_mode, entry)
+        {
+            TRACE("mode %dx%d @ %d %s\n",
+                  mode->width, mode->height, mode->refresh,
+                  output->current.current_mode == mode ? "*" : "");
+        }
     }
+
+    pthread_mutex_unlock(&process_wayland.output_mutex);
 
     maybe_init_display_devices();
 }
@@ -368,45 +375,7 @@ static void wayland_image_description_info_v1_done(void *data,
                                               struct wp_image_description_info_v1 *info)
 {
     struct wayland_output *output = data;
-    pthread_mutex_lock(&process_wayland.output_mutex);
-
-    if (output->pending_flags & WAYLAND_OUTPUT_CHANGED_PRIMARIES)
-    {
-        output->current.primaries = output->pending.primaries;
-        output->pending_flags &= ~WAYLAND_OUTPUT_CHANGED_PRIMARIES;
-    }
-
-    if (output->pending_flags & WAYLAND_OUTPUT_CHANGED_FALL)
-    {
-        output->current.max_fall = output->pending.max_fall;
-        output->pending_flags &= ~WAYLAND_OUTPUT_CHANGED_FALL;
-    }
-
-    if (output->pending_flags & WAYLAND_OUTPUT_CHANGED_CLL)
-    {
-        output->current.max_cll = output->pending.max_cll;
-        output->pending_flags &= ~WAYLAND_OUTPUT_CHANGED_CLL;
-    }
-
-    if (output->pending_flags & WAYLAND_OUTPUT_CHANGED_MAX_TARGET_L)
-    {
-        output->current.max_target_lum = output->pending.max_target_lum;
-        output->pending_flags &= ~WAYLAND_OUTPUT_CHANGED_MAX_TARGET_L;
-    }
-
-    if (output->pending_flags & WAYLAND_OUTPUT_CHANGED_REF_L)
-    {
-        output->current.ref_lum = output->pending.ref_lum;
-        output->pending_flags &= ~WAYLAND_OUTPUT_CHANGED_REF_L;
-    }
-
-    output->current.supports_hdr = (output->current.max_target_lum > output->current.ref_lum);
-
-    TRACE("hdr %u\n", output->current.supports_hdr);
-
-    pthread_mutex_unlock(&process_wayland.output_mutex);
-
-    maybe_init_display_devices();
+    wayland_output_done(output);
 }
 
 static void wayland_image_description_info_v1_icc_file(void *data,
@@ -423,8 +392,6 @@ static void wayland_image_description_info_v1_primaries(void *data,
                                                    int32_t w_x, int32_t w_y)
 {
     struct wayland_output *output = data;
-
-    pthread_mutex_lock(&process_wayland.output_mutex);
 
     if (!(output->pending_flags & WAYLAND_OUTPUT_CHANGED_PRIMARIES))
     {
@@ -445,8 +412,6 @@ static void wayland_image_description_info_v1_primaries(void *data,
 
         output->pending_flags |= WAYLAND_OUTPUT_CHANGED_PRIMARIES;
     }
-
-    pthread_mutex_unlock(&process_wayland.output_mutex);
 }
 
 static void wayland_image_description_info_v1_primaries_named(void *data,
@@ -476,14 +441,10 @@ static void wayland_image_description_info_v1_luminance(void *data,
 {
     struct wayland_output *output = data;
 
-    pthread_mutex_lock(&process_wayland.output_mutex);
-
     TRACE("reference luminance: %u\n", ref);
 
     output->pending.ref_lum = ref;
     output->pending_flags |= WAYLAND_OUTPUT_CHANGED_REF_L;
-
-    pthread_mutex_unlock(&process_wayland.output_mutex);
 }
 
 static void wayland_image_description_info_v1_target_primaries(void *data,
@@ -494,8 +455,6 @@ static void wayland_image_description_info_v1_target_primaries(void *data,
 				 int32_t w_x, int32_t w_y)
 {
     struct wayland_output *output = data;
-
-    pthread_mutex_lock(&process_wayland.output_mutex);
 
 #define COPY(name) output->pending.primaries.name = round((name * 1e-6) * 1024)
     COPY(r_x);
@@ -513,8 +472,6 @@ static void wayland_image_description_info_v1_target_primaries(void *data,
             b_x * 1e-6, b_y * 1e-6, w_x * 1e-6, w_y * 1e-6);
 
     output->pending_flags |= WAYLAND_OUTPUT_CHANGED_PRIMARIES;
-
-    pthread_mutex_unlock(&process_wayland.output_mutex);
 }
 
 static void wayland_image_description_info_v1_target_luminance(void *data,
@@ -523,14 +480,10 @@ static void wayland_image_description_info_v1_target_luminance(void *data,
 {
     struct wayland_output *output = data;
 
-    pthread_mutex_lock(&process_wayland.output_mutex);
-
     TRACE("max target luminance: %u\n", max);
 
     output->pending.max_target_lum = max;
     output->pending_flags |= WAYLAND_OUTPUT_CHANGED_MAX_TARGET_L;
-
-    pthread_mutex_unlock(&process_wayland.output_mutex);
 }
 
 static void wayland_image_description_info_v1_target_max_cll(void *data,
@@ -539,14 +492,10 @@ static void wayland_image_description_info_v1_target_max_cll(void *data,
 {
     struct wayland_output *output = data;
 
-    pthread_mutex_lock(&process_wayland.output_mutex);
-
     TRACE("Max CLL: %u\n", max);
 
     output->pending.max_cll = max;
     output->pending_flags |= WAYLAND_OUTPUT_CHANGED_CLL;
-
-    pthread_mutex_unlock(&process_wayland.output_mutex);
 }
 
 static void wayland_image_description_info_v1_target_max_fall(void *data,
@@ -554,15 +503,10 @@ static void wayland_image_description_info_v1_target_max_fall(void *data,
 				            uint32_t max)
 {
     struct wayland_output *output = data;
-
-    pthread_mutex_lock(&process_wayland.output_mutex);
-
     TRACE("Max FALL: %u\n", max);
 
     output->pending.max_fall = max;
     output->pending_flags |= WAYLAND_OUTPUT_CHANGED_FALL;
-
-    pthread_mutex_unlock(&process_wayland.output_mutex);
 }
 
 static const struct wp_image_description_info_v1_listener image_description_info_listener = {
@@ -583,14 +527,11 @@ static void wayland_color_management_output_image_description_changed(void *user
 {
     struct wayland_output *output = user_data;
 
-    pthread_mutex_lock(&process_wayland.output_mutex);
-
     if (output->wp_image_description_v1)
         wp_image_description_v1_destroy(output->wp_image_description_v1);
 
     if (output->wp_image_description_info_v1)
         wp_image_description_info_v1_destroy(output->wp_image_description_info_v1);
-
 
     output->wp_image_description_v1 =
         wp_color_management_output_v1_get_image_description(
@@ -601,8 +542,6 @@ static void wayland_color_management_output_image_description_changed(void *user
     wp_image_description_info_v1_add_listener(
         output->wp_image_description_info_v1,
         &image_description_info_listener, output);
-
-    pthread_mutex_unlock(&process_wayland.output_mutex);
 }
 
 static const struct wp_color_management_output_v1_listener color_management_output_listener = {
@@ -664,6 +603,7 @@ BOOL wayland_output_create(uint32_t id, uint32_t version)
 
     if (process_wayland.zxdg_output_manager_v1)
         wayland_output_use_xdg_extension(output);
+
     if (process_wayland.wp_color_manager_v1)
     {
         output->wp_color_management_output_v1 =
@@ -740,4 +680,60 @@ void wayland_output_use_xdg_extension(struct wayland_output *output)
                                               output->wl_output);
     zxdg_output_v1_add_listener(output->zxdg_output_v1, &zxdg_output_v1_listener,
                                 output);
+}
+
+static void wayland_color_manager_handle_supported_intent(void *data,
+    struct wp_color_manager_v1 *wp_color_manager_v1, uint32_t intent) {}
+
+static void wayland_color_manager_handle_supported_feature(void *data,
+    struct wp_color_manager_v1 *wp_color_manager_v1, uint32_t feature)
+{
+    pthread_mutex_lock(&process_wayland.output_mutex);
+
+    TRACE("feature %u\n", feature);
+
+    if (feature == WP_COLOR_MANAGER_V1_FEATURE_WINDOWS_SCRGB)
+        process_wayland.supports_scrgb = TRUE;
+    else if (feature == WP_COLOR_MANAGER_V1_FEATURE_EXTENDED_TARGET_VOLUME)
+        process_wayland.supports_extended_volume = TRUE;
+
+    pthread_mutex_unlock(&process_wayland.output_mutex);
+}
+
+static void wayland_color_manager_handle_supported_named_tf(void *data,
+    struct wp_color_manager_v1 *wp_color_manager_v1, uint32_t tf)
+{
+    pthread_mutex_lock(&process_wayland.output_mutex);
+
+    TRACE("named tf %u\n", tf);
+
+    if (tf == WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ)
+        process_wayland.supports_pq = TRUE;
+
+    pthread_mutex_unlock(&process_wayland.output_mutex);
+}
+
+static void wayland_color_manager_handle_supported_primaries(void *data,
+    struct wp_color_manager_v1 *wp_color_manager_v1, uint32_t primaries) {}
+
+static void wayland_color_manager_handle_done(void *data,
+                        struct wp_color_manager_v1 *wp_color_manager_v1) {}
+
+static const struct wp_color_manager_v1_listener wp_color_manager_listener = {
+    wayland_color_manager_handle_supported_intent,
+    wayland_color_manager_handle_supported_feature,
+    wayland_color_manager_handle_supported_named_tf,
+    wayland_color_manager_handle_supported_primaries,
+    wayland_color_manager_handle_done
+};
+
+/**********************************************************************
+ *          wayland_color_manager_init
+ *
+ *  Checks for PQ and SCRGB color spaces support
+ */
+void wayland_color_manager_init(void)
+{
+    wp_color_manager_v1_add_listener(process_wayland.wp_color_manager_v1,
+                                     &wp_color_manager_listener, NULL);
 }
