@@ -39,9 +39,9 @@ I keep these Wine sources as-it-is as a reference.
 
 ### wine-red-rose-base-10
 
-Aligned with GE-Proton-10-32 [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) with following specifications
+Aligned with GE-Proton-10-34 modifications [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) from 2026 [experimental-wine-bleeding-edge-10.0-347276-20260421-p3a484d-w5edc83-dd4486d-vf036a7] with following specifications
 
-- changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-10-32 were applied
+- changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-10-34 were applied
 - [Patch to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-10.0-be.mypatch) was applied -- slightly modified.
 - [Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0003-use-surfaceless-for-GST.patch) was neutered.
 - [Another Glorious Eggroll's patch for wayland](https://github.com/GloriousEggroll/proton-ge-custom/blob/master/patches/wine-hotfixes/wine-wayland/0301-winegstreamer-Fix-x11-gst-display.patch) was neutered.
@@ -71,7 +71,11 @@ To keep it up-to-date then a few patches were applied from repositories listed b
 
 ### Notes regarding Proton 9 and Proton 10
 
-- for wine-bleeding-edge Valve switched from Proton 9 to Proton 10 on Wednesday April 30, 2025.
+For wine-bleeding-edge ,Valve switched 
+- from Proton 9 to Proton 10 on Wednesday April 30, 2025
+- from Proton 10 to Proton 11 on Wednesday Aprid 22, 2026
+Valve went into beta based on below information
 - wine-bleeding-edge went into Proton 10 beta on Wednesday April 30, 2025.
+- wine-bleeding-edge went into Proton !! beta around Monday April 20,2026
 
 
