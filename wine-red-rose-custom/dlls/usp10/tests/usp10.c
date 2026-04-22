@@ -133,7 +133,7 @@ static inline void _test_items_ok(LPCWSTR string, DWORD cchString,
 #define guru_tag MS_MAKE_TAG('g','u','r','u')
 #define gujr_tag MS_MAKE_TAG('g','u','j','r')
 #define orya_tag MS_MAKE_TAG('o','r','y','a')
-#define taml_tag MS_MAKE_TAG('t','a','m','l')
+#define taml_tag MS_MAKE_TAG('t','m','l','2')
 #define telu_tag MS_MAKE_TAG('t','e','l','u')
 #define knda_tag MS_MAKE_TAG('k','n','d','a')
 #define mlym_tag MS_MAKE_TAG('m','l','y','m')
@@ -1587,10 +1587,9 @@ static void test_ScriptShapeOpenType(HDC hdc)
 
     /* Telugu */
     static const WCHAR test_telugu[] = {0x0c24, 0x0c46, 0x0c32, 0x0c41, 0x0c17, 0x0c41};
-    static const shapeTest_char telugu_c[] = {{0,{0,0}},{0,{0,0}},{2,{0,0}},{2,{0,0}},{4,{0,0}},{4,{0,0}}};
+    static const shapeTest_char telugu_c[] = {{0,{0,0}},{0,{0,0}},{1,{0,0}},{1,{0,0}},{3,{0,0}},{3,{0,0}}};
     static const shapeTest_glyph telugu_g[] = {
                             {1,{{SCRIPT_JUSTIFY_NONE,1,0,0,0,0},0}},
-                            {1,{{SCRIPT_JUSTIFY_NONE,0,0,0,0,0},0}},
                             {1,{{SCRIPT_JUSTIFY_NONE,1,0,0,0,0},0}},
                             {1,{{SCRIPT_JUSTIFY_NONE,0,0,0,0,0},0}},
                             {1,{{SCRIPT_JUSTIFY_NONE,1,0,0,0,0},0}},
@@ -1714,7 +1713,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Estrangelo Edessa", 71, test_syriac[0], &hfont, &hfont_orig, &fingerprint_estrangelo);
+    test_valid = find_font_for_range(hdc, "Noto Sans Syriac", 71, test_syriac[0], &hfont, &hfont_orig, &fingerprint_estrangelo);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_syriac, 8, &Control, &State, 0, 7, syriac_c, syriac_g);
@@ -1722,7 +1721,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "MV Boli", 72, test_thaana[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Thaana", 72, test_thaana[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_thaana, 13, &Control, &State, 0, 13, thaana_c, thaana_g);
@@ -1730,7 +1729,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Microsoft PhagsPa", 53, test_phagspa[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans PhagsPa", 53, test_phagspa[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid_props2(test_valid, hdc, test_phagspa, 11, &Control, &State, 0, 11,
@@ -1739,7 +1738,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "DokChampa", 25, test_lao[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Lao", 25, test_lao[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_lao, 9, &Control, &State, 0, 9, lao_c, lao_g);
@@ -1747,7 +1746,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Microsoft Himalaya", 70, test_tibetan[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Serif Tibetan", 70, test_tibetan[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid_props2(test_valid, hdc, test_tibetan, 17, &Control, &State, 0, 17,
@@ -1756,7 +1755,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Mangal", 15, test_devanagari[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Devanagari", 15, test_devanagari[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_devanagari, 8, &Control, &State, 0, 8, devanagari_c, devanagari_g);
@@ -1764,7 +1763,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Vrinda", 16, test_bengali[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Bengali", 16, test_bengali[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_bengali, 5, &Control, &State, 0, 5, bengali_c, bengali_g);
@@ -1772,7 +1771,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Raavi", 17, test_gurmukhi[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Gurmukhi", 17, test_gurmukhi[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_gurmukhi, 7, &Control, &State, 0, 7, gurmukhi_c, gurmukhi_g);
@@ -1780,7 +1779,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Shruti", 18, test_gujarati[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Gujarati", 18, test_gujarati[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_gujarati, 7, &Control, &State, 0, 7, gujarati_c, gujarati_g);
@@ -1788,7 +1787,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Kalinga", 19, test_oriya[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Oriya", 19, test_oriya[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_oriya, 5, &Control, &State, 0, 4, oriya_c, oriya_g);
@@ -1796,7 +1795,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Latha", 20, test_tamil[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Tamil", 20, test_tamil[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_tamil, 5, &Control, &State, 0, 4, tamil_c, tamil_g);
@@ -1804,15 +1803,15 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Gautami", 21, test_telugu[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Telugu", 21, test_telugu[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
-        test_shape_ok_valid(test_valid, hdc, test_telugu, 6, &Control, &State, 0, 6, telugu_c, telugu_g);
+        test_shape_ok_valid(test_valid, hdc, test_telugu, 6, &Control, &State, 0, 5, telugu_c, telugu_g);
         SelectObject(hdc, hfont_orig);
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Kartika", 23, test_malayalam[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Malayalam", 23, test_malayalam[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_malayalam, 6, &Control, &State, 0, 6, malayalam_c, malayalam_g);
@@ -1820,7 +1819,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "Tunga", 22, test_kannada[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans Kannada", 22, test_kannada[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_kannada, 5, &Control, &State, 0, 4, kannada_c, kannada_g);
@@ -1828,7 +1827,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "SimSun", 49, test_hiragana[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans CJK JP", 49, test_hiragana[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_hiragana, 4, &Control, &State, 0, 4, hiragana_c, hiragana_g);
@@ -1836,7 +1835,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "SimSun", 50, test_katakana[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans CJK JP", 50, test_katakana[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_katakana, 3, &Control, &State, 0, 3, katakana_c, katakana_g);
@@ -1844,7 +1843,7 @@ static void test_ScriptShapeOpenType(HDC hdc)
         DeleteObject(hfont);
     }
 
-    test_valid = find_font_for_range(hdc, "SimSun", 59, test_cjk[0], &hfont, &hfont_orig, NULL);
+    test_valid = find_font_for_range(hdc, "Noto Sans CJK SC", 59, test_cjk[0], &hfont, &hfont_orig, NULL);
     if (hfont != NULL)
     {
         test_shape_ok_valid(test_valid, hdc, test_cjk, 5, &Control, &State, 0, 5, cjk_c, cjk_g);

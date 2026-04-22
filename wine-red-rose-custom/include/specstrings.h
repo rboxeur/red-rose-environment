@@ -328,7 +328,9 @@ extern "C" {
 #endif /* RC_INVOKED */
 
 #ifndef DECLSPEC_ADDRSAFE
-#if (_MSC_VER >= 1200) && (defined(_M_ALPHA) || defined(_M_AXP64))
+#ifndef _MSC_VER
+#define DECLSPEC_ADDRSAFE
+#elif (_MSC_VER >= 1200) && (defined(_M_ALPHA) || defined(_M_AXP64))
 #define DECLSPEC_ADDRSAFE  __declspec(address_safe)
 #else
 #define DECLSPEC_ADDRSAFE

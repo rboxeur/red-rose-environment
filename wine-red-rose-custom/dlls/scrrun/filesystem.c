@@ -197,6 +197,8 @@ static HRESULT create_file(BSTR, IFile**);
 static HRESULT create_foldercoll_enum(struct foldercollection*, IUnknown**);
 static HRESULT create_filecoll_enum(struct filecollection*, IUnknown**);
 static HRESULT create_drivecoll_enum(struct drivecollection*, IUnknown**);
+static inline DWORD get_parent_folder_name(const WCHAR *path, DWORD len);
+static HRESULT get_date_from_filetime(const FILETIME *ft, DATE *date);
 
 static inline BOOL is_dir_data(const WIN32_FIND_DATAW *data)
 {
@@ -2552,15 +2554,49 @@ static HRESULT WINAPI folder_put_Name(IFolder *iface, BSTR name)
 static HRESULT WINAPI folder_get_ShortPath(IFolder *iface, BSTR *path)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(%p): stub\n", This, path);
-    return E_NOTIMPL;
+    WCHAR short_path[MAX_PATH];
+    DWORD len;
+
+    TRACE("(%p)->(%p)\n", This, path);
+
+    if (!path)
+        return E_POINTER;
+
+    *path = NULL;
+
+    len = GetShortPathNameW(This->path, short_path, MAX_PATH);
+    if (!len)
+        return HRESULT_FROM_WIN32(GetLastError());
+    if (len >= MAX_PATH)
+        return E_FAIL;
+
+    *path = SysAllocString(short_path);
+    return *path ? S_OK : E_OUTOFMEMORY;
 }
 
 static HRESULT WINAPI folder_get_ShortName(IFolder *iface, BSTR *name)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(%p): stub\n", This, name);
-    return E_NOTIMPL;
+    WCHAR short_path[MAX_PATH];
+    const WCHAR *ptr;
+    DWORD len;
+
+    TRACE("(%p)->(%p)\n", This, name);
+
+    if (!name)
+        return E_POINTER;
+
+    *name = NULL;
+
+    len = GetShortPathNameW(This->path, short_path, MAX_PATH);
+    if (!len)
+        return HRESULT_FROM_WIN32(GetLastError());
+    if (len >= MAX_PATH)
+        return E_FAIL;
+
+    ptr = wcsrchr(short_path, '\\');
+    *name = SysAllocString(ptr ? ptr + 1 : short_path);
+    return *name ? S_OK : E_OUTOFMEMORY;
 }
 
 static HRESULT WINAPI folder_get_Drive(IFolder *iface, IDrive **drive)
@@ -2573,43 +2609,97 @@ static HRESULT WINAPI folder_get_Drive(IFolder *iface, IDrive **drive)
 static HRESULT WINAPI folder_get_ParentFolder(IFolder *iface, IFolder **parent)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(%p): stub\n", This, parent);
-    return E_NOTIMPL;
+    WCHAR *parent_path;
+    DWORD len;
+    HRESULT hr;
+
+    TRACE("(%p)->(%p)\n", This, parent);
+
+    if(!parent)
+        return E_POINTER;
+
+    *parent = NULL;
+
+    len = get_parent_folder_name(This->path, SysStringLen(This->path));
+    if(!len)
+        return S_OK;
+
+    if(!(parent_path = malloc((len + 1) * sizeof(WCHAR))))
+        return E_OUTOFMEMORY;
+    memcpy(parent_path, This->path, len * sizeof(WCHAR));
+    parent_path[len] = 0;
+
+    hr = create_folder(parent_path, parent);
+    free(parent_path);
+    return hr;
 }
 
 static HRESULT WINAPI folder_get_Attributes(IFolder *iface, FileAttribute *attr)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(%p): stub\n", This, attr);
-    return E_NOTIMPL;
+    DWORD fa;
+
+    TRACE("(%p)->(%p)\n", This, attr);
+
+    if(!attr)
+        return E_POINTER;
+
+    fa = GetFileAttributesW(This->path);
+    if(fa == INVALID_FILE_ATTRIBUTES)
+        return create_error(GetLastError());
+
+    *attr = fa & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN |
+            FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_ARCHIVE |
+            FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_COMPRESSED);
+    return S_OK;
 }
 
 static HRESULT WINAPI folder_put_Attributes(IFolder *iface, FileAttribute attr)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(0x%x): stub\n", This, attr);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(0x%x)\n", This, attr);
+
+    return SetFileAttributesW(This->path, attr) ? S_OK : create_error(GetLastError());
 }
 
 static HRESULT WINAPI folder_get_DateCreated(IFolder *iface, DATE *date)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(%p): stub\n", This, date);
-    return E_NOTIMPL;
+    WIN32_FILE_ATTRIBUTE_DATA attrs;
+
+    TRACE("(%p)->(%p)\n", This, date);
+
+    if (GetFileAttributesExW(This->path, GetFileExInfoStandard, &attrs))
+        return get_date_from_filetime(&attrs.ftCreationTime, date);
+
+    return E_FAIL;
 }
 
 static HRESULT WINAPI folder_get_DateLastModified(IFolder *iface, DATE *date)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(%p): stub\n", This, date);
-    return E_NOTIMPL;
+    WIN32_FILE_ATTRIBUTE_DATA attrs;
+
+    TRACE("(%p)->(%p)\n", This, date);
+
+    if (GetFileAttributesExW(This->path, GetFileExInfoStandard, &attrs))
+        return get_date_from_filetime(&attrs.ftLastWriteTime, date);
+
+    return E_FAIL;
 }
 
 static HRESULT WINAPI folder_get_DateLastAccessed(IFolder *iface, DATE *date)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(%p): stub\n", This, date);
-    return E_NOTIMPL;
+    WIN32_FILE_ATTRIBUTE_DATA attrs;
+
+    TRACE("(%p)->(%p)\n", This, date);
+
+    if (GetFileAttributesExW(This->path, GetFileExInfoStandard, &attrs))
+        return get_date_from_filetime(&attrs.ftLastAccessTime, date);
+
+    return E_FAIL;
 }
 
 static HRESULT WINAPI folder_get_Type(IFolder *iface, BSTR *type)
@@ -2643,8 +2733,15 @@ static HRESULT WINAPI folder_Move(IFolder *iface, BSTR dest)
 static HRESULT WINAPI folder_get_IsRootFolder(IFolder *iface, VARIANT_BOOL *isroot)
 {
     struct folder *This = impl_from_IFolder(iface);
-    FIXME("(%p)->(%p): stub\n", This, isroot);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%p)\n", This, isroot);
+
+    if(!isroot)
+        return E_POINTER;
+
+    *isroot = get_parent_folder_name(This->path, SysStringLen(This->path))
+              ? VARIANT_FALSE : VARIANT_TRUE;
+    return S_OK;
 }
 
 static HRESULT WINAPI folder_get_Size(IFolder *iface, VARIANT *size)
@@ -2751,7 +2848,9 @@ HRESULT create_folder(const WCHAR *path, IFolder **folder)
         return E_FAIL;
     }
 
-    object->path = SysAllocStringLen(NULL, len);
+    /* GetFullPathNameW returns the required size including the NUL terminator,
+     * so the BSTR length prefix must be one less. */
+    object->path = SysAllocStringLen(NULL, len - 1);
     if(!object->path)
     {
         free(object);
@@ -2927,15 +3026,49 @@ static HRESULT WINAPI file_put_Name(IFile *iface, BSTR pbstrName)
 static HRESULT WINAPI file_get_ShortPath(IFile *iface, BSTR *pbstrPath)
 {
     struct file *This = impl_from_IFile(iface);
-    FIXME("(%p)->(%p)\n", This, pbstrPath);
-    return E_NOTIMPL;
+    WCHAR short_path[MAX_PATH];
+    DWORD len;
+
+    TRACE("(%p)->(%p)\n", This, pbstrPath);
+
+    if (!pbstrPath)
+        return E_POINTER;
+
+    *pbstrPath = NULL;
+
+    len = GetShortPathNameW(This->path, short_path, MAX_PATH);
+    if (!len)
+        return HRESULT_FROM_WIN32(GetLastError());
+    if (len >= MAX_PATH)
+        return E_FAIL;
+
+    *pbstrPath = SysAllocString(short_path);
+    return *pbstrPath ? S_OK : E_OUTOFMEMORY;
 }
 
 static HRESULT WINAPI file_get_ShortName(IFile *iface, BSTR *pbstrName)
 {
     struct file *This = impl_from_IFile(iface);
-    FIXME("(%p)->(%p)\n", This, pbstrName);
-    return E_NOTIMPL;
+    WCHAR short_path[MAX_PATH];
+    const WCHAR *ptr;
+    DWORD len;
+
+    TRACE("(%p)->(%p)\n", This, pbstrName);
+
+    if (!pbstrName)
+        return E_POINTER;
+
+    *pbstrName = NULL;
+
+    len = GetShortPathNameW(This->path, short_path, MAX_PATH);
+    if (!len)
+        return HRESULT_FROM_WIN32(GetLastError());
+    if (len >= MAX_PATH)
+        return E_FAIL;
+
+    ptr = wcsrchr(short_path, '\\');
+    *pbstrName = SysAllocString(ptr ? ptr + 1 : short_path);
+    return *pbstrName ? S_OK : E_OUTOFMEMORY;
 }
 
 static HRESULT WINAPI file_get_Drive(IFile *iface, IDrive **ppdrive)
@@ -2948,8 +3081,29 @@ static HRESULT WINAPI file_get_Drive(IFile *iface, IDrive **ppdrive)
 static HRESULT WINAPI file_get_ParentFolder(IFile *iface, IFolder **ppfolder)
 {
     struct file *This = impl_from_IFile(iface);
-    FIXME("(%p)->(%p)\n", This, ppfolder);
-    return E_NOTIMPL;
+    WCHAR *parent_path;
+    DWORD len;
+    HRESULT hr;
+
+    TRACE("(%p)->(%p)\n", This, ppfolder);
+
+    if(!ppfolder)
+        return E_POINTER;
+
+    *ppfolder = NULL;
+
+    len = get_parent_folder_name(This->path, lstrlenW(This->path));
+    if(!len)
+        return S_OK;
+
+    if(!(parent_path = malloc((len + 1) * sizeof(WCHAR))))
+        return E_OUTOFMEMORY;
+    memcpy(parent_path, This->path, len * sizeof(WCHAR));
+    parent_path[len] = 0;
+
+    hr = create_folder(parent_path, ppfolder);
+    free(parent_path);
+    return hr;
 }
 
 static HRESULT WINAPI file_get_Attributes(IFile *iface, FileAttribute *pfa)
@@ -3025,8 +3179,14 @@ static HRESULT WINAPI file_get_DateLastModified(IFile *iface, DATE *date)
 static HRESULT WINAPI file_get_DateLastAccessed(IFile *iface, DATE *pdate)
 {
     struct file *This = impl_from_IFile(iface);
-    FIXME("(%p)->(%p)\n", This, pdate);
-    return E_NOTIMPL;
+    WIN32_FILE_ATTRIBUTE_DATA attrs;
+
+    TRACE("(%p)->(%p)\n", This, pdate);
+
+    if (GetFileAttributesExW(This->path, GetFileExInfoStandard, &attrs))
+        return get_date_from_filetime(&attrs.ftLastAccessTime, pdate);
+
+    return E_FAIL;
 }
 
 static HRESULT WINAPI file_get_Size(IFile *iface, VARIANT *pvarSize)

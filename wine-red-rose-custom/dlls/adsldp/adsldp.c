@@ -2299,6 +2299,20 @@ static HRESULT WINAPI options_GetOption(IADsObjectOptions *iface, LONG option, V
         return S_OK;
     }
 
+    case ADS_OPTION_REFERRALS:
+    {
+        ULONG val;
+
+        err = ldap_get_optionW(ldap->ld, LDAP_OPT_REFERRALS, &val);
+        if (err != LDAP_SUCCESS)
+            return HRESULT_FROM_WIN32(map_ldap_error(err));
+
+        V_VT(var) = VT_I4;
+        /* LDAP values are equal to ADS_CHASE_REFERRALS_ constants. */
+        V_I4(var) = val;
+        return S_OK;
+    }
+
     case ADS_OPTION_ACCUMULATIVE_MODIFICATION:
         V_VT(var) = VT_BOOL;
         V_BOOL(var) = VARIANT_FALSE;
@@ -2314,18 +2328,56 @@ static HRESULT WINAPI options_GetOption(IADsObjectOptions *iface, LONG option, V
 
 static HRESULT WINAPI options_SetOption(IADsObjectOptions *iface, LONG option, VARIANT var)
 {
-    FIXME("%p,%ld,%s: stub\n", iface, option, wine_dbgstr_variant(&var));
+    LDAP_namespace *ldap = impl_from_IADsObjectOptions(iface);
+    LONG err;
+
+    TRACE("%p,%ld,%s\n", iface, option, wine_dbgstr_variant(&var));
+
+    if (!ldap->ld) return E_NOTIMPL;
 
     switch (option)
     {
+    case ADS_OPTION_REFERRALS:
+    {
+        ULONG val;
+
+        if (V_VT(&var) != VT_I4)
+            return E_ADS_BAD_PARAMETER;
+
+        switch (V_I4(&var))
+        {
+        case ADS_CHASE_REFERRALS_NEVER:
+            val = 0;
+            break;
+        case ADS_CHASE_REFERRALS_SUBORDINATE:
+            val = LDAP_CHASE_SUBORDINATE_REFERRALS;
+            break;
+        case ADS_CHASE_REFERRALS_EXTERNAL:
+            val = LDAP_CHASE_EXTERNAL_REFERRALS;
+            break;
+        case ADS_CHASE_REFERRALS_ALWAYS:
+            val = LDAP_CHASE_SUBORDINATE_REFERRALS | LDAP_CHASE_EXTERNAL_REFERRALS;
+            break;
+        default:
+            return E_ADS_BAD_PARAMETER;
+        }
+
+        err = ldap_set_optionW(ldap->ld, LDAP_OPT_REFERRALS, &val);
+        if (err != LDAP_SUCCESS)
+            return HRESULT_FROM_WIN32(map_ldap_error(err));
+
+        return S_OK;
+    }
+
     case ADS_OPTION_ACCUMULATIVE_MODIFICATION:
         return S_OK;
 
     default:
+        FIXME("%p,%ld,%s: stub\n", iface, option, wine_dbgstr_variant(&var));
         break;
     }
 
-    return E_NOTIMPL;
+    return E_ADS_BAD_PARAMETER;
 }
 
 static const IADsObjectOptionsVtbl IADsObjectOptions_vtbl =

@@ -194,6 +194,37 @@ call ok(false imp false, "false does not imp false?")
 call ok(not (true imp false), "true imp false?")
 call ok(false imp null, "false imp null is false?")
 
+' Smoke check that VBScript's `And` operator reaches VarAnd correctly and
+' propagates the result payload. The full VarAnd+Null conformance table
+' lives in dlls/oleaut32/tests/vartest.c.
+Call ok((False And Null) = False,            "False And Null is not False")
+Call ok(isNull(True And Null),               "True And Null is not Null")
+Call ok(isNull(Null And Null),               "Null And Null is not Null")
+Call ok((CInt(0) And Null) = 0,              "CInt(0) And Null is not 0")
+Call ok(getVT(CInt(0) And Null) = "VT_I2",   "getVT(CInt(0) And Null) = " & getVT(CInt(0) And Null))
+Call ok(isNull(CInt(5) And Null),            "CInt(5) And Null is not Null")
+
+' Smoke checks that VBScript's sibling logical operators reach Var*
+' correctly and propagate the result payload. The full conformance tables
+' live in dlls/oleaut32/tests/vartest.c.
+Call ok((True Or Null) = True,               "True Or Null is not True")
+Call ok(isNull(False Or Null),               "False Or Null is not Null")
+Call ok(isNull(CInt(5) Xor Null),            "CInt(5) Xor Null is not Null")
+Call ok(isNull(CInt(5) Eqv Null),            "CInt(5) Eqv Null is not Null")
+Call ok(isNull(CDate(-1) Imp Null),          "CDate(-1) Imp Null is not Null")
+Call ok((Not CLng(0)) = -1,                  "Not CLng(0) is not -1")
+
+' VBScript-specific: for VT_UI1 Imp VT_NULL, native VBScript keeps UI1
+' width and returns the bitwise complement of the left operand, rather
+' than applying VarImp's three-valued "all-ones Imp unknown = unknown"
+' rule (which returns VT_NULL at the C level for UI1 0xFF). interp_imp
+' has a narrow special case to match this native behavior.
+Call ok((CByte(0) Imp Null) = 255,           "CByte(0) Imp Null is not 255")
+Call ok(getVT(CByte(0) Imp Null) = "VT_UI1", "getVT(CByte(0) Imp Null) = " & getVT(CByte(0) Imp Null))
+Call ok((CByte(170) Imp Null) = 85,          "CByte(170) Imp Null is not 85")
+Call ok((CByte(255) Imp Null) = 0,           "CByte(255) Imp Null is not 0")
+Call ok(getVT(CByte(255) Imp Null) = "VT_UI1",    "getVT(CByte(255) Imp Null) = " & getVT(CByte(255) Imp Null))
+
 Call ok(2 >= 1, "! 2 >= 1")
 Call ok(2 >= 2, "! 2 >= 2")
 Call ok(2 => 1, "! 2 => 1")
@@ -246,7 +277,7 @@ Call ok(11.6 Mod 5.5 = False, "11.6 Mod 5.5 = " & (11.6 Mod 5.5 = 0.6))
 Call ok(7 Mod 4+2 = 5, "7 Mod 4+2 <> 5")
 Call ok(getVT(2 mod null) = "VT_NULL", "getVT(2 mod null) = " & getVT(2 mod null))
 Call ok(getVT(null mod 2) = "VT_NULL", "getVT(null mod 2) = " & getVT(null mod 2))
-'FIXME: Call ok(empty mod 2 = 0, "empty mod 2 = " & (empty mod 2))
+Call ok(empty mod 2 = 0, "empty mod 2 = " & (empty mod 2))
 
 Call ok(5 \ 2 = 2, "5 \ 2 = " & (5\2))
 Call ok(4.6 \ 1.5 = 2, "4.6 \ 1.5 = " & (4.6\1.5))
@@ -866,6 +897,64 @@ call todo_wine_ok(z = 99, "for to UBound(Empty): z = " & z)
 Err.Clear
 On Error GoTo 0
 
+' For loop control variable should not be modified when expression evaluation fails
+on error resume next
+
+x = 6
+y = 0
+err.clear
+for x = 1/0 to 100
+    y = y + 1
+next
+call ok(err.number = 92, "for (from error): err.number = " & err.number)
+call ok(x = 6, "for (from error): x = " & x)
+
+x = 6
+y = 0
+err.clear
+for x = 100 to 1/0
+    y = y + 1
+next
+call ok(err.number = 92, "for (to error): err.number = " & err.number)
+call ok(x = 6, "for (to error): x = " & x)
+
+x = 6
+y = 0
+err.clear
+for x = 100 to 200 step 1/0
+    y = y + 1
+next
+call ok(err.number = 92, "for (step error): err.number = " & err.number)
+call ok(x = 6, "for (step error): x = " & x)
+
+z = 99
+y = 0
+err.clear
+for z = 1 to UBound(empty)
+    y = y + 1
+next
+call ok(err.number = 92, "for (UBound(empty)): err.number = " & err.number)
+call ok(z = 99, "for (UBound(empty)): z = " & z)
+
+on error goto 0
+
+' For loop expression evaluation order: from, to, step
+dim eval_order
+function trackEval(val, label)
+    eval_order = eval_order & label
+    trackEval = val
+end function
+
+eval_order = ""
+for x = trackEval(1, "F") to trackEval(5, "T") step trackEval(1, "S")
+next
+call ok(eval_order = "FTS", "for eval order = " & eval_order)
+
+eval_order = ""
+for x = trackEval(1, "F") to trackEval(5, "T")
+next
+call ok(eval_order = "FT", "for eval order (no step) = " & eval_order)
+
 if null then call ok(false, "if null evaluated")
 
 while null
@@ -1119,6 +1208,184 @@ End Sub
 
 TestSubParenExpr (2) * 8, 7
 TestSubParenExpr 8 * (2), 7
+
+Sub TestSubParenExpr(a, b)
+    Call ok(a=16, "a = " & a)
+    Call ok(b=7, "b = " & b)
+End Sub
+
+TestSubParenExpr (2) * 8, 7
+TestSubParenExpr 8 * (2), 7
+
+Sub TestSubParenExprAdd(a, b)
+    Call ok(a=6, "a = " & a)
+    Call ok(b=7, "b = " & b)
+End Sub
+
+TestSubParenExprAdd (2) + 4, 7
+TestSubParenExprAdd 4 + (2), 7
+
+Sub TestSubParenExprNoSpace(a)
+    Call ok(a=6, "a = " & a)
+End Sub
+
+TestSubParenExprNoSpace(10 \ 2) + 1
+
+' Regression test: function call with space before ( in expression context
+' e.g. x = (CInt (2) + 1) * 3 must parse and evaluate correctly
+x = CInt (2) + 1
+Call ok(x = 3, "CInt (2) + 1 = " & x)
+x = (CInt (2) + 1) * 3
+Call ok(x = 9, "(CInt (2) + 1) * 3 = " & x)
+
+' Regression test: function call with space before ( and * in expression context
+' e.g. x = CInt (2) * 3 must treat CInt (2) as a function call, not expression grouping
+x = CInt (2) * 3
+Call ok(x = 6, "CInt (2) * 3 = " & x)
+
+' Test member expression in statement context: obj.Method (x) * y, z
+Class TestObjParenExpr
+    Sub Check(a, b)
+        Call ok(a=16, "obj a = " & a)
+        Call ok(b=7, "obj b = " & b)
+    End Sub
+End Class
+
+Dim objParenExpr
+Set objParenExpr = New TestObjParenExpr
+objParenExpr.Check (2) * 8, 7
+
+Sub TestSubParenExprConcat(a, b)
+    Call ok(a="helloworld", "a = " & a)
+    Call ok(b=7, "b = " & b)
+End Sub
+
+TestSubParenExprConcat ("hello") & "world", 7
+
+' Test: function call as argument with & after paren must be a call, not grouping
+' e.g. TestSub Mid ("hello", 2) & "x" should call TestSub with "ellox"
+' Mid("hello", 2) returns "ello", & "x" concatenates to "ellox"
+Sub TestSubArgCallConcat(a)
+    Call ok(a="ellox", "a = " & a)
+End Sub
+
+TestSubArgCallConcat Mid ("hello", 2) & "x"
+
+' Test: obj(idx).method (expr) * val, y in statement context
+' The (expr) after .method must be expression grouping, not call paren
+Class TestIndexedObjParenExpr
+    Public arr_(1)
+    Public Sub Init()
+        Set arr_(0) = New TestObjParenExpr
+    End Sub
+    Public Default Property Get Item(idx)
+        Set Item = arr_(idx)
+    End Property
+End Class
+
+Dim idxObj
+Set idxObj = New TestIndexedObjParenExpr
+Call idxObj.Init()
+idxObj(0).Check (2) * 8, 7
+
+' No-space variants of Sub-first-arg paren pattern.
+' On native VBScript, `S(x) OP y` in statement context treats the whole
+' `S(x) OP y` as a call to S with argument `(x) OP y` — for every binary
+' operator except `=` (parsed as assignment).
+' Each case is wrapped in Execute so parse failures of one don't abort the rest.
+Dim npArg, npArgA, npArgB
+Sub NpS(a)
+    npArg = a
+End Sub
+Sub NpT(a, b)
+    npArgA = a
+    npArgB = b
+End Sub
+
+Sub CheckNpS(src, expected)
+    npArg = Empty
+    On Error Resume Next
+    Err.Clear
+    Execute src
+    Dim e : e = Err.Number
+    On Error GoTo 0
+    Call ok(e = 0, "parse error for " & src & ": err=" & e)
+    If e = 0 Then Call ok(npArg = expected, src & ": npArg = " & npArg & " expected " & expected)
+End Sub
+
+CheckNpS "NpS(10)+5",                15
+CheckNpS "NpS(10)-3",                7
+CheckNpS "NpS(10)*3",                30
+CheckNpS "NpS(10)/2",                5
+CheckNpS "NpS(10)\3",                3
+CheckNpS "NpS(10)^2",                100
+CheckNpS "NpS(""hi"")&""!""",        "hi!"
+CheckNpS "NpS(10) Mod 3",            1
+CheckNpS "NpS(10)<>10",              False
+CheckNpS "NpS(10)<5",                False
+CheckNpS "NpS(10)>5",                True
+CheckNpS "NpS(10)<=10",              True
+CheckNpS "NpS(10)>=5",               True
+CheckNpS "NpS(1) And 1",             1
+CheckNpS "NpS(0) Or 1",              1
+CheckNpS "NpS(1) Xor 1",             0
+CheckNpS "NpS(1) Eqv 1",             -1
+CheckNpS "NpS(1) Imp 1",             -1
+CheckNpS "NpS(Nothing) Is Nothing",  True
+
+' Two-arg form: S(x) OP y, z — result of `(x) OP y` is first arg, z is second.
+Sub CheckNpT(src, expectedA, expectedB)
+    npArgA = Empty
+    npArgB = Empty
+    On Error Resume Next
+    Err.Clear
+    Execute src
+    Dim e : e = Err.Number
+    On Error GoTo 0
+    Call ok(e = 0, "parse error for " & src & ": err=" & e)
+    If e = 0 Then Call ok(npArgA = expectedA and npArgB = expectedB, _
+        src & ": a=" & npArgA & " b=" & npArgB)
+End Sub
+
+CheckNpT "NpT(10)+5, 7",             15,      7
+CheckNpT "NpT(10)*3, 7",             30,      7
+CheckNpT "NpT(""hi"")&""!"", 7",     "hi!",   7
+
+' Member expression: obj.Method(x) OP y — no space, same pattern.
+Class NpCls
+    Sub Check(a)
+        npArg = a
+    End Sub
+End Class
+Dim npObj
+Set npObj = New NpCls
+CheckNpS "npObj.Check(10)+5",        15
+CheckNpS "npObj.Check(10)*3",        30
+
+Function ParenId(a)
+    ParenId = a
+End Function
+
+Dim parenRes
+parenRes = 0
+If False Then
+ElseIf ParenId(3) <= ParenId(4) + 0.1 Then
+    parenRes = 1
+End If
+Call ok(parenRes = 1, "ElseIf f(x) <= f(y) + z: parenRes = " & parenRes)
+
+parenRes = 0
+If False Then
+ElseIf ParenId(3) * 2 > 0 Then
+    parenRes = 1
+End If
+Call ok(parenRes = 1, "ElseIf f(x) * y > z: parenRes = " & parenRes)
+
+Dim parenOuter, parenInner
+ReDim parenOuter(3)
+parenInner = Array(1, 3, 5, 7)
+parenOuter(parenInner(1) And 1) = 99
+Call ok(parenOuter(1) = 99, "outer(inner(i) And k) = v: parenOuter(1) = " & parenOuter(1))
 
 Sub TestSubLocalVal
     x = false
@@ -2518,6 +2785,35 @@ call ok(x.m_objType = "VT_DISPATCH*", "Property Let no-default aInput type: " & 
 On Error Resume Next
 Set x.objProp = y
 call ok(Err.Number = 438, "Set Property Let only: Err.Number = " & Err.Number & " expected 438")
+On Error GoTo 0
+
+' Wrong number of arguments error (450)
+Sub ArityTestSub(a, b)
+End Sub
+
+Function ArityTestFunc(a)
+    ArityTestFunc = a
+End Function
+
+On Error Resume Next
+
+Err.Clear
+ArityTestSub 1
+Call ok(Err.Number = 450, "too few args sub: err = " & Err.Number)
+
+Err.Clear
+ArityTestSub 1, 2, 3
+Call ok(Err.Number = 450, "too many args sub: err = " & Err.Number)
+
+Err.Clear
+Dim arityResult
+arityResult = ArityTestFunc()
+Call ok(Err.Number = 450, "too few args func: err = " & Err.Number)
+
+Err.Clear
+arityResult = ArityTestFunc(1, 2)
+Call ok(Err.Number = 450, "too many args func: err = " & Err.Number)
+
 On Error GoTo 0
 
 set x = new TestPropSyntax

@@ -139,6 +139,7 @@ static LRESULT WINAPI TABLET_WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam,
     switch(uMsg)
     {
         case WM_NCCREATE:
+        case WM_QUERYENDSESSION:
             return TRUE;
 
         case WT_PACKET:

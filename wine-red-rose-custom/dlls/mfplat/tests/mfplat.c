@@ -542,6 +542,10 @@ static WCHAR *load_resource(const WCHAR *name)
 static BOOL is_MEDIASUBTYPE_RGB(const GUID *subtype)
 {
     return IsEqualGUID(subtype, &MEDIASUBTYPE_RGB8)
+            || IsEqualGUID(subtype, &MEDIASUBTYPE_RGB1)
+            || IsEqualGUID(subtype, &MEDIASUBTYPE_RGB4)
+            || IsEqualGUID(subtype, &MEDIASUBTYPE_ARGB1555)
+            || IsEqualGUID(subtype, &MEDIASUBTYPE_ARGB32)
             || IsEqualGUID(subtype, &MEDIASUBTYPE_RGB555)
             || IsEqualGUID(subtype, &MEDIASUBTYPE_RGB565)
             || IsEqualGUID(subtype, &MEDIASUBTYPE_RGB24)
@@ -1001,6 +1005,8 @@ static void test_source_resolver(void)
     float rate;
     UINT32 rotation;
 
+    static const WCHAR *slashes[] = {L"/", L"//", L"///", L"/////"};
+
     if (!pMFCreateSourceResolver)
     {
         win_skip("MFCreateSourceResolver() not found\n");
@@ -1064,6 +1070,17 @@ static void test_source_resolver(void)
 
     if (SUCCEEDED(hr))
         WaitForSingleObject(callback->event, INFINITE);
+
+    /* With leading forward slash. */
+    for (i = 0; i < ARRAY_SIZE(slashes); ++i)
+    {
+        lstrcpyW(pathW, slashes[i]);
+        lstrcatW(pathW, filename);
+        hr = IMFSourceResolver_CreateObjectFromURL(resolver, pathW, MF_RESOLUTION_BYTESTREAM, NULL, &obj_type,
+                (IUnknown **)&stream);
+        ok(hr == S_OK, "Failed to resolve url, hr %#lx.\n", hr);
+        IMFByteStream_Release(stream);
+    }
 
     /* With explicit scheme. */
     lstrcpyW(pathW, fileschemeW);
@@ -2662,7 +2679,6 @@ static void test_MFCreateMFByteStreamOnStream(void)
 
 static void test_file_stream(void)
 {
-    static const WCHAR newfilename[] = L"new.mp4";
     IMFByteStream *bytestream, *bytestream2;
     QWORD bytestream_length, position;
     IMFAttributes *attributes = NULL;
@@ -2760,8 +2776,11 @@ static void test_file_stream(void)
 
     IMFByteStream_Release(bytestream);
 
+    GetTempPathW(ARRAY_SIZE(pathW), pathW);
+    lstrcatW(pathW, L"new.mp4");
+
     hr = MFCreateFile(MF_ACCESSMODE_READ, MF_OPENMODE_FAIL_IF_NOT_EXIST,
-                      MF_FILEFLAGS_NONE, newfilename, &bytestream);
+                      MF_FILEFLAGS_NONE, pathW, &bytestream);
     ok(hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), "Unexpected hr %#lx.\n", hr);
 
     hr = MFCreateFile(MF_ACCESSMODE_WRITE, MF_OPENMODE_FAIL_IF_EXIST,
@@ -2769,31 +2788,32 @@ static void test_file_stream(void)
     ok(hr == HRESULT_FROM_WIN32(ERROR_FILE_EXISTS), "Unexpected hr %#lx.\n", hr);
 
     hr = MFCreateFile(MF_ACCESSMODE_WRITE, MF_OPENMODE_FAIL_IF_EXIST,
-                      MF_FILEFLAGS_NONE, newfilename, &bytestream);
+                      MF_FILEFLAGS_NONE, pathW, &bytestream);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    hr = MFCreateFile(MF_ACCESSMODE_READ, MF_OPENMODE_FAIL_IF_NOT_EXIST, MF_FILEFLAGS_NONE, newfilename, &bytestream2);
+    hr = MFCreateFile(MF_ACCESSMODE_READ, MF_OPENMODE_FAIL_IF_NOT_EXIST, MF_FILEFLAGS_NONE, pathW, &bytestream2);
     ok(hr == HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION), "Unexpected hr %#lx.\n", hr);
 
-    hr = MFCreateFile(MF_ACCESSMODE_WRITE, MF_OPENMODE_FAIL_IF_NOT_EXIST, MF_FILEFLAGS_NONE, newfilename, &bytestream2);
+    hr = MFCreateFile(MF_ACCESSMODE_WRITE, MF_OPENMODE_FAIL_IF_NOT_EXIST, MF_FILEFLAGS_NONE, pathW, &bytestream2);
     ok(hr == HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION), "Unexpected hr %#lx.\n", hr);
 
     hr = MFCreateFile(MF_ACCESSMODE_WRITE, MF_OPENMODE_FAIL_IF_NOT_EXIST, MF_FILEFLAGS_ALLOW_WRITE_SHARING,
-            newfilename, &bytestream2);
+            pathW, &bytestream2);
     ok(hr == HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION), "Unexpected hr %#lx.\n", hr);
 
     IMFByteStream_Release(bytestream);
 
     hr = MFCreateFile(MF_ACCESSMODE_WRITE, MF_OPENMODE_FAIL_IF_NOT_EXIST,
-                      MF_FILEFLAGS_ALLOW_WRITE_SHARING, newfilename, &bytestream);
+                      MF_FILEFLAGS_ALLOW_WRITE_SHARING, pathW, &bytestream);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     /* Opening the file again fails even though MF_FILEFLAGS_ALLOW_WRITE_SHARING is set. */
     hr = MFCreateFile(MF_ACCESSMODE_WRITE, MF_OPENMODE_FAIL_IF_NOT_EXIST, MF_FILEFLAGS_ALLOW_WRITE_SHARING,
-            newfilename, &bytestream2);
+            pathW, &bytestream2);
     ok(hr == HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION), "Unexpected hr %#lx.\n", hr);
 
     IMFByteStream_Release(bytestream);
+    DeleteFileW(pathW);
 
     /* Explicit file: scheme */
     lstrcpyW(pathW, fileschemeW);
@@ -2808,8 +2828,6 @@ static void test_file_stream(void)
 
     hr = MFShutdown();
     ok(hr == S_OK, "Failed to shut down, hr %#lx.\n", hr);
-
-    DeleteFileW(newfilename);
 }
 
 static void test_system_memory_buffer(void)
@@ -7989,6 +8007,46 @@ static void test_MFCreateMFVideoFormatFromMFMediaType(void)
     IMFMediaType_Release(media_type);
 }
 
+static const struct guid_type_pair
+{
+    const GUID *am_type;
+    const GUID *mf_type;
+} am_mf_guid_tests[] =
+{
+    /* these RGB formats are converted, MEDIASUBTYPE variant isn't
+     * defined using DEFINE_MEDIATYPE_GUID */
+    { &MEDIASUBTYPE_RGB1, &MFVideoFormat_RGB1 },
+    { &MEDIASUBTYPE_RGB4, &MFVideoFormat_RGB4 },
+    { &MEDIASUBTYPE_RGB8, &MFVideoFormat_RGB8 },
+    { &MEDIASUBTYPE_RGB555, &MFVideoFormat_RGB555 },
+    { &MEDIASUBTYPE_RGB565, &MFVideoFormat_RGB565 },
+    { &MEDIASUBTYPE_RGB24, &MFVideoFormat_RGB24 },
+    { &MEDIASUBTYPE_RGB32, &MFVideoFormat_RGB32 },
+    { &MEDIASUBTYPE_ARGB1555, &MFVideoFormat_ARGB1555 },
+    { &MEDIASUBTYPE_ARGB4444, &MFVideoFormat_ARGB4444 },
+    { &MEDIASUBTYPE_ARGB32, &MFVideoFormat_ARGB32 },
+    { &MEDIASUBTYPE_A2R10G10B10, &MFVideoFormat_A2B10G10R10 },
+    { &MEDIASUBTYPE_A2B10G10R10, &MFVideoFormat_A2R10G10B10 },
+
+    /* any other GUID is passed through */
+    { &MEDIASUBTYPE_I420, &MFVideoFormat_I420 },
+    { &MEDIASUBTYPE_AYUV, &MFVideoFormat_AYUV },
+    { &MEDIASUBTYPE_YV12, &MFVideoFormat_YV12 },
+    { &MEDIASUBTYPE_YUY2, &MFVideoFormat_YUY2 },
+    { &MEDIASUBTYPE_UYVY, &MFVideoFormat_UYVY },
+    { &MEDIASUBTYPE_YVYU, &MFVideoFormat_YVYU },
+    { &MEDIASUBTYPE_NV12, &MFVideoFormat_NV12 },
+
+    /* even formats that don't exist in MF */
+    { &DUMMY_GUID3, &DUMMY_GUID3 },
+    { &MEDIASUBTYPE_NV24, &MEDIASUBTYPE_NV24 },
+    { &MEDIASUBTYPE_P208, &MEDIASUBTYPE_P208 },
+
+    /* if the mapping is ambiguous, it is not corrected */
+    { &MEDIASUBTYPE_h264, &MEDIASUBTYPE_h264 },
+    { &MEDIASUBTYPE_H264, &MFVideoFormat_H264 },
+};
+
 static void test_MFInitAMMediaTypeFromMFMediaType(void)
 {
     static const MFVideoArea aperture = {.OffsetX = {.fract = 1, .value = 2}, .OffsetY = {.fract = 3, .value = 4}, .Area={56,78}};
@@ -8001,6 +8059,7 @@ static void test_MFInitAMMediaTypeFromMFMediaType(void)
     MPEG1VIDEOINFO *mpeg1_info;
     MPEG2VIDEOINFO *mpeg2_info;
     IMFMediaType *media_type, *other_type;
+    MFVIDEOFORMAT *video_format;
     AM_MEDIA_TYPE am_type;
     MFVideoArea *area;
     UINT32 value32;
@@ -8647,10 +8706,10 @@ static void test_MFInitAMMediaTypeFromMFMediaType(void)
     hr = MFInitAMMediaTypeFromMFMediaType(media_type, FORMAT_MFVideoFormat, &am_type);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     hr = MFInitMediaTypeFromAMMediaType(other_type, &am_type);
-    todo_wine ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     hr = IMFMediaType_GetAllocatedBlob(other_type, &MF_MT_MINIMUM_DISPLAY_APERTURE, (BYTE **)&area, &value32);
-    todo_wine ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    if (hr == S_OK) CoTaskMemFree(area);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    CoTaskMemFree(area);
     IMFMediaType_DeleteAllItems(other_type);
     CoTaskMemFree(am_type.pbFormat);
 
@@ -8839,6 +8898,52 @@ static void test_MFInitAMMediaTypeFromMFMediaType(void)
     CoTaskMemFree(am_type.pbFormat);
 
     IMFMediaType_DeleteAllItems(media_type);
+
+
+    for (UINT i = 0; i < ARRAY_SIZE(am_mf_guid_tests); ++i)
+    {
+        winetest_push_context("%s", debugstr_guid(am_mf_guid_tests[i].am_type));
+
+        hr = IMFMediaType_SetGUID(media_type, &MF_MT_MAJOR_TYPE, &MFMediaType_Video);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        hr = IMFMediaType_SetGUID(media_type, &MF_MT_SUBTYPE, am_mf_guid_tests[i].mf_type);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        hr = IMFMediaType_SetUINT64(media_type, &MF_MT_FRAME_SIZE, (UINT64)1920 << 32 | 1088);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        hr = MFInitAMMediaTypeFromMFMediaType(media_type, FORMAT_VideoInfo, &am_type);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok(IsEqualGUID(&am_type.majortype, &MFMediaType_Video), "Unexpected guid %s.\n", debugstr_guid(&am_type.majortype));
+        ok(IsEqualGUID(&am_type.subtype, am_mf_guid_tests[i].am_type), "Unexpected guid %s.\n", debugstr_guid(&am_type.subtype));
+        if (IsEqualGUID(&am_type.subtype, &MEDIASUBTYPE_RGB565))
+            todo_wine ok(am_type.cbFormat == sizeof(VIDEOINFOHEADER) + 3 * sizeof(DWORD), "got %lu\n", am_type.cbFormat);
+        else
+            ok(am_type.cbFormat == sizeof(VIDEOINFOHEADER), "got %lu\n", am_type.cbFormat);
+        video_info = (VIDEOINFOHEADER *)am_type.pbFormat;
+        if (!is_MEDIASUBTYPE_RGB(&am_type.subtype) && !IsEqualGUID(&am_type.subtype, &DUMMY_GUID3))
+            ok(video_info->bmiHeader.biCompression == am_mf_guid_tests[i].mf_type->Data1,
+                    "got compression %s\n", debugstr_fourcc(video_info->bmiHeader.biCompression));
+        else if (IsEqualGUID(&am_type.subtype, &MEDIASUBTYPE_RGB565))
+            ok(video_info->bmiHeader.biCompression == BI_BITFIELDS,
+                    "got compression %s\n", debugstr_fourcc(video_info->bmiHeader.biCompression));
+        else
+            todo_wine_if(IsEqualGUID(&am_type.subtype, &MEDIASUBTYPE_ARGB1555) || IsEqualGUID(&am_type.subtype, &DUMMY_GUID3))
+            ok(video_info->bmiHeader.biCompression == BI_RGB,
+                    "got compression %s\n", debugstr_fourcc(video_info->bmiHeader.biCompression));
+        CoTaskMemFree(am_type.pbFormat);
+
+        hr = MFInitAMMediaTypeFromMFMediaType(media_type, FORMAT_MFVideoFormat, &am_type);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        ok(IsEqualGUID(&am_type.majortype, &MFMediaType_Video), "Unexpected guid %s.\n", debugstr_guid(&am_type.majortype));
+        ok(IsEqualGUID(&am_type.subtype, am_mf_guid_tests[i].mf_type), "Unexpected guid %s.\n", debugstr_guid(&am_type.subtype));
+        ok(am_type.cbFormat == sizeof(MFVIDEOFORMAT), "got %lu\n", am_type.cbFormat);
+        video_format = (MFVIDEOFORMAT *)am_type.pbFormat;
+        ok(IsEqualGUID(&video_format->guidFormat, am_mf_guid_tests[i].mf_type), "Unexpected guid %s.\n", debugstr_guid(&video_format->guidFormat));
+        CoTaskMemFree(am_type.pbFormat);
+
+        IMFMediaType_DeleteAllItems(media_type);
+        winetest_pop_context();
+    }
 
 
     IMFMediaType_Release(media_type);
@@ -12433,7 +12538,6 @@ static void test_MFInitMediaTypeFromVideoInfoHeader2(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(IsEqualGUID(&guid, &GUID_NULL), "Unexpected guid %s.\n", debugstr_guid(&guid));
     hr = IMFMediaType_GetUINT64(media_type, &MF_MT_FRAME_SIZE, &value64);
-    todo_wine
     ok(hr == MF_E_ATTRIBUTENOTFOUND, "Unexpected hr %#lx.\n", hr);
 
     vih.bmiHeader.biWidth = 16;
@@ -12801,7 +12905,6 @@ static void test_MFInitMediaTypeFromMPEG1VideoInfo(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(IsEqualGUID(&guid, &GUID_NULL), "Unexpected guid %s.\n", debugstr_guid(&guid));
     hr = IMFMediaType_GetUINT64(media_type, &MF_MT_FRAME_SIZE, &value64);
-    todo_wine
     ok(hr == MF_E_ATTRIBUTENOTFOUND, "Unexpected hr %#lx.\n", hr);
 
     vih.hdr.bmiHeader.biWidth = 16;
@@ -12913,14 +13016,12 @@ static void test_MFInitMediaTypeFromMPEG2VideoInfo(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(IsEqualGUID(&guid, &GUID_NULL), "Unexpected guid %s.\n", debugstr_guid(&guid));
     hr = IMFMediaType_GetUINT64(media_type, &MF_MT_FRAME_SIZE, &value64);
-    todo_wine
     ok(hr == MF_E_ATTRIBUTENOTFOUND, "Unexpected hr %#lx.\n", hr);
 
     vih.hdr.bmiHeader.biWidth = 16;
     hr = MFInitMediaTypeFromMPEG2VideoInfo(media_type, &vih, sizeof(vih), &GUID_NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     hr = IMFMediaType_GetUINT64(media_type, &MF_MT_FRAME_SIZE, &value64);
-    todo_wine
     ok(hr == MF_E_ATTRIBUTENOTFOUND, "Unexpected hr %#lx.\n", hr);
     hr = IMFMediaType_GetUINT64(media_type, &MF_MT_PIXEL_ASPECT_RATIO, &value64);
     todo_wine
@@ -13041,45 +13142,6 @@ static void test_MFInitMediaTypeFromAMMediaType(void)
     {
         {0}, {0}, 0, 0, 0,
         {sizeof(BITMAPINFOHEADER), 32, 24, 1, 0, 0xdeadbeef}
-    };
-    static const struct guid_type_pair
-    {
-        const GUID *am_type;
-        const GUID *mf_type;
-    } guid_types[] =
-    {
-        /* these RGB formats are converted, MEDIASUBTYPE variant isn't
-         * defined using DEFINE_MEDIATYPE_GUID */
-        { &MEDIASUBTYPE_RGB1, &MFVideoFormat_RGB1 },
-        { &MEDIASUBTYPE_RGB4, &MFVideoFormat_RGB4 },
-        { &MEDIASUBTYPE_RGB8, &MFVideoFormat_RGB8 },
-        { &MEDIASUBTYPE_RGB555, &MFVideoFormat_RGB555 },
-        { &MEDIASUBTYPE_RGB565, &MFVideoFormat_RGB565 },
-        { &MEDIASUBTYPE_RGB24, &MFVideoFormat_RGB24 },
-        { &MEDIASUBTYPE_RGB32, &MFVideoFormat_RGB32 },
-        { &MEDIASUBTYPE_ARGB1555, &MFVideoFormat_ARGB1555 },
-        { &MEDIASUBTYPE_ARGB4444, &MFVideoFormat_ARGB4444 },
-        { &MEDIASUBTYPE_ARGB32, &MFVideoFormat_ARGB32 },
-        { &MEDIASUBTYPE_A2R10G10B10, &MFVideoFormat_A2B10G10R10 },
-        { &MEDIASUBTYPE_A2B10G10R10, &MFVideoFormat_A2R10G10B10 },
-
-        /* any other GUID is passed through */
-        { &MEDIASUBTYPE_I420, &MFVideoFormat_I420 },
-        { &MEDIASUBTYPE_AYUV, &MFVideoFormat_AYUV },
-        { &MEDIASUBTYPE_YV12, &MFVideoFormat_YV12 },
-        { &MEDIASUBTYPE_YUY2, &MFVideoFormat_YUY2 },
-        { &MEDIASUBTYPE_UYVY, &MFVideoFormat_UYVY },
-        { &MEDIASUBTYPE_YVYU, &MFVideoFormat_YVYU },
-        { &MEDIASUBTYPE_NV12, &MFVideoFormat_NV12 },
-
-        /* even formats that don't exist in MF */
-        { &DUMMY_GUID3, &DUMMY_GUID3 },
-        { &MEDIASUBTYPE_NV24, &MEDIASUBTYPE_NV24 },
-        { &MEDIASUBTYPE_P208, &MEDIASUBTYPE_P208 },
-
-        /* if the mapping is ambiguous, it is not corrected */
-        { &MEDIASUBTYPE_h264, &MEDIASUBTYPE_h264 },
-        { &MEDIASUBTYPE_H264, &MFVideoFormat_H264 },
     };
     static const GUID *audio_types[] =
     {
@@ -13267,10 +13329,10 @@ static void test_MFInitMediaTypeFromAMMediaType(void)
     ok(!memcmp(&aperture, &expect_aperture, sizeof(aperture)), "unexpected aperture\n");
 
     vih.bmiHeader.biHeight = 24;
-    for (i = 0; i < ARRAY_SIZE(guid_types); ++i)
+    for (i = 0; i < ARRAY_SIZE(am_mf_guid_tests); ++i)
     {
-        winetest_push_context("%s", debugstr_guid(guid_types[i].am_type));
-        memcpy(&mt.subtype, guid_types[i].am_type, sizeof(GUID));
+        winetest_push_context("%s", debugstr_guid(am_mf_guid_tests[i].am_type));
+        memcpy(&mt.subtype, am_mf_guid_tests[i].am_type, sizeof(GUID));
 
         hr = MFInitMediaTypeFromAMMediaType(media_type, &mt);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -13280,7 +13342,7 @@ static void test_MFInitMediaTypeFromAMMediaType(void)
         ok(IsEqualGUID(&guid, &MFMediaType_Video), "Unexpected guid %s.\n", debugstr_guid(&guid));
         hr = IMFMediaType_GetGUID(media_type, &MF_MT_SUBTYPE, &guid);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-        ok(IsEqualGUID(&guid, guid_types[i].mf_type), "Unexpected guid %s.\n", debugstr_guid(&guid));
+        ok(IsEqualGUID(&guid, am_mf_guid_tests[i].mf_type), "Unexpected guid %s.\n", debugstr_guid(&guid));
         winetest_pop_context();
     }
 

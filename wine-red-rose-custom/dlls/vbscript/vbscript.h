@@ -427,6 +427,7 @@ BSTR string_replace(BSTR,BSTR,BSTR,int,int,int);
 void map_vbs_exception(EXCEPINFO *);
 
 HRESULT create_safearray_iter(SAFEARRAY *sa, BOOL owned, IEnumVARIANT **ev);
+HRESULT safearray_iter_next(IEnumVARIANT *iface, VARIANT *dst, BOOL *fetched);
 
 #define FACILITY_VBS 0xa
 #define MAKE_VBSERROR(code) MAKE_HRESULT(SEVERITY_ERROR, FACILITY_VBS, code)

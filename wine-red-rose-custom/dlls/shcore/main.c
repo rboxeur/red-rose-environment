@@ -30,6 +30,7 @@
 #include "featurestagingapi.h"
 #include "shellscalingapi.h"
 #include "shcore.h"
+#include "appmodel.h"
 #define WINSHLWAPI
 #include "shlwapi.h"
 
@@ -249,17 +250,66 @@ HRESULT WINAPI IUnknown_SetSite(IUnknown *obj, IUnknown *site)
     return hr;
 }
 
+static WCHAR *explicit_app_user_model_id;
+static CRITICAL_SECTION appid_cs;
+static CRITICAL_SECTION_DEBUG appid_cs_debug =
+{
+    0, 0, &appid_cs,
+    { &appid_cs_debug.ProcessLocksList, &appid_cs_debug.ProcessLocksList },
+    0, 0, { (DWORD_PTR)(__FILE__ ": appid_cs") }
+};
+static CRITICAL_SECTION appid_cs = { &appid_cs_debug, -1, 0, 0, 0, 0 };
+
 HRESULT WINAPI SetCurrentProcessExplicitAppUserModelID(const WCHAR *appid)
 {
-    FIXME("%s: stub\n", debugstr_w(appid));
+    WCHAR *new_id = NULL;
+    DWORD len;
+
+    TRACE("%s\n", debugstr_w(appid));
+
+    if (!appid)
+        return E_INVALIDARG;
+
+    len = lstrlenW(appid);
+    if (len > APPLICATION_USER_MODEL_ID_MAX_LENGTH - 3)
+        return E_INVALIDARG;
+
+    new_id = CoTaskMemAlloc((len + 1) * sizeof(WCHAR));
+    if (!new_id) return E_OUTOFMEMORY;
+    memcpy(new_id, appid, (len + 1) * sizeof(WCHAR));
+
+    EnterCriticalSection(&appid_cs);
+    CoTaskMemFree(explicit_app_user_model_id);
+    explicit_app_user_model_id = new_id;
+    LeaveCriticalSection(&appid_cs);
+
     return S_OK;
 }
 
 HRESULT WINAPI GetCurrentProcessExplicitAppUserModelID(const WCHAR **appid)
 {
-    FIXME("%p: stub\n", appid);
+    TRACE("%p\n", appid);
+
+    if (!appid) return E_INVALIDARG;
+
     *appid = NULL;
-    return E_NOTIMPL;
+
+    EnterCriticalSection(&appid_cs);
+    if (explicit_app_user_model_id)
+    {
+        DWORD len = (lstrlenW(explicit_app_user_model_id) + 1) * sizeof(WCHAR);
+        WCHAR *copy = CoTaskMemAlloc(len);
+        if (copy)
+        {
+            memcpy(copy, explicit_app_user_model_id, len);
+            *appid = copy;
+        }
+    }
+    LeaveCriticalSection(&appid_cs);
+
+    if (*appid)
+        return S_OK;
+    return E_FAIL;
 }
 
 /*************************************************************************
@@ -942,19 +992,15 @@ static HRESULT WINAPI filestream_Write(IStream *iface, const void *buff, ULONG s
 static HRESULT WINAPI filestream_Seek(IStream *iface, LARGE_INTEGER move, DWORD origin, ULARGE_INTEGER *new_pos)
 {
     struct shstream *stream = impl_from_IStream(iface);
-    DWORD position;
+    LARGE_INTEGER position;
 
     TRACE("%p, %s, %ld, %p.\n", iface, wine_dbgstr_longlong(move.QuadPart), origin, new_pos);
 
-    position = SetFilePointer(stream->u.file.handle, move.u.LowPart, NULL, origin);
-    if (position == INVALID_SET_FILE_POINTER)
+    if (!SetFilePointerEx(stream->u.file.handle, move, &position, origin))
         return HRESULT_FROM_WIN32(GetLastError());
 
     if (new_pos)
-    {
-        new_pos->u.HighPart = 0;
-        new_pos->u.LowPart = position;
-    }
+        new_pos->QuadPart = position.QuadPart;
 
     return S_OK;
 }

@@ -213,10 +213,12 @@ mismatch:
  *
  * Find out whether the terminal server is in INSTALL or EXECUTE mode.
  */
+static BOOL app_install_mode = FALSE;
+
 BOOL WINAPI TermsrvAppInstallMode(void)
 {
-    FIXME("stub\n");
-    return FALSE;
+    TRACE("returning %d\n", app_install_mode);
+    return app_install_mode;
 }
 
 /***********************************************************************
@@ -231,6 +233,7 @@ BOOL WINAPI TermsrvAppInstallMode(void)
  */
 DWORD WINAPI SetTermsrvAppInstallMode(BOOL bInstallMode)
 {
-    FIXME("(%d): stub\n", bInstallMode);
+    TRACE("(%d)\n", bInstallMode);
+    app_install_mode = bInstallMode;
     return 0;
 }

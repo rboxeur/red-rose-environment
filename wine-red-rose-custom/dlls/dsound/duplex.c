@@ -296,7 +296,9 @@ HRESULT DSOUND_FullDuplexCreate(REFIID riid, void **ppv)
     obj->numIfaces = 1;
 
     hr = IUnknown_QueryInterface(&obj->IUnknown_iface, riid, ppv);
-    IUnknown_Release(&obj->IUnknown_iface);
+
+    if (FAILED(hr))
+        IUnknown_Release(&obj->IUnknown_iface);
 
     return hr;
 }

@@ -4485,6 +4485,7 @@ static void test_font_height_scaling(void)
             margin_y = pixels_to_units(margin_y, gfx_unit, dpi);
 
             status = GdipGetFontHeight(font, graphics, &font_height);
+            expectf_(pixels_to_units(9052.733398, gfx_unit, dpi), font_height, 0.05);
             expect(Ok, status);
 
             set_rect_empty(&rect);

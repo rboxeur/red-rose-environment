@@ -1907,6 +1907,24 @@ GpStatus WINGDIPAPI GdipWarpPath(GpPath *path, GpMatrix* matrix,
     FIXME("(%p,%s,%p,%i,%0.2f,%0.2f,%0.2f,%0.2f,%i,%0.2f)\n", path, debugstr_matrix(matrix),
         points, count, x, y, width, height, warpmode, flatness);
 
+    if (!path || !points || count <= 0)
+        return InvalidParameter;
+
+    if (count < 3)
+        count = 3;
+
+    if (count != 3 && count != 4)
+        return InvalidParameter;
+
+    if (warpmode != WarpModePerspective && warpmode != WarpModeBilinear)
+        return InvalidParameter;
+
+    if (warpmode == WarpModeBilinear && count != 4)
+        return InvalidParameter;
+
+    if (width == 0.0f || height == 0.0f)
+        return InvalidParameter;
+
     return NotImplemented;
 }
 

@@ -2050,6 +2050,59 @@ static void test_connection_shutdown(void)
     FreeCredentialsHandle( &cred_handle );
 }
 
+static void test_ncrypt_key_credentials(void)
+{
+    SCHANNEL_CRED schanCred;
+    CredHandle cred;
+    SECURITY_STATUS st;
+    CRYPT_DATA_BLOB pfx;
+    HCERTSTORE store;
+    const CERT_CONTEXT *cert;
+    CERT_KEY_CONTEXT key_ctx;
+    DWORD size;
+    BOOL ret;
+
+    pfx.pbData = (BYTE *)pfxdata;
+    pfx.cbData = sizeof(pfxdata);
+    store = PFXImportCertStore(&pfx, NULL, CRYPT_EXPORTABLE | PKCS12_NO_PERSIST_KEY | PKCS12_ALWAYS_CNG_KSP);
+    ok(store != NULL, "PFXImportCertStore failed: %lu\n", GetLastError());
+    if (!store) return;
+
+    cert = CertFindCertificateInStore(store, X509_ASN_ENCODING, 0, CERT_FIND_ANY, NULL, NULL);
+    ok(cert != NULL, "CertFindCertificateInStore failed: %lu\n", GetLastError());
+    if (!cert)
+    {
+        CertCloseStore(store, 0);
+        return;
+    }
+
+    /* Verify the key is NCrypt. */
+    size = sizeof(key_ctx);
+    key_ctx.hCryptProv = key_ctx.dwKeySpec = 0;
+    ret = CertGetCertificateContextProperty(cert, CERT_KEY_CONTEXT_PROP_ID, &key_ctx, &size);
+    ok(ret, "CertGetCertificateContextProperty failed: %lu\n", GetLastError());
+    todo_wine
+    ok(key_ctx.dwKeySpec == CERT_NCRYPT_KEY_SPEC,
+       "expected CERT_NCRYPT_KEY_SPEC, got %lu\n", key_ctx.dwKeySpec);
+
+    /* AcquireCredentialsHandle should succeed with an NCrypt key. */
+    init_cred(&schanCred);
+    schanCred.cCreds = 1;
+    schanCred.paCred = &cert;
+    st = AcquireCredentialsHandleA(NULL, (SEC_CHAR *)UNISP_NAME_A, SECPKG_CRED_OUTBOUND,
+        NULL, &schanCred, NULL, NULL, &cred, NULL);
+    ok(st == SEC_E_OK, "AcquireCredentialsHandleA outbound with NCrypt key failed: %08lx\n", st);
+    if (st == SEC_E_OK) FreeCredentialsHandle(&cred);
+
+    st = AcquireCredentialsHandleA(NULL, (SEC_CHAR *)UNISP_NAME_A, SECPKG_CRED_INBOUND,
+        NULL, &schanCred, NULL, NULL, &cred, NULL);
+    ok(st == SEC_E_OK, "AcquireCredentialsHandleA inbound with NCrypt key failed: %08lx\n", st);
+    if (st == SEC_E_OK) FreeCredentialsHandle(&cred);
+
+    CertFreeCertificateContext(cert);
+    CertCloseStore(store, 0);
+}
+
 START_TEST(schannel)
 {
     WSADATA wsa_data;
@@ -2058,6 +2111,7 @@ START_TEST(schannel)
 
     test_cread_attrs();
     testAcquireSecurityContext();
+    test_ncrypt_key_credentials();
     test_InitializeSecurityContext();
     test_communication();
     test_application_protocol_negotiation();

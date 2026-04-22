@@ -4212,6 +4212,141 @@ static void test_GetTextMetrics(void)
     ReleaseDC(0, hdc);
 }
 
+struct cff_external_leading_ctx
+{
+    int found;
+    int tested;
+    int failed;
+};
+
+static INT CALLBACK test_cff_external_leading_proc(const LOGFONTA *lf, const TEXTMETRICA *ntm,
+                                                   DWORD type, LPARAM lparam)
+{
+    struct cff_external_leading_ctx *ctx = (struct cff_external_leading_ctx *)lparam;
+    struct
+    {
+        USHORT majorVersion;
+        USHORT minorVersion;
+        SHORT  ascender;
+        SHORT  descender;
+        SHORT  lineGap;
+    } hhea;
+    USHORT win_ascent, win_descent;
+    USHORT units_per_em;
+    LOGFONTA test_lf;
+    HFONT hfont, old_hfont;
+    TEXTMETRICW tm;
+    HDC hdc;
+    DWORD ret;
+    LONG hhea_sum, win_sum, raw, msdn_px;
+    int  ppem;
+
+    /* Windows reports OpenType-CFF fonts with DEVICE_FONTTYPE, not
+     * TRUETYPE_FONTTYPE, so we cannot filter on type alone. Just skip raster
+     * fonts and let GetFontData('CFF ') select what we need below. */
+    if (type & RASTER_FONTTYPE)
+        return 1;
+
+    /* Build the font so we can probe its tables. */
+    hdc = CreateCompatibleDC(NULL);
+    ppem = MulDiv(24, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+
+    test_lf = *lf;
+    test_lf.lfHeight  = -ppem;
+    test_lf.lfWidth   = 0;
+    test_lf.lfWeight  = FW_NORMAL;
+    test_lf.lfCharSet = DEFAULT_CHARSET;
+    hfont = CreateFontIndirectA(&test_lf);
+    if (!hfont)
+    {
+        DeleteDC(hdc);
+        return 1;
+    }
+    old_hfont = SelectObject(hdc, hfont);
+
+    /* Skip non-CFF fonts: this test only covers OpenType-CFF (.otf). */
+    ret = GetFontData(hdc, MS_MAKE_TAG('C','F','F',' '), 0, NULL, 0);
+    if (ret == GDI_ERROR || ret == 0)
+        goto next;
+    ctx->found++;
+
+    /* Read the metrics tables we need to evaluate the MSDN-formula prediction. */
+    if (GetFontData(hdc, MS_MAKE_TAG('h','h','e','a'), 0, &hhea, sizeof(hhea)) != sizeof(hhea))
+        goto next;
+    if (GetFontData(hdc, MS_MAKE_TAG('h','e','a','d'), 18, &units_per_em, sizeof(units_per_em))
+        != sizeof(units_per_em))
+        goto next;
+    if (GetFontData(hdc, MS_MAKE_TAG('O','S','/','2'), 74, &win_ascent, sizeof(win_ascent))
+        != sizeof(win_ascent))
+        goto next;
+    if (GetFontData(hdc, MS_MAKE_TAG('O','S','/','2'), 76, &win_descent, sizeof(win_descent))
+        != sizeof(win_descent))
+        goto next;
+
+    units_per_em = GET_BE_WORD(units_per_em);
+    if (units_per_em == 0) goto next;
+
+    /* MSDN formula: el = max(0, lineGap - ((winA + winD) - (Asc - Desc))).
+     * The hhea fields and OS/2 winAscent/Descent are big-endian on disk; the
+     * subexpression matches what Wine's freetype_set_outline_text_metrics()
+     * computes when usWinAscent + usWinDescent != 0. */
+    hhea_sum = (SHORT)GET_BE_WORD(hhea.ascender) - (SHORT)GET_BE_WORD(hhea.descender);
+    win_sum  = GET_BE_WORD(win_ascent) + GET_BE_WORD(win_descent);
+    raw      = (SHORT)GET_BE_WORD(hhea.lineGap) - (win_sum - hhea_sum);
+    if (raw <= 0)
+    {
+        /* MSDN formula already gives 0 for this font; the bug isn't observable. */
+        goto next;
+    }
+    msdn_px = (raw * ppem + units_per_em / 2) / units_per_em;
+    if (msdn_px <= 0) goto next;
+
+    if (!GetTextMetricsW(hdc, &tm))
+        goto next;
+
+    ctx->tested++;
+    /* Windows GDI returns tmExternalLeading = 0 for any font containing a
+     * 'CFF ' table, regardless of the MSDN formula. Wine prior to the fix in
+     * freetype_set_outline_text_metrics() returned msdn_px instead. */
+    if (tm.tmExternalLeading != 0)
+        ctx->failed++;
+    ok(tm.tmExternalLeading == 0,
+       "%s: CFF font tmExternalLeading = %ld, expected 0 "
+       "(MSDN-formula prediction was %ld at ppem %d, "
+       "lineGap=%d, winSum=%ld, hheaSum=%ld, upem=%u)\n",
+       lf->lfFaceName, tm.tmExternalLeading, msdn_px, ppem,
+       (SHORT)GET_BE_WORD(hhea.lineGap), win_sum, hhea_sum, units_per_em);
+
+next:
+    SelectObject(hdc, old_hfont);
+    DeleteObject(hfont);
+    DeleteDC(hdc);
+    return 1;
+}
+
+static void test_CFF_external_leading(void)
+{
+    struct cff_external_leading_ctx ctx = {0};
+    LOGFONTA lf;
+    HDC hdc;
+
+    hdc = GetDC(0);
+    memset(&lf, 0, sizeof(lf));
+    lf.lfCharSet = DEFAULT_CHARSET;
+    EnumFontFamiliesExA(hdc, &lf, test_cff_external_leading_proc, (LPARAM)&ctx, 0);
+    ReleaseDC(0, hdc);
+
+    if (!ctx.found)
+        skip("no installed font has a 'CFF ' table\n");
+    else if (!ctx.tested)
+        skip("found %d CFF fonts but none had a non-zero MSDN-formula prediction; "
+             "install a CJK CFF font (e.g. Source Han Sans, Adobe Source Sans, "
+             "FOT-NewRodin) to exercise the regression\n", ctx.found);
+    else
+        trace("test_CFF_external_leading: tested %d CFF fonts (%d failures)\n",
+              ctx.tested, ctx.failed);
+}
+
 static void test_nonexistent_font(void)
 {
     static const struct
@@ -8107,6 +8242,7 @@ START_TEST(font)
         skip("Arial Black or Symbol/Wingdings is not installed\n");
     test_EnumFontFamiliesEx_default_charset();
     test_GetTextMetrics();
+    test_CFF_external_leading();
     test_RealizationInfo();
     test_GetTextFace();
     test_GetGlyphOutline();

@@ -349,6 +349,11 @@ static void test_logfont(void)
     expect(Ok, stat);
     expect(UnitWorld, unit);
 
+    // Font Height without GpGraphics
+    stat = GdipGetFontHeight(font, NULL, &rval);
+    expect(Ok, stat);
+    expectf(25.347656, rval);
+
     stat = GdipGetFontHeight(font, graphics, &rval);
     expect(Ok, stat);
     expectf(25.347656, rval);

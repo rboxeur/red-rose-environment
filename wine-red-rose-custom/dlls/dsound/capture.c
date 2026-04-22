@@ -1318,7 +1318,9 @@ HRESULT IDirectSoundCaptureImpl_Create(IUnknown *outer_unk, REFIID riid, void **
         obj->outer_unk = &obj->IUnknown_inner;
 
     hr = IUnknown_QueryInterface(&obj->IUnknown_inner, riid, ppv);
-    IUnknown_Release(&obj->IUnknown_inner);
+
+    if (FAILED(hr))
+        IUnknown_Release(&obj->IUnknown_inner);
 
     return hr;
 }

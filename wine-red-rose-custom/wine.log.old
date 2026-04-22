@@ -1,0 +1,28 @@
+>>>>>>======== [10673] ==========<<<<<<<<<<<<<<<<
+patching file dlls/oleaut32/tests/vartest.c
+patching file dlls/oleaut32/variant.c
+Hunk #1 succeeded at 3076 (offset 28 lines).
+Hunk #2 succeeded at 6055 (offset 98 lines).
+patching file dlls/vbscript/interp.c
+Hunk #1 succeeded at 2139 (offset 36 lines).
+patching file dlls/vbscript/tests/lang.vbs
+Hunk #1 succeeded at 194 (offset -2 lines).
+>>>>>>======== [10675] ==========<<<<<<<<<<<<<<<<
+patching file dlls/scrrun/filesystem.c
+Hunk #1 succeeded at 2554 (offset 11 lines).
+Hunk #2 succeeded at 3026 (offset 11 lines).
+patching file dlls/scrrun/tests/filesystem.c
+Hunk #2 succeeded at 3326 (offset 72 lines).
+Hunk #3 succeeded at 3334 (offset 72 lines).
+>>>>>>======== [10676] ==========<<<<<<<<<<<<<<<<
+patching file dlls/gdi32/uniscribe/shape.c
+Hunk #1 succeeded at 496 (offset 1 line).
+>>>>>>======== [10682] ==========<<<<<<<<<<<<<<<<
+patching file dlls/mfplat/tests/mfplat.c
+Hunk #1 succeeded at 542 (offset -89 lines).
+Hunk #2 succeeded at 7993 (offset -689 lines).
+Hunk #3 succeeded at 8045 (offset -689 lines).
+Hunk #4 succeeded at 8886 (offset -689 lines).
+Hunk #5 succeeded at 13129 (offset -246 lines).
+Hunk #6 succeeded at 13315 (offset -246 lines).
+Hunk #7 succeeded at 13328 (offset -246 lines).

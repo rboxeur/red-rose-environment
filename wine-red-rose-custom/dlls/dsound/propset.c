@@ -623,7 +623,9 @@ HRESULT IKsPrivatePropertySetImpl_Create(REFIID riid, void **ppv)
     iks->IKsPropertySet_iface.lpVtbl = &ikspvt;
 
     hr = IKsPropertySet_QueryInterface(&iks->IKsPropertySet_iface, riid, ppv);
-    IKsPropertySet_Release(&iks->IKsPropertySet_iface);
+
+    if (FAILED(hr))
+        IKsPropertySet_Release(&iks->IKsPropertySet_iface);
 
     return hr;
 }

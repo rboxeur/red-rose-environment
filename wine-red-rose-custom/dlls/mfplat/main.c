@@ -6602,6 +6602,12 @@ static HRESULT WINAPI source_resolver_CreateObjectFromURL(IMFSourceResolver *ifa
     data = (RTWQASYNCRESULT *)result;
     data->hEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
 
+    /* Native allows leading slashes in file paths. BeginCreateObject() does not accept them.
+     * TODO: the correct way to handle this may be to prepend "file://" to the url.
+     * Ultimately it should probably be converted in the handler using MFCreatePathFromURL(). */
+    while (*url == L'/')
+        ++url;
+
     hr = IMFSchemeHandler_BeginCreateObject(handler, url, flags, props, NULL, (IMFAsyncCallback *)&resolver->url_callback,
             (IUnknown *)result);
     if (FAILED(hr))

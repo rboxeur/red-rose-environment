@@ -177,6 +177,10 @@ MAKE_FUNCPTR(FcDefaultSubstitute);
 MAKE_FUNCPTR(FcFontList);
 MAKE_FUNCPTR(FcFontMatch);
 MAKE_FUNCPTR(FcFontSetDestroy);
+MAKE_FUNCPTR(FcCharSetAddChar);
+MAKE_FUNCPTR(FcCharSetCreate);
+MAKE_FUNCPTR(FcCharSetDestroy);
+MAKE_FUNCPTR(FcPatternAddCharSet);
 MAKE_FUNCPTR(FcInit);
 MAKE_FUNCPTR(FcPatternAddString);
 MAKE_FUNCPTR(FcPatternCreate);
@@ -1595,6 +1599,10 @@ static void init_fontconfig(void)
     LOAD_FUNCPTR(FcFontList);
     LOAD_FUNCPTR(FcFontMatch);
     LOAD_FUNCPTR(FcFontSetDestroy);
+    LOAD_FUNCPTR(FcCharSetAddChar);
+    LOAD_FUNCPTR(FcCharSetCreate);
+    LOAD_FUNCPTR(FcCharSetDestroy);
+    LOAD_FUNCPTR(FcPatternAddCharSet);
     LOAD_FUNCPTR(FcInit);
     LOAD_FUNCPTR(FcPatternAddString);
     LOAD_FUNCPTR(FcPatternCreate);
@@ -2378,6 +2386,42 @@ static BOOL fontconfig_enum_family_fallbacks( UINT pitch_and_family, int index,
     return TRUE;
 #endif
     return FALSE;
+}
+
+/*************************************************************
+ * fontconfig_get_default_font_for_char
+ */
+static void fontconfig_get_default_font_for_char( DWORD ch, WCHAR *font_name )
+{
+#ifdef SONAME_LIBFONTCONFIG
+    FcPattern *pattern, *match;
+    FcResult result;
+    const char *name = NULL;
+    FcCharSet *charset;
+    DWORD len;
+
+    *font_name = 0;
+
+    pattern = pFcPatternCreate();
+    charset = pFcCharSetCreate();
+    pFcCharSetAddChar( charset, ch );
+    pFcPatternAddCharSet( pattern, FC_CHARSET, charset );
+    pFcCharSetDestroy( charset );
+
+    pFcConfigSubstitute( NULL, pattern, FcMatchPattern );
+    pFcDefaultSubstitute( pattern );
+    match = pFcFontMatch( NULL, pattern, &result );
+    if (match)
+    {
+        if (pFcPatternGetString( match, FC_FAMILY, 0, (FcChar8 **)&name ) == FcResultMatch && name)
+        {
+            RtlUTF8ToUnicodeN( font_name, (LF_FACESIZE - 1) * sizeof(WCHAR), &len, name, strlen(name) );
+            font_name[len / sizeof(WCHAR)] = 0;
+        }
+        pFcPatternDestroy( match );
+    }
+    pFcPatternDestroy( pattern );
+#endif
 }
 
 static DWORD get_ttc_offset( FT_Face ft_face, UINT face_index )
@@ -3768,12 +3812,16 @@ static BOOL freetype_set_outline_text_metrics( struct gdi_font *font )
 
     TM.tmHeight = TM.tmAscent + TM.tmDescent;
 
-    /* MSDN says:
-     el = MAX(0, LineGap - ((WinAscent + WinDescent) - (Ascender - Descender)))
-    */
-    TM.tmExternalLeading = max(0, SCALE_Y(pHori->Line_Gap -
-                                          ((ascent + descent) -
-                                           (pHori->Ascender - pHori->Descender))));
+    /* MSDN documents the formula:
+     *     el = MAX(0, LineGap - ((WinAscent + WinDescent) - (Ascender - Descender)))
+     * but Windows GDI does not follow this for OpenType-CFF fonts: for any font 
+     * containing a 'CFF ' table it reports tmExternalLeading = 0.
+     */
+    if (font->ntmFlags & NTM_PS_OPENTYPE)
+        TM.tmExternalLeading = 0;
+    else
+        TM.tmExternalLeading = max(0, 
+            SCALE_Y(pHori->Line_Gap - ((ascent + descent) - (pHori->Ascender - pHori->Descender))));
 
     TM.tmAveCharWidth = SCALE_X(pOS2->xAvgCharWidth);
     if (TM.tmAveCharWidth == 0) {
@@ -4258,6 +4306,7 @@ static UINT freetype_get_kerning_pairs( struct gdi_font *font, KERNINGPAIR **pai
 static const struct font_backend_funcs font_funcs =
 {
     freetype_load_fonts,
+    fontconfig_get_default_font_for_char,
     fontconfig_enum_family_fallbacks,
     freetype_add_font,
     freetype_add_mem_font,

@@ -200,3 +200,52 @@ HRESULT create_safearray_iter(SAFEARRAY *sa, BOOL owned, IEnumVARIANT **ev)
     *ev = &iter->IEnumVARIANT_iface;
     return S_OK;
 }
+
+HRESULT safearray_iter_next(IEnumVARIANT *iface, VARIANT *dst, BOOL *fetched)
+{
+    safearray_iter *iter;
+    VARIANT *src;
+
+    if(iface->lpVtbl != &safearray_iter_EnumVARIANTVtbl)
+        return E_UNEXPECTED;
+
+    iter = impl_from_IEnumVARIANT(iface);
+
+    if(iter->i >= iter->size) {
+        VariantClear(dst);
+        *fetched = FALSE;
+        return S_OK;
+    }
+
+    src = (VARIANT*)(((BYTE*)iter->sa->pvData) + iter->i * iter->sa->cbElements);
+
+    /* Fast path for non-refcounted types (VT_I2, VT_I4, VT_R8, VT_BOOL, etc.).
+     * SAFEARRAY elements are stored by value (never VT_BYREF), so VariantCopyInd
+     * reduces to VariantCopy, which for simple types is just a struct assignment. */
+    if(!(V_VT(src) & ~VT_TYPEMASK) && V_VT(src) != VT_BSTR
+            && V_VT(src) != VT_DISPATCH && V_VT(src) != VT_UNKNOWN)
+    {
+        if(V_VT(dst) == VT_BSTR || V_VT(dst) == VT_DISPATCH
+                || V_VT(dst) == VT_UNKNOWN || (V_VT(dst) & VT_ARRAY))
+            VariantClear(dst);
+        *dst = *src;
+    }
+    else
+    {
+        VARIANT value;
+        HRESULT hres;
+
+        V_VT(&value) = VT_EMPTY;
+        hres = VariantCopyInd(&value, src);
+        if(FAILED(hres))
+            return hres;
+
+        VariantClear(dst);
+        *dst = value;
+    }
+
+    iter->i++;
+    *fetched = TRUE;
+    return S_OK;
+}
+

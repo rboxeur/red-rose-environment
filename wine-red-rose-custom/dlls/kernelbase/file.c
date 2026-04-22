@@ -853,6 +853,17 @@ HANDLE WINAPI DECLSPEC_HOTPATCH CreateFileW( LPCWSTR filename, DWORD access, DWO
         return INVALID_HANDLE_VALUE;
     }
 
+    /* Windows 9x ignores the GENERIC_WRITE flag on CD drives */
+    if (access & GENERIC_WRITE && GetVersion() & 0x80000000)
+    {
+        WCHAR volume[MAX_PATH];
+        if (GetVolumePathNameW( filename, volume, ARRAY_SIZE(volume) ) &&
+            GetDriveTypeW( volume ) == DRIVE_CDROM)
+        {
+            access &= ~GENERIC_WRITE;
+        }
+    }
+
     /* now call NtCreateFile */
 
     if (attributes & FILE_FLAG_DELETE_ON_CLOSE)

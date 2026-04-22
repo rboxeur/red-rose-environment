@@ -1298,8 +1298,28 @@ static HRESULT Global_Len(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VA
 
 static HRESULT Global_LenB(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    DWORD len;
+    HRESULT hres;
+
+    TRACE("%s\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL)
+        return return_null(res);
+
+    if(V_VT(arg) != VT_BSTR) {
+        BSTR str;
+
+        hres = to_string(arg, &str);
+        if(FAILED(hres))
+            return hres;
+
+        len = SysStringByteLen(str);
+        SysFreeString(str);
+    }else {
+        len = SysStringByteLen(V_BSTR(arg));
+    }
+
+    return return_int(res, len);
 }
 
 static HRESULT Global_Left(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -1340,10 +1360,49 @@ static HRESULT Global_Left(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, 
     return return_bstr(res, ret);
 }
 
-static HRESULT Global_LeftB(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
+static HRESULT Global_LeftB(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR str, conv_str = NULL;
+    int len, byte_len;
+    HRESULT hres;
+
+    TRACE("(%s %s)\n", debugstr_variant(args+1), debugstr_variant(args));
+
+    if(V_VT(args) == VT_BSTR) {
+        str = V_BSTR(args);
+    }else {
+        hres = to_string(args, &conv_str);
+        if(FAILED(hres))
+            return hres;
+        str = conv_str;
+    }
+
+    hres = to_int(args+1, &len);
+    if(FAILED(hres)) {
+        SysFreeString(conv_str);
+        return hres;
+    }
+
+    if(len < 0) {
+        SysFreeString(conv_str);
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+    }
+
+    byte_len = SysStringByteLen(str);
+    if(len > byte_len)
+        len = byte_len;
+
+    if(res) {
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = SysAllocStringByteLen((const char*)str, len);
+        if(!V_BSTR(res)) {
+            SysFreeString(conv_str);
+            return E_OUTOFMEMORY;
+        }
+    }
+
+    SysFreeString(conv_str);
+    return S_OK;
 }
 
 static HRESULT Global_Right(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -1388,10 +1447,51 @@ static HRESULT Global_Right(BuiltinDisp *This, VARIANT *args, unsigned args_cnt,
     return return_bstr(res, ret);
 }
 
-static HRESULT Global_RightB(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
+static HRESULT Global_RightB(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR str, conv_str = NULL;
+    int len, byte_len;
+    HRESULT hres;
+
+    TRACE("(%s %s)\n", debugstr_variant(args), debugstr_variant(args+1));
+
+    if(V_VT(args+1) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    hres = to_int(args+1, &len);
+    if(FAILED(hres))
+        return hres;
+
+    if(len < 0)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+
+    if(V_VT(args) == VT_NULL)
+        return return_null(res);
+
+    if(V_VT(args) == VT_BSTR) {
+        str = V_BSTR(args);
+    }else {
+        hres = to_string(args, &conv_str);
+        if(FAILED(hres))
+            return hres;
+        str = conv_str;
+    }
+
+    byte_len = SysStringByteLen(str);
+    if(len > byte_len)
+        len = byte_len;
+
+    if(res) {
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = SysAllocStringByteLen((const char*)str + byte_len - len, len);
+        if(!V_BSTR(res)) {
+            SysFreeString(conv_str);
+            return E_OUTOFMEMORY;
+        }
+    }
+
+    SysFreeString(conv_str);
+    return S_OK;
 }
 
 static HRESULT Global_Mid(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -1466,10 +1566,75 @@ static HRESULT Global_Mid(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, V
     return hres;
 }
 
-static HRESULT Global_MidB(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
+static HRESULT Global_MidB(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    int len = -1, start, byte_len;
+    BSTR str, conv_str = NULL;
+    HRESULT hres;
+
+    TRACE("(%s %s ...)\n", debugstr_variant(args), debugstr_variant(args+1));
+
+    assert(args_cnt == 2 || args_cnt == 3);
+
+    if(V_VT(args+1) == VT_NULL || (args_cnt == 3 && V_VT(args+2) == VT_NULL))
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(V_VT(args+1) == VT_EMPTY)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+
+    hres = to_int(args+1, &start);
+    if(FAILED(hres))
+        return hres;
+
+    if(start <= 0)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+
+    if(args_cnt == 3) {
+        if(V_VT(args+2) == VT_EMPTY)
+            return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+
+        hres = to_int(args+2, &len);
+        if(FAILED(hres))
+            return hres;
+
+        if(len < 0)
+            return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+    }
+
+    if(V_VT(args) == VT_EMPTY)
+        return return_string(res, L"");
+
+    if(V_VT(args) == VT_NULL)
+        return return_null(res);
+
+    if(V_VT(args) == VT_BSTR) {
+        str = V_BSTR(args);
+    }else {
+        hres = to_string(args, &conv_str);
+        if(FAILED(hres))
+            return hres;
+        str = conv_str;
+    }
+
+    byte_len = SysStringByteLen(str);
+    start--;
+    if(start > byte_len)
+        start = byte_len;
+
+    if(len == -1)
+        len = byte_len - start;
+    else if(len > byte_len - start)
+        len = byte_len - start;
+
+    if(res) {
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = SysAllocStringByteLen((const char*)str + start, len);
+        if(!V_BSTR(res))
+            hres = E_OUTOFMEMORY;
+    }
+
+    SysFreeString(conv_str);
+    return hres;
 }
 
 static HRESULT Global_StrComp(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -1809,22 +1974,140 @@ static HRESULT Global_InStr(BuiltinDisp *This, VARIANT *args, unsigned args_cnt,
     return return_int(res, ++ret ? ret+start : 0);
 }
 
-static HRESULT Global_InStrB(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
+static HRESULT Global_InStrB(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR str1, str2, conv_str1 = NULL, conv_str2 = NULL;
+    int start = 0, byte_len1, byte_len2;
+    const char *p, *end;
+    HRESULT hres;
+    int ret = -1;
+
+    TRACE("(%u args)\n", args_cnt);
+
+    assert(2 <= args_cnt && args_cnt <= 4);
+
+    if(args_cnt == 2) {
+        if(V_VT(args) == VT_BSTR) {
+            str1 = V_BSTR(args);
+        }else {
+            hres = to_string(args, &conv_str1);
+            if(FAILED(hres))
+                return hres;
+            str1 = conv_str1;
+        }
+        if(V_VT(args+1) == VT_BSTR) {
+            str2 = V_BSTR(args+1);
+        }else {
+            hres = to_string(args+1, &conv_str2);
+            if(FAILED(hres)) {
+                SysFreeString(conv_str1);
+                return hres;
+            }
+            str2 = conv_str2;
+        }
+    }else {
+        hres = to_int(args, &start);
+        if(FAILED(hres))
+            return hres;
+        if(start <= 0) {
+            return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+        }
+        start--;
+        if(V_VT(args+1) == VT_BSTR) {
+            str1 = V_BSTR(args+1);
+        }else {
+            hres = to_string(args+1, &conv_str1);
+            if(FAILED(hres))
+                return hres;
+            str1 = conv_str1;
+        }
+        if(V_VT(args+2) == VT_BSTR) {
+            str2 = V_BSTR(args+2);
+        }else {
+            hres = to_string(args+2, &conv_str2);
+            if(FAILED(hres)) {
+                SysFreeString(conv_str1);
+                return hres;
+            }
+            str2 = conv_str2;
+        }
+    }
+
+    byte_len1 = SysStringByteLen(str1);
+    byte_len2 = SysStringByteLen(str2);
+
+    if(byte_len2 == 0) {
+        ret = start;
+    }else if(start < byte_len1) {
+        end = (const char*)str1 + byte_len1 - byte_len2 + 1;
+        for(p = (const char*)str1 + start; p < end; p++) {
+            if(!memcmp(p, str2, byte_len2)) {
+                ret = p - (const char*)str1;
+                break;
+            }
+        }
+    }
+
+    SysFreeString(conv_str1);
+    SysFreeString(conv_str2);
+    return return_int(res, ret >= 0 ? ret + 1 : 0);
 }
 
 static HRESULT Global_AscB(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR conv_str = NULL, str;
+    HRESULT hres = S_OK;
+
+    TRACE("(%s)\n", debugstr_variant(arg));
+
+    switch(V_VT(arg)) {
+    case VT_NULL:
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+    case VT_EMPTY:
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+    case VT_BSTR:
+        str = V_BSTR(arg);
+        break;
+    default:
+        hres = to_string(arg, &conv_str);
+        if(FAILED(hres))
+            return hres;
+        str = conv_str;
+    }
+
+    if(!SysStringByteLen(str))
+        hres = MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+    else if(res) {
+        V_VT(res) = VT_UI1;
+        V_UI1(res) = *(const BYTE*)str;
+    }
+
+    SysFreeString(conv_str);
+    return hres;
 }
 
 static HRESULT Global_ChrB(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    int c;
+    HRESULT hres;
+
+    TRACE("%s\n", debugstr_variant(arg));
+
+    hres = to_int(arg, &c);
+    if(FAILED(hres))
+        return hres;
+
+    if(c < 0 || c > 255)
+        return MAKE_VBSERROR(VBSE_OVERFLOW);
+
+    if(res) {
+        BYTE b = c;
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = SysAllocStringByteLen((const char*)&b, 1);
+        if(!V_BSTR(res))
+            return E_OUTOFMEMORY;
+    }
+    return S_OK;
 }
 
 static HRESULT Global_Asc(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
@@ -1927,14 +2210,60 @@ static HRESULT Global_Chr(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VA
 
 static HRESULT Global_AscW(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR conv_str = NULL, str;
+    HRESULT hres = S_OK;
+
+    TRACE("(%s)\n", debugstr_variant(arg));
+
+    switch(V_VT(arg)) {
+    case VT_NULL:
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+    case VT_EMPTY:
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+    case VT_BSTR:
+        str = V_BSTR(arg);
+        break;
+    default:
+        hres = to_string(arg, &conv_str);
+        if(FAILED(hres))
+            return hres;
+        str = conv_str;
+    }
+
+    if(!SysStringLen(str))
+        hres = MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+    else
+        hres = return_short(res, *str);
+
+    SysFreeString(conv_str);
+    return hres;
 }
 
 static HRESULT Global_ChrW(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    int c;
+    WCHAR ch;
+    HRESULT hres;
+
+    TRACE("%s\n", debugstr_variant(arg));
+
+    hres = to_int(arg, &c);
+    if(FAILED(hres))
+        return hres;
+
+    if(c != (short)c && c != (unsigned short)c) {
+        WARN("invalid arg %d\n", c);
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+    }
+
+    ch = c;
+    if(res) {
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = SysAllocStringLen(&ch, 1);
+        if(!V_BSTR(res))
+            return E_OUTOFMEMORY;
+    }
+    return S_OK;
 }
 
 static HRESULT Global_Abs(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
@@ -2183,20 +2512,109 @@ static HRESULT Global_Second(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt,
 
 static HRESULT Global_SetLocale(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    LCID old_lcid = This->ctx->lcid;
+    LCID new_lcid;
+    HRESULT hres;
+
+    TRACE("%s\n", args_cnt ? debugstr_variant(args) : "()");
+
+    if(!args_cnt) {
+        This->ctx->lcid = GetUserDefaultLCID();
+        return return_int(res, old_lcid);
+    }
+
+    switch(V_VT(args)) {
+    case VT_NULL:
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+    case VT_EMPTY:
+        This->ctx->lcid = GetUserDefaultLCID();
+        return return_int(res, old_lcid);
+    case VT_BSTR: {
+        int i;
+        /* Try numeric conversion first (e.g. "1033") */
+        hres = to_int(args, &i);
+        if(SUCCEEDED(hres)) {
+            new_lcid = i;
+        }else {
+            /* Try as locale name (e.g. "en-us") */
+            new_lcid = LocaleNameToLCID(V_BSTR(args), 0);
+        }
+        break;
+    }
+    default: {
+        int i;
+        hres = to_int(args, &i);
+        if(FAILED(hres))
+            return hres;
+        new_lcid = i;
+        break;
+    }
+    }
+
+    This->ctx->lcid = new_lcid;
+    return_int(res, old_lcid);
+    if(!IsValidLocale(new_lcid, LCID_INSTALLED))
+        return MAKE_VBSERROR(VBSE_LOCALE_SETTING_NOT_SUPPORTED);
+
+    return S_OK;
 }
 
 static HRESULT Global_DateValue(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    VARIANT v;
+    HRESULT hres;
+    DATE date;
+
+    TRACE("(%s)\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(V_VT(arg) == VT_DATE) {
+        date = V_DATE(arg);
+    }else if(V_VT(arg) == VT_BSTR) {
+        V_VT(&v) = VT_EMPTY;
+        /* FIXME: Use VariantChangeTypeEx with script lcid for locale-aware parsing (applies to CDate and other converters too). */
+        hres = VariantChangeType(&v, arg, 0, VT_DATE);
+        if(FAILED(hres))
+            return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+        date = V_DATE(&v);
+    }else {
+        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+    }
+
+    /* Truncate toward zero to remove time fraction */
+    date = date < 0 ? ceil(date) : floor(date);
+    return return_date(res, date);
 }
 
 static HRESULT Global_TimeValue(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    VARIANT v;
+    HRESULT hres;
+    DATE date;
+
+    TRACE("(%s)\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(V_VT(arg) == VT_DATE) {
+        date = V_DATE(arg);
+    }else if(V_VT(arg) == VT_BSTR) {
+        V_VT(&v) = VT_EMPTY;
+        /* FIXME: Use VariantChangeTypeEx with script lcid for locale-aware parsing (applies to CDate and other converters too). */
+        hres = VariantChangeType(&v, arg, 0, VT_DATE);
+        if(FAILED(hres))
+            return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+        date = V_DATE(&v);
+    }else {
+        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+    }
+
+    /* Extract time fraction, removing the date part */
+    date = date - (date < 0 ? ceil(date) : floor(date));
+    return return_date(res, date);
 }
 
 static HRESULT Global_DateSerial(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -2879,10 +3297,169 @@ static HRESULT Global_Erase(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, 
     return E_NOTIMPL;
 }
 
-static HRESULT Global_Filter(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
+static HRESULT Global_Filter(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    VARIANT *data;
+    SAFEARRAY *sa, *out_sa;
+    SAFEARRAYBOUND bounds;
+    LONG lbound, ubound, i, count, match_count;
+    BSTR search, conv_search = NULL, str, conv_str;
+    BSTR *matches = NULL;
+    int include = 1, mode = 0, found;
+    HRESULT hres;
+
+    TRACE("%s %u...\n", debugstr_variant(args), args_cnt);
+
+    assert(2 <= args_cnt && args_cnt <= 4);
+
+    if(V_VT(args) == VT_NULL || V_VT(args+1) == VT_NULL
+            || (args_cnt > 2 && V_VT(args+2) == VT_NULL)
+            || (args_cnt > 3 && V_VT(args+3) == VT_NULL))
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    switch(V_VT(args)) {
+    case VT_VARIANT|VT_ARRAY:
+        sa = V_ARRAY(args);
+        break;
+    case VT_VARIANT|VT_ARRAY|VT_BYREF:
+        sa = *V_ARRAYREF(args);
+        break;
+    default:
+        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+    }
+
+    if(V_VT(args+1) == VT_BSTR) {
+        search = V_BSTR(args+1);
+    }else {
+        hres = to_string(args+1, &conv_search);
+        if(FAILED(hres))
+            return hres;
+        search = conv_search;
+    }
+
+    if(args_cnt > 2) {
+        hres = to_int(args+2, &include);
+        if(FAILED(hres))
+            goto done;
+    }
+
+    if(args_cnt > 3) {
+        hres = to_int(args+3, &mode);
+        if(FAILED(hres))
+            goto done;
+        if(mode != 0 && mode != 1) {
+            hres = MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+            goto done;
+        }
+    }
+
+    if(SafeArrayGetDim(sa) != 1) {
+        hres = MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+        goto done;
+    }
+
+    hres = SafeArrayGetLBound(sa, 1, &lbound);
+    if(FAILED(hres))
+        goto done;
+    hres = SafeArrayGetUBound(sa, 1, &ubound);
+    if(FAILED(hres))
+        goto done;
+
+    hres = SafeArrayAccessData(sa, (void**)&data);
+    if(FAILED(hres))
+        goto done;
+
+    /* Single pass: convert, match, and collect results into a temporary array */
+    count = ubound - lbound + 1;
+    if(count > 0) {
+        matches = calloc(count, sizeof(BSTR));
+        if(!matches) {
+            SafeArrayUnaccessData(sa);
+            hres = E_OUTOFMEMORY;
+            goto done;
+        }
+    }
+
+    match_count = 0;
+    for(i = 0; i < count; i++) {
+        conv_str = NULL;
+        if(V_VT(&data[i]) == VT_BSTR) {
+            str = V_BSTR(&data[i]);
+        }else {
+            hres = to_string(&data[i], &conv_str);
+            if(FAILED(hres)) {
+                SafeArrayUnaccessData(sa);
+                goto done;
+            }
+            str = conv_str;
+        }
+
+        if(!SysStringLen(search))
+            found = 1;
+        else
+            found = FindStringOrdinal(FIND_FROMSTART, str, SysStringLen(str),
+                                      search, SysStringLen(search), mode) >= 0;
+
+        if(include ? found : !found) {
+            matches[match_count] = SysAllocString(str);
+            if(!matches[match_count]) {
+                SysFreeString(conv_str);
+                SafeArrayUnaccessData(sa);
+                hres = E_OUTOFMEMORY;
+                goto done;
+            }
+            match_count++;
+        }
+
+        SysFreeString(conv_str);
+    }
+
+    SafeArrayUnaccessData(sa);
+
+    /* Create result array from collected matches */
+    bounds.lLbound = 0;
+    bounds.cElements = match_count;
+    out_sa = SafeArrayCreate(VT_VARIANT, 1, &bounds);
+    if(!out_sa) {
+        hres = E_OUTOFMEMORY;
+        goto done;
+    }
+
+    if(match_count) {
+        VARIANT *out_data;
+
+        hres = SafeArrayAccessData(out_sa, (void**)&out_data);
+        if(FAILED(hres)) {
+            SafeArrayDestroy(out_sa);
+            goto done;
+        }
+
+        for(i = 0; i < match_count; i++) {
+            V_VT(&out_data[i]) = VT_BSTR;
+            V_BSTR(&out_data[i]) = matches[i];
+            matches[i] = NULL;
+        }
+
+        SafeArrayUnaccessData(out_sa);
+    }
+
+    if(res) {
+        V_VT(res) = VT_ARRAY|VT_VARIANT;
+        V_ARRAY(res) = out_sa;
+    }else {
+        SafeArrayDestroy(out_sa);
+    }
+
+    hres = S_OK;
+
+done:
+    if(matches) {
+        for(i = 0; i < match_count; i++)
+            SysFreeString(matches[i]);
+        free(matches);
+    }
+    SysFreeString(conv_search);
+    return hres;
 }
 
 static HRESULT Global_Join(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -3485,8 +4062,8 @@ static HRESULT Global_FormatPercent(BuiltinDisp *This, VARIANT *args, unsigned a
 
 static HRESULT Global_GetLocale(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    TRACE("() = %#lx\n", This->ctx->lcid);
+    return return_int(res, This->ctx->lcid);
 }
 
 static HRESULT Global_FormatDateTime(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -3623,16 +4200,161 @@ static HRESULT Global_Round(BuiltinDisp *This, VARIANT *args, unsigned args_cnt,
     return return_double(res, d);
 }
 
+/* Check that the character is one of the 69 non-blank characters as defined by ECMA-262 B.2.1 */
+static inline BOOL is_ecma_nonblank(WCHAR c)
+{
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+        || c == '@' || c == '*' || c == '_' || c == '+' || c == '-' || c == '.' || c == '/';
+}
+
+static WCHAR int_to_hex(int i)
+{
+    if(i < 10) return '0' + i;
+    return 'A' + i - 10;
+}
+
+static int hex_to_int(WCHAR c)
+{
+    if(c >= '0' && c <= '9') return c - '0';
+    if(c >= 'A' && c <= 'F') return c - 'A' + 10;
+    if(c >= 'a' && c <= 'f') return c - 'a' + 10;
+    return -1;
+}
+
 static HRESULT Global_Escape(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR conv_str = NULL, str, ret;
+    const WCHAR *ptr;
+    DWORD len = 0;
+    HRESULT hres;
+
+    TRACE("(%s)\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(V_VT(arg) == VT_BSTR) {
+        str = V_BSTR(arg);
+    }else {
+        hres = to_string(arg, &conv_str);
+        if(FAILED(hres))
+            return hres;
+        str = conv_str;
+    }
+
+    for(ptr = str; *ptr; ptr++) {
+        if(*ptr > 0xff)
+            len += 6;
+        else if(is_ecma_nonblank(*ptr))
+            len++;
+        else
+            len += 3;
+    }
+
+    ret = SysAllocStringLen(NULL, len);
+    if(!ret) {
+        SysFreeString(conv_str);
+        return E_OUTOFMEMORY;
+    }
+
+    len = 0;
+    for(ptr = str; *ptr; ptr++) {
+        if(*ptr > 0xff) {
+            ret[len++] = '%';
+            ret[len++] = 'u';
+            ret[len++] = int_to_hex(*ptr >> 12);
+            ret[len++] = int_to_hex((*ptr >> 8) & 0xf);
+            ret[len++] = int_to_hex((*ptr >> 4) & 0xf);
+            ret[len++] = int_to_hex(*ptr & 0xf);
+        }else if(is_ecma_nonblank(*ptr)) {
+            ret[len++] = *ptr;
+        }else {
+            ret[len++] = '%';
+            ret[len++] = int_to_hex(*ptr >> 4);
+            ret[len++] = int_to_hex(*ptr & 0xf);
+        }
+    }
+
+    SysFreeString(conv_str);
+
+    if(res) {
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = ret;
+    }else {
+        SysFreeString(ret);
+    }
+    return S_OK;
 }
 
 static HRESULT Global_Unescape(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR conv_str = NULL, str, ret;
+    const WCHAR *ptr;
+    DWORD len = 0;
+    HRESULT hres;
+
+    TRACE("(%s)\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(V_VT(arg) == VT_BSTR) {
+        str = V_BSTR(arg);
+    }else {
+        hres = to_string(arg, &conv_str);
+        if(FAILED(hres))
+            return hres;
+        str = conv_str;
+    }
+
+    /* First pass: compute output length */
+    for(ptr = str; *ptr; ptr++) {
+        if(*ptr == '%') {
+            if(hex_to_int(ptr[1]) != -1 && hex_to_int(ptr[2]) != -1)
+                ptr += 2;
+            else if(ptr[1] == 'u' && hex_to_int(ptr[2]) != -1 && hex_to_int(ptr[3]) != -1
+                    && hex_to_int(ptr[4]) != -1 && hex_to_int(ptr[5]) != -1)
+                ptr += 5;
+        }
+        len++;
+    }
+
+    ret = SysAllocStringLen(NULL, len);
+    if(!ret) {
+        SysFreeString(conv_str);
+        return E_OUTOFMEMORY;
+    }
+
+    /* Second pass: decode */
+    len = 0;
+    for(ptr = str; *ptr; ptr++) {
+        if(*ptr == '%') {
+            if(hex_to_int(ptr[1]) != -1 && hex_to_int(ptr[2]) != -1) {
+                ret[len] = (hex_to_int(ptr[1]) << 4) + hex_to_int(ptr[2]);
+                ptr += 2;
+            }else if(ptr[1] == 'u' && hex_to_int(ptr[2]) != -1 && hex_to_int(ptr[3]) != -1
+                    && hex_to_int(ptr[4]) != -1 && hex_to_int(ptr[5]) != -1) {
+                ret[len] = (hex_to_int(ptr[2]) << 12) + (hex_to_int(ptr[3]) << 8)
+                    + (hex_to_int(ptr[4]) << 4) + hex_to_int(ptr[5]);
+                ptr += 5;
+            }else {
+                ret[len] = *ptr;
+            }
+        }else {
+            ret[len] = *ptr;
+        }
+        len++;
+    }
+
+    SysFreeString(conv_str);
+
+    if(res) {
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = ret;
+    }else {
+        SysFreeString(ret);
+    }
+    return S_OK;
 }
 
 static HRESULT Global_Eval(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
@@ -3811,7 +4533,7 @@ static const builtin_prop_t global_props[] = {
     {L"Hour",                      Global_Hour, 0, 1},
     {L"InputBox",                  Global_InputBox, 0, 1, 7},
     {L"InStr",                     Global_InStr, 0, 2, 4},
-    {L"InStrB",                    Global_InStrB, 0, 3, 4},
+    {L"InStrB",                    Global_InStrB, 0, 2, 4},
     {L"InStrRev",                  Global_InStrRev, 0, 2, 4},
     {L"Int",                       Global_Int, 0, 1},
     {L"IsArray",                   Global_IsArray, 0, 1},

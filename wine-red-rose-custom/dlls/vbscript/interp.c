@@ -442,24 +442,28 @@ static HRESULT stack_pop_bool(exec_ctx_t *ctx, BOOL *b)
 {
     variant_val_t val;
     HRESULT hres;
-    VARIANT v;
 
     hres = stack_pop_val(ctx, &val);
     if(FAILED(hres))
         return hres;
 
-    if (V_VT(val.v) == VT_NULL)
-    {
+    switch(V_VT(val.v)) {
+    case VT_BOOL:
+        *b = !!V_BOOL(val.v);
+        break;
+    case VT_NULL:
         *b = FALSE;
-    }
-    else
-    {
+        break;
+    default: {
+        VARIANT v;
         V_VT(&v) = VT_EMPTY;
-        if (SUCCEEDED(hres = VariantChangeType(&v, val.v, VARIANT_LOCALBOOL, VT_BOOL)))
+        hres = VariantChangeType(&v, val.v, VARIANT_LOCALBOOL, VT_BOOL);
+        if(SUCCEEDED(hres))
             *b = !!V_BOOL(&v);
+        release_val(&val);
+        break;
     }
-
-    release_val(&val);
+    }
 
     return hres;
 }
@@ -860,10 +864,56 @@ static HRESULT interp_ident(exec_ctx_t *ctx)
     return stack_push(ctx, &v);
 }
 
+/* Returns TRUE for scalar value types that need no memory management.
+ * These can be copied with a plain struct assignment and cleared by
+ * simply overwriting - no VariantCopyInd, VariantClear, or Release
+ * calls required.  Excludes VT_BSTR, VT_DISPATCH, VT_UNKNOWN,
+ * VT_RECORD (ref-counted or allocated) and any VT_BYREF / VT_ARRAY
+ * combinations (indirect). */
+static inline BOOL is_simple_variant(const VARIANT *v)
+{
+    VARTYPE vt = V_VT(v);
+
+    if (vt & ~VT_TYPEMASK)
+        return FALSE;
+
+    switch (vt)
+    {
+    case VT_EMPTY:
+    case VT_NULL:
+    case VT_I2:
+    case VT_I4:
+    case VT_R4:
+    case VT_R8:
+    case VT_CY:
+    case VT_DATE:
+    case VT_ERROR:
+    case VT_BOOL:
+    case VT_DECIMAL:
+    case VT_I1:
+    case VT_UI1:
+    case VT_UI2:
+    case VT_UI4:
+    case VT_I8:
+    case VT_UI8:
+    case VT_INT:
+    case VT_UINT:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
 static HRESULT assign_value(exec_ctx_t *ctx, VARIANT *dst, VARIANT *src, WORD flags)
 {
     VARIANT value;
     HRESULT hres;
+
+    if (is_simple_variant(src) && is_simple_variant(dst))
+    {
+        *dst = *src;
+        return S_OK;
+    }
 
     V_VT(&value) = VT_EMPTY;
     hres = VariantCopyInd(&value, src);
@@ -1571,8 +1621,18 @@ static HRESULT interp_step(exec_ctx_t *ctx)
 
     TRACE("%s\n", debugstr_w(ident));
 
-    if(V_VT(stack_top(ctx, 0)) == VT_EMPTY || V_VT(stack_top(ctx, 1)) == VT_EMPTY)
-        return MAKE_VBSERROR(VBSE_FOR_LOOP_NOT_INITIALIZED);
+    /* If to and step are VT_EMPTY, the For loop was not properly initialized
+     * (expression evaluation failed during On Error Resume Next). Set error 92
+     * and exit the loop. */
+    if(V_VT(stack_top(ctx, 0)) == VT_EMPTY && V_VT(stack_top(ctx, 1)) == VT_EMPTY) {
+        WARN("For loop not initialized\n");
+        clear_ei(&ctx->script->ei);
+        ctx->script->ei.scode = MAKE_VBSERROR(VBSE_FOR_LOOP_NOT_INITIALIZED);
+        map_vbs_exception(&ctx->script->ei);
+        stack_popn(ctx, 3);
+        instr_jmp(ctx, ctx->instr->arg1.uint);
+        return S_OK;
+    }
 
     V_VT(&zero) = VT_I2;
     V_I2(&zero) = 0;
@@ -1598,7 +1658,7 @@ static HRESULT interp_step(exec_ctx_t *ctx)
     if(hres == VARCMP_EQ || hres == (gteq_zero ? VARCMP_LT : VARCMP_GT)) {
         ctx->instr++;
     }else {
-        stack_popn(ctx, 2);
+        stack_popn(ctx, 3);
         instr_jmp(ctx, ctx->instr->arg1.uint);
     }
     return S_OK;
@@ -1695,11 +1755,16 @@ static HRESULT interp_enumnext(exec_ctx_t *ctx)
     iter = (IEnumVARIANT*)V_UNKNOWN(stack_top(ctx, 0));
 
     V_VT(&v) = VT_EMPTY;
-    hres = IEnumVARIANT_Next(iter, 1, &v, NULL);
-    if(FAILED(hres))
+    hres = safearray_iter_next(iter, &v, &do_continue);
+    if(hres == E_UNEXPECTED) {
+        hres = IEnumVARIANT_Next(iter, 1, &v, NULL);
+        if(FAILED(hres))
+            return hres;
+        do_continue = hres == S_OK;
+    }else if(FAILED(hres)) {
         return hres;
+    }
 
-    do_continue = hres == S_OK;
     hres = assign_ident(ctx, ident, DISPATCH_PROPERTYPUT|DISPATCH_PROPERTYPUTREF, &dp);
     VariantClear(&v);
     if(FAILED(hres))
@@ -2079,7 +2144,18 @@ static HRESULT interp_imp(exec_ctx_t *ctx)
 
     hres = stack_pop_val(ctx, &l);
     if(SUCCEEDED(hres)) {
-        hres = VarImp(l.v, r.v, &v);
+        /* Native VarImp returns VT_NULL for UI1 0xFF Imp Null under the
+         * three-valued "all-ones Imp unknown = unknown" rule, but native
+         * VBScript keeps UI1 width and returns the bitwise complement of
+         * the left operand. Handle UI1 Imp Null directly. */
+        if ((V_VT(l.v) & VT_TYPEMASK) == VT_UI1 &&
+            (V_VT(r.v) & VT_TYPEMASK) == VT_NULL) {
+            V_VT(&v) = VT_UI1;
+            V_UI1(&v) = ~V_UI1(l.v);
+            hres = S_OK;
+        } else {
+            hres = VarImp(l.v, r.v, &v);
+        }
         release_val(&l);
     }
     release_val(&r);
@@ -2526,7 +2602,7 @@ static HRESULT interp_neg(exec_ctx_t *ctx)
 
     hres = stack_pop_val(ctx, &val);
     if(FAILED(hres))
-        return hres;
+        return MAKE_VBSERROR(VBSE_FOR_LOOP_NOT_INITIALIZED);
 
     hres = VarNeg(val.v, &v);
     release_val(&val);
@@ -2642,8 +2718,8 @@ HRESULT exec_script(script_ctx_t *ctx, BOOL extern_caller, function_t *func, vbd
     ctx->caller_exec = NULL;
 
     if(dp ? func->arg_cnt != arg_cnt(dp) : func->arg_cnt) {
-        FIXME("wrong arg_cnt %d, expected %d\n", dp ? arg_cnt(dp) : 0, func->arg_cnt);
-        return E_FAIL;
+        WARN("wrong arg_cnt %d, expected %d\n", dp ? arg_cnt(dp) : 0, func->arg_cnt);
+        return MAKE_VBSERROR(VBSE_FUNC_ARITY_MISMATCH);
     }
 
     heap_pool_init(&exec.heap);
@@ -2760,9 +2836,22 @@ HRESULT exec_script(script_ctx_t *ctx, BOOL extern_caller, function_t *func, vbd
                 continue;
             }else {
                 if(!ctx->error_loc_code) {
+                    unsigned line = exec.code->start_line + 1;
+                    const WCHAR *nl;
+                    for(nl = exec.code->source; nl < exec.code->source + exec.instr->loc; nl++)
+                        if(*nl == '\n') line++;
+                    WARN("error 0x%08lx in %s, line %u\n", hres,
+                         exec.func->name ? debugstr_w(exec.func->name) : "<global>", line);
                     grab_vbscode(exec.code);
                     ctx->error_loc_code = exec.code;
                     ctx->error_loc_offset = exec.instr->loc;
+                }else {
+                    unsigned line = exec.code->start_line + 1;
+                    const WCHAR *nl;
+                    for(nl = exec.code->source; nl < exec.code->source + exec.instr->loc; nl++)
+                        if(*nl == '\n') line++;
+                    WARN("  called from %s, line %u\n",
+                         exec.func->name ? debugstr_w(exec.func->name) : "<global>", line);
                 }
                 stack_popn(&exec, exec.top);
                 break;
