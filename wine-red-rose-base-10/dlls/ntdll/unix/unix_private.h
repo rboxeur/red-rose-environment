@@ -196,6 +196,7 @@ extern struct ldt_copy __wine_ldt_copy;
 #endif
 
 extern BOOL disable_sfn;
+extern BOOL process_termination_delay;
 extern BOOL ac_odyssey;
 extern BOOL fsync_simulate_sched_quantum;
 extern BOOL alert_simulate_sched_quantum;

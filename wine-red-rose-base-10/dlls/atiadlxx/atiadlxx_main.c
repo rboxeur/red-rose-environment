@@ -704,6 +704,13 @@ int CDECL ADL2_Graphics_VersionsX2_Get(ADL_CONTEXT_HANDLE ptr, ADLVersionsInfoX2
     return ADL_OK;
 }
 
+int CDECL ADL2_Graphics_Versions_Get(ADL_CONTEXT_HANDLE ctx, ADLVersionsInfo *ver)
+{
+    TRACE("ctx %p, ver %p.\n", ctx, ver);
+    memcpy(ver, &version, sizeof(version));
+    return ADL_OK;
+}
+
 int CDECL ADL_Graphics_Versions_Get(ADLVersionsInfo *ver)
 {
     TRACE("ver %p.\n", ver);
@@ -761,14 +768,19 @@ static int adapter_info_get(ADL_CONTEXT_HANDLE ctx, ADLAdapterInfo *adapters, in
     return ADL_OK;
 }
 
-int CDECL ADL_Adapter_AdapterInfo_Get(ADLAdapterInfo *adapters, int input_size)
+int CDECL ADL2_Adapter_AdapterInfo_Get(ADL_CONTEXT_HANDLE ctx, ADLAdapterInfo *adapters, int input_size)
 {
-    TRACE("adapters %p, input_size %d.\n", adapters, input_size);
+    TRACE("ctx %p, adapters %p, input_size %d.\n", ctx, adapters, input_size);
 
     if (!adapters) return ADL_ERR_INVALID_PARAM;
     if (input_size != default_ctx->adapter_count * sizeof(ADLAdapterInfo)) return ADL_ERR_INVALID_PARAM;
 
-    return adapter_info_get(default_ctx, adapters, input_size);
+    return adapter_info_get(ctx, adapters, input_size);
+}
+
+int CDECL ADL_Adapter_AdapterInfo_Get(ADLAdapterInfo *adapters, int input_size)
+{
+    return ADL2_Adapter_AdapterInfo_Get(default_ctx, adapters, input_size);
 }
 
 int CDECL ADL2_Adapter_AdapterInfoX2_Get(ADL_CONTEXT_HANDLE ctx, ADLAdapterInfo **info)
