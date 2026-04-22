@@ -74,8 +74,9 @@ To keep it up-to-date then a few patches were applied from repositories listed b
 For wine-bleeding-edge ,Valve switched 
 - from Proton 9 to Proton 10 on Wednesday April 30, 2025
 - from Proton 10 to Proton 11 on Wednesday Aprid 22, 2026
-Valve went into beta based on below information
-- wine-bleeding-edge went into Proton 10 beta on Wednesday April 30, 2025.
-- wine-bleeding-edge went into Proton !! beta around Monday April 20,2026
+
+For wine-bleeding-edge, Valve went into beta test
+- Proton 10 beta on Wednesday April 30, 2025.
+- Proton 11 beta around Monday April 20,2026
 
 
