@@ -13,7 +13,7 @@ The main idea here is to provide almost the same idea as the original project bu
 ### wine-red-rose-base-08
 
 It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom).
-It is based on latest Wine tag taken from Proton 8 (wine-bleeding-edge) from 2024 [experimental-wine-bleeding-edge-8.0-82496-20240226-p479bb6-wa058f1-d9004c1-v806fd7].
+It is based on latest Wine tag taken from Proton 8 (wine-bleeding-edge) from 2024 [tag=experimental-wine-bleeding-edge-8.0-82496-20240226-p479bb6-wa058f1-d9004c1-v806fd7].
 Then
 
 - changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version 8-26 were applied
@@ -27,7 +27,7 @@ I keep these Wine sources as-it-is as a reference.
 ### wine-red-rose-base-09
 
 It is a customized fork of [wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom). 
-It is based on latest Wine tag taken from Proton 9 (wine-bleeding-edge) from 2025 [experimental-wine-bleeding-edge-9.0-191846-20250429-p965305-wfc8c710-d27b71a-v4ec9ec]. 
+It is based on latest Wine tag taken from Proton 9 (wine-bleeding-edge) from 2025 [tag=experimental-wine-bleeding-edge-9.0-191846-20250429-p965305-wfc8c710-d27b71a-v4ec9ec]. 
 Then
 
 - changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-9-22 were applied
@@ -39,7 +39,7 @@ I keep these Wine sources as-it-is as a reference.
 
 ### wine-red-rose-base-10
 
-Aligned with GE-Proton-10-34 modifications [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) from 2026 [experimental-wine-bleeding-edge-10.0-347276-20260421-p3a484d-w5edc83-dd4486d-vf036a7] with following specifications
+Aligned with GE-Proton-10-34 modifications [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) from 2026 [tag=experimental-wine-bleeding-edge-10.0-347276-20260421-p3a484d-w5edc83-dd4486d-vf036a7] with following specifications
 
 - changes taken from [Glorious Eggroll proton](https://github.com/GloriousEggroll/proton-ge-custom) version GE-Proton-10-34 were applied
 - [Patch to remove any Steam dependancy](https://raw.githubusercontent.com/Frogging-Family/wine-tkg-git/refs/heads/master/wine-tkg-git/wine-tkg-patches/hotfixes/valve/de-steamify-10.0-be.mypatch) was applied -- slightly modified.
