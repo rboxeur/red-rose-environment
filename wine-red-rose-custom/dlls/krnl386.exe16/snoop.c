@@ -123,7 +123,6 @@ SNOOP16_GetProcAddress16(HMODULE16 hmod,DWORD ordinal,FARPROC16 origfun) {
 	SNOOP16_FUN			*fun;
 	NE_MODULE			*pModule = NE_GetPtr(hmod);
 	unsigned char			*cpnt;
-	char				name[200];
 
 	if (!TRACE_ON(snoop) || !pModule || !HIWORD(origfun))
 		return origfun;
@@ -149,7 +148,8 @@ SNOOP16_GetProcAddress16(HMODULE16 hmod,DWORD ordinal,FARPROC16 origfun) {
 	while (*cpnt) {
 		cpnt += *cpnt + 1 + sizeof(WORD);
 		if (*(WORD*)(cpnt+*cpnt+1) == ordinal) {
-			sprintf(name,"%.*s",*cpnt,cpnt+1);
+			fun->name = HeapAlloc(GetProcessHeap(), 0, *cpnt + 1);
+			sprintf(fun->name, "%.*s", *cpnt, cpnt + 1);
 			break;
 		}
 	}
@@ -160,17 +160,13 @@ SNOOP16_GetProcAddress16(HMODULE16 hmod,DWORD ordinal,FARPROC16 origfun) {
 		while (*cpnt) {
 			cpnt += *cpnt + 1 + sizeof(WORD);
 			if (*(WORD*)(cpnt+*cpnt+1) == ordinal) {
-				    sprintf(name,"%.*s",*cpnt,cpnt+1);
-				    break;
+				fun->name = HeapAlloc(GetProcessHeap(), 0, *cpnt + 1);
+				sprintf(fun->name, "%.*s", *cpnt, cpnt + 1);
+				break;
 			}
 		}
 	}
-	if (*cpnt)
-        {
-            fun->name = HeapAlloc(GetProcessHeap(),0,strlen(name)+1);
-            strcpy( fun->name, name );
-        }
-	else
+	if (!fun->name)
             fun->name = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,1); /* empty string */
 
 	if (!SNOOP16_ShowDebugmsgSnoop(dll->name, ordinal, fun->name))

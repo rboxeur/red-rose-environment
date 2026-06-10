@@ -513,6 +513,8 @@ typedef struct tagNC_ADDRESS
    BYTE                     PrefixLength;
 } NC_ADDRESS, *PNC_ADDRESS;
 
+#define WC_NETADDRESS       L"msctls_netaddress"
+
 #define NCM_GETADDRESS      (WM_USER+1)
 #define NCM_SETALLOWTYPE    (WM_USER+2)
 #define NCM_GETALLOWTYPE    (WM_USER+3)

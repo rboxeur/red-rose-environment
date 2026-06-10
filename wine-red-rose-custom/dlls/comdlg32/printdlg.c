@@ -1991,6 +1991,7 @@ static INT_PTR CALLBACK PrintDlgProcA(HWND hDlg, UINT uMsg, WPARAM wParam,
                                       LPARAM lParam)
 {
     PRINT_PTRA* PrintStructures;
+    DWORD hook_flags;
     INT_PTR res = FALSE;
 
     if (uMsg!=WM_INITDIALOG) {
@@ -2005,20 +2006,39 @@ static INT_PTR CALLBACK PrintDlgProcA(HWND hDlg, UINT uMsg, WPARAM wParam,
             EndDialog(hDlg,FALSE);
             return FALSE;
         }
-	res = PRINTDLG_WMInitDialog(hDlg, PrintStructures);
+        res = PRINTDLG_WMInitDialog(hDlg, PrintStructures);
 
-	if(PrintStructures->lpPrintDlg->Flags & PD_ENABLEPRINTHOOK)
-	    res = PrintStructures->lpPrintDlg->lpfnPrintHook(
-		hDlg, uMsg, wParam, (LPARAM)PrintStructures->lpPrintDlg
-	    );
-	return res;
+        hook_flags = PrintStructures->lpPrintDlg->Flags &
+            (PD_PRINTSETUP | PD_ENABLEPRINTHOOK | PD_ENABLESETUPHOOK);
+
+        if (hook_flags == PD_ENABLEPRINTHOOK) {
+            res = PrintStructures->lpPrintDlg->lpfnPrintHook(
+                hDlg, uMsg, wParam, (LPARAM)PrintStructures->lpPrintDlg
+            );
+        } else if (hook_flags == (PD_PRINTSETUP | PD_ENABLESETUPHOOK)) {
+            res = PrintStructures->lpPrintDlg->lpfnSetupHook(
+                hDlg, uMsg, wParam, (LPARAM)PrintStructures->lpPrintDlg
+            );
+        }
+
+        return res;
     }
 
-    if(PrintStructures->lpPrintDlg->Flags & PD_ENABLEPRINTHOOK) {
-        res = PrintStructures->lpPrintDlg->lpfnPrintHook(hDlg,uMsg,wParam,
-							 lParam);
-	if(res) return res;
+    hook_flags = PrintStructures->lpPrintDlg->Flags &
+        (PD_PRINTSETUP | PD_ENABLEPRINTHOOK | PD_ENABLESETUPHOOK);
+
+    if (hook_flags == PD_ENABLEPRINTHOOK) {
+        res = PrintStructures->lpPrintDlg->lpfnPrintHook(
+            hDlg, uMsg, wParam, lParam
+        );
+    } else if (hook_flags == (PD_PRINTSETUP | PD_ENABLESETUPHOOK)) {
+        res = PrintStructures->lpPrintDlg->lpfnSetupHook(
+            hDlg, uMsg, wParam, lParam
+        );
     }
+
+    if(res)
+        return res;
 
     switch (uMsg) {
     case WM_COMMAND:
@@ -2040,6 +2060,7 @@ static INT_PTR CALLBACK PrintDlgProcW(HWND hDlg, UINT uMsg, WPARAM wParam,
                                       LPARAM lParam)
 {
     PRINT_PTRW* PrintStructures;
+    DWORD hook_flags;
     INT_PTR res = FALSE;
 
     if (uMsg!=WM_INITDIALOG) {
@@ -2054,17 +2075,39 @@ static INT_PTR CALLBACK PrintDlgProcW(HWND hDlg, UINT uMsg, WPARAM wParam,
             EndDialog(hDlg,FALSE);
             return FALSE;
         }
-	res = PRINTDLG_WMInitDialogW(hDlg, PrintStructures);
+        res = PRINTDLG_WMInitDialogW(hDlg, PrintStructures);
 
-	if(PrintStructures->lpPrintDlg->Flags & PD_ENABLEPRINTHOOK)
-	    res = PrintStructures->lpPrintDlg->lpfnPrintHook(hDlg, uMsg, wParam, (LPARAM)PrintStructures->lpPrintDlg);
-	return res;
+        hook_flags = PrintStructures->lpPrintDlg->Flags &
+            (PD_PRINTSETUP | PD_ENABLEPRINTHOOK | PD_ENABLESETUPHOOK);
+
+        if (hook_flags == PD_ENABLEPRINTHOOK) {
+            res = PrintStructures->lpPrintDlg->lpfnPrintHook(
+                hDlg, uMsg, wParam, (LPARAM)PrintStructures->lpPrintDlg
+            );
+        } else if (hook_flags == (PD_PRINTSETUP | PD_ENABLESETUPHOOK)) {
+            res = PrintStructures->lpPrintDlg->lpfnSetupHook(
+                hDlg, uMsg, wParam, (LPARAM)PrintStructures->lpPrintDlg
+            );
+        }
+
+        return res;
     }
 
-    if(PrintStructures->lpPrintDlg->Flags & PD_ENABLEPRINTHOOK) {
-        res = PrintStructures->lpPrintDlg->lpfnPrintHook(hDlg,uMsg,wParam, lParam);
-	if(res) return res;
+    hook_flags = PrintStructures->lpPrintDlg->Flags &
+        (PD_PRINTSETUP | PD_ENABLEPRINTHOOK | PD_ENABLESETUPHOOK);
+
+    if (hook_flags == PD_ENABLEPRINTHOOK) {
+        res = PrintStructures->lpPrintDlg->lpfnPrintHook(
+            hDlg, uMsg, wParam, lParam
+        );
+    } else if (hook_flags == (PD_PRINTSETUP | PD_ENABLESETUPHOOK)) {
+        res = PrintStructures->lpPrintDlg->lpfnSetupHook(
+            hDlg, uMsg, wParam, lParam
+        );
     }
+
+    if(res)
+        return res;
 
     switch (uMsg) {
     case WM_COMMAND:

@@ -1431,7 +1431,7 @@ DECL_HANDLER(map_view)
         view->start     = req->start;
         view->flags     = mapping->flags;
         view->namelen   = 0;
-        view->fd        = !is_fd_removable( mapping->fd ) ? (struct fd *)grab_object( mapping->fd ) : NULL;
+        view->fd        = (struct fd *)grab_object( mapping->fd );
         view->committed = mapping->committed ? (struct ranges *)grab_object( mapping->committed ) : NULL;
         view->shared    = NULL;
         add_process_view( current, view );
@@ -1468,7 +1468,7 @@ DECL_HANDLER(map_image_view)
         view->flags     = mapping->flags;
         view->start     = 0;
         view->namelen   = 0;
-        view->fd        = !is_fd_removable( mapping->fd ) ? (struct fd *)grab_object( mapping->fd ) : NULL;
+        view->fd        = (struct fd *)grab_object( mapping->fd );
         view->committed = NULL;
         view->shared    = mapping->shared ? (struct shared_map *)grab_object( mapping->shared ) : NULL;
         view->image     = mapping->image;

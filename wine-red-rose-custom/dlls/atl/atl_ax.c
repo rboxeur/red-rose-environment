@@ -55,6 +55,9 @@ typedef struct IOCS {
     BOOL fActive, fInPlace, fWindowless;
 } IOCS;
 
+static UINT wmAtlGetHost = 0;
+static UINT wmAtlGetControl = 0;
+
 /**********************************************************************
  * AtlAxWin class window procedure
  */
@@ -62,14 +65,23 @@ static LRESULT CALLBACK AtlAxWin_wndproc( HWND hWnd, UINT wMsg, WPARAM wParam, L
 {
     if ( wMsg == WM_CREATE )
     {
-            DWORD len = GetWindowTextLengthW( hWnd ) + 1;
-            WCHAR *ptr = malloc( len*sizeof(WCHAR) );
-            if (!ptr)
+            LPCREATESTRUCTW pcs = (LPCREATESTRUCTW)lParam;
+            if (!pcs)
                 return 1;
-            GetWindowTextW( hWnd, ptr, len );
-            AtlAxCreateControlEx( ptr, hWnd, NULL, NULL, NULL, NULL, NULL );
-            free( ptr );
+            AtlAxCreateControlEx( pcs->lpszName, hWnd, NULL, NULL, NULL, NULL, NULL );
             return 0;
+    }
+    if ( wMsg == wmAtlGetControl )
+    {
+        IUnknown *control = NULL;
+        AtlAxGetControl( hWnd, &control );
+        return (LRESULT)control;
+    }
+    if ( wMsg == wmAtlGetHost )
+    {
+        IUnknown *host = NULL;
+        AtlAxGetHost( hWnd, &host );
+        return (LRESULT)host;
     }
     return DefWindowProcW( hWnd, wMsg, wParam, lParam );
 }
@@ -131,6 +143,11 @@ BOOL WINAPI AtlAxWinInit(void)
         if ( !RegisterClassExW( &wcex ) )
             return FALSE;
     }
+
+    if (!wmAtlGetControl)
+        wmAtlGetControl = RegisterWindowMessageW( L"WM_ATLGETCONTROL" );
+    if (!wmAtlGetHost)
+        wmAtlGetHost = RegisterWindowMessageW( L"WM_ATLGETHOST" );
 
     return TRUE;
 }

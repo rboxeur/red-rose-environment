@@ -686,6 +686,7 @@ SOURCES = \
 	rpcsal.h \
 	rstbas.idl \
 	rstchg.idl \
+	rtscom.idl \
 	rstinf.idl \
 	rstloc.idl \
 	rstnot.idl \
@@ -771,7 +772,7 @@ SOURCES = \
 	tlogstg.idl \
 	tmschema.h \
 	tom.idl \
-	tpcshrd.h \
+	tpcshrd.idl \
 	traffic.h \
 	transact.idl \
 	trnjoi.idl \

@@ -2047,6 +2047,21 @@ static void test_CoGetObjectContext(void)
     hr = CoGetCurrentLogicalThreadId(&id2);
     ok(IsEqualGUID(&id, &id2), "got %s, expected %s\n", wine_dbgstr_guid(&id), wine_dbgstr_guid(&id2));
 
+    id = GUID_NULL;
+    hr = IComThreadingInfo_SetCurrentLogicalThreadId(pComThreadingInfo, &id);
+    ok(hr == S_OK, "got 0x%08lx\n", hr);
+
+    hr = IComThreadingInfo_GetCurrentLogicalThreadId(pComThreadingInfo, &id);
+    ok(hr == S_OK, "got 0x%08lx\n", hr);
+    ok(IsEqualGUID(&id, &GUID_NULL), "id = %s\n", wine_dbgstr_guid(&id));
+
+    hr = CoGetCurrentLogicalThreadId(&id);
+    ok(hr == S_OK, "got 0x%08lx\n", hr);
+    ok(IsEqualGUID(&id, &GUID_NULL), "id = %s\n", wine_dbgstr_guid(&id));
+
+    hr = IComThreadingInfo_SetCurrentLogicalThreadId(pComThreadingInfo, &id2);
+    ok(hr == S_OK, "got 0x%08lx\n", hr);
+
     hr = IComThreadingInfo_GetCurrentApartmentType(pComThreadingInfo, &apttype);
     ok_ole_success(hr, "IComThreadingInfo_GetCurrentApartmentType");
     ok(apttype == APTTYPE_MAINSTA, "apartment type should be APTTYPE_MAINSTA instead of %d\n", apttype);
@@ -2204,12 +2219,42 @@ static void test_CoGetCallContext(void)
     CoUninitialize();
 }
 
+static DWORD WINAPI get_context_token_thread(void *arg)
+{
+    ULONG_PTR mta_token = (ULONG_PTR)arg, token;
+    HRESULT hr;
+    ULONG refs;
+
+    test_apt_type(APTTYPE_MTA, APTTYPEQUALIFIER_IMPLICIT_MTA);
+    hr = pCoGetContextToken(&token);
+    ok(hr == S_OK, "Expected S_OK, got 0x%08lx\n", hr);
+    ok(token, "Expected token != 0\n");
+    ok(token == mta_token, "token != mta_token\n");
+
+    refs = IUnknown_AddRef((IUnknown *)token);
+    ok(refs == 1, "Expected 1, got %lu\n", refs);
+    IUnknown_Release((IUnknown *)token);
+
+    hr = CoInitialize(NULL);
+    ok(hr == S_OK, "CoInitialize() failed with error 0x%08lx\n", hr);
+    test_apt_type(APTTYPE_MAINSTA, APTTYPEQUALIFIER_NONE);
+
+    hr = pCoGetContextToken(&token);
+    ok(hr == S_OK, "Expected S_OK, got 0x%08lx\n", hr);
+    ok(token, "Expected token != 0\n");
+    ok(token != mta_token, "token == mta_token\n");
+
+    CoUninitialize();
+    return 0;
+}
+
 static void test_CoGetContextToken(void)
 {
     HRESULT hr;
     ULONG refs;
     ULONG_PTR token, token2;
     IObjContext *ctx;
+    HANDLE thread;
 
     if (!pCoGetContextToken)
     {
@@ -2269,6 +2314,22 @@ static void test_CoGetContextToken(void)
 
     refs = IObjContext_Release(ctx);
     ok(refs == 1, "Expected 0, got %lu\n", refs);
+
+    CoUninitialize();
+
+    hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    ok(hr == S_OK, "Expected S_OK, got 0x%08lx\n", hr);
+
+    token = 0;
+    hr = pCoGetContextToken(&token);
+    ok(hr == S_OK, "Expected S_OK, got 0x%08lx\n", hr);
+    ok(token, "Expected token != 0\n");
+    ok(token != token2, "token did not change\n");
+
+    thread = CreateThread(NULL, 0, get_context_token_thread, (void*)token, 0, NULL);
+    ok(thread != NULL, "CreateThread failed\n");
+    WaitForSingleObject(thread, INFINITE);
+    CloseHandle(thread);
 
     refs = IObjContext_Release(ctx);
     ok(refs == 0, "Expected 0, got %lu\n", refs);

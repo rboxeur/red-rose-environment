@@ -1066,6 +1066,7 @@ static void test_font_transform(void)
     GpStringFormat *format, *typographic;
     PointF pos[1] = { { 0,0 } };
     REAL height, margin_y;
+    const REAL emSize = 120.0f;
     RectF bounds, rect;
 
     hdc = CreateCompatibleDC(0);
@@ -1082,12 +1083,12 @@ static void test_font_transform(void)
 
     memset(&lf, 0, sizeof(lf));
     lstrcpyA(lf.lfFaceName, "Tahoma");
-    lf.lfHeight = -100;
-    lf.lfWidth = 100;
+    lf.lfHeight = -emSize;
+    lf.lfWidth = emSize;
     status = GdipCreateFontFromLogfontA(hdc, &lf, &font);
     expect(Ok, status);
 
-    margin_y = 100.0 / 8.0;
+    margin_y = emSize / 8.0f;
 
     /* identity matrix */
     status = GdipCreateMatrix(&matrix);
@@ -1109,15 +1110,14 @@ static void test_font_transform(void)
     expect(Ok, status);
     expectf(0.0, bounds.X);
     expectf(0.0, bounds.Y);
-    todo_wine
-    expectf(height + margin_y, bounds.Height);
+    expectf_(height + margin_y, bounds.Height, 0.5);
     set_rect_empty(&rect);
     set_rect_empty(&bounds);
     status = GdipMeasureString(graphics, string, -1, font, &rect, typographic, &bounds, NULL, NULL);
     expect(Ok, status);
     expectf(0.0, bounds.X);
     expectf(0.0, bounds.Y);
-    expectf_(height, bounds.Height, 1.0);
+    expectf_(height, bounds.Height, 0.5);
     set_rect_empty(&bounds);
     status = GdipMeasureDriverString(graphics, (const UINT16 *)string, -1, font, pos,
                                      DriverStringOptionsCmapLookup, NULL, &bounds);
@@ -1153,8 +1153,7 @@ static void test_font_transform(void)
     expect(Ok, status);
     expectf(0.0, bounds.X);
     expectf(0.0, bounds.Y);
-    todo_wine
-    expectf(height + margin_y, bounds.Height);
+    expectf_(height + margin_y, bounds.Height, 0.5);
     set_rect_empty(&rect);
     set_rect_empty(&bounds);
     status = GdipMeasureString(graphics, string, -1, font, &rect, typographic, &bounds, NULL, NULL);
@@ -1199,8 +1198,7 @@ static void test_font_transform(void)
     expect(Ok, status);
     expectf(0.0, bounds.X);
     expectf(0.0, bounds.Y);
-    todo_wine
-    expectf(height + margin_y, bounds.Height);
+    expectf_(height + margin_y, bounds.Height, 0.5);
     set_rect_empty(&rect);
     set_rect_empty(&bounds);
     status = GdipMeasureString(graphics, string, -1, font, &rect, typographic, &bounds, NULL, NULL);
@@ -1247,8 +1245,7 @@ static void test_font_transform(void)
     expect(Ok, status);
     expectf(0.0, bounds.X);
     expectf(0.0, bounds.Y);
-    todo_wine
-    expectf(height + margin_y, bounds.Height);
+    expectf_(height + margin_y, bounds.Height, 0.5);
     set_rect_empty(&rect);
     set_rect_empty(&bounds);
     status = GdipMeasureString(graphics, string, -1, font, &rect, typographic, &bounds, NULL, NULL);
@@ -1295,8 +1292,7 @@ static void test_font_transform(void)
     expect(Ok, status);
     expectf(0.0, bounds.X);
     expectf(0.0, bounds.Y);
-    todo_wine
-    expectf(height + margin_y, bounds.Height);
+    expectf_(height + margin_y, bounds.Height, 0.5);
     set_rect_empty(&rect);
     set_rect_empty(&bounds);
     status = GdipMeasureString(graphics, string, -1, font, &rect, typographic, &bounds, NULL, NULL);

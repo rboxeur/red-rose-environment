@@ -140,7 +140,55 @@ static ULONG remove_vectored_handler( LIST_ENTRY *handler_list, VECTORED_HANDLER
     return ret;
 }
 
-
+#if defined(__WINE_PE_BUILD) && defined(__x86_64__) && !defined(__arm64ec__)
+extern LONG WINAPI call_vectored_handler( PVECTORED_EXCEPTION_HANDLER func,
+                                          EXCEPTION_POINTERS *ptr );
+/*
+ * Some vectored exception handlers restore nonvolatile registers before
+ * returning. Preserve the caller state across the callback.
+ */
+ 
+__ASM_GLOBAL_FUNC( call_vectored_handler,
+                    "pushq %rbx\n\t"
+                    ".seh_pushreg %rbx\n\t"
+                    "pushq %rsi\n\t"
+                    ".seh_pushreg %rsi\n\t"
+                    "pushq %rdi\n\t"
+                    ".seh_pushreg %rdi\n\t"
+                    "pushq %rbp\n\t"
+                    ".seh_pushreg %rbp\n\t"
+                    "pushq %r12\n\t"
+                    ".seh_pushreg %r12\n\t"
+                    "pushq %r13\n\t"
+                    ".seh_pushreg %r13\n\t"
+                    "pushq %r14\n\t"
+                    ".seh_pushreg %r14\n\t"
+                    "pushq %r15\n\t"
+                    ".seh_pushreg %r15\n\t"
+                    "subq $0x28,%rsp\n\t"
+                    ".seh_stackalloc 0x28\n\t"
+                    ".seh_endprologue\n\t"
+                    "movq %rcx,%rax\n\t"     /* func */
+                    "movq %rdx,%rcx\n\t"     /* ptr */
+                    "callq *%rax\n\t"
+                    "addq $0x28,%rsp\n\t"
+                    "popq %r15\n\t"
+                    "popq %r14\n\t"
+                    "popq %r13\n\t"
+                    "popq %r12\n\t"
+                    "popq %rbp\n\t"
+                    "popq %rdi\n\t"
+                    "popq %rsi\n\t"
+                    "popq %rbx\n\t"
+                    "ret" )
+#else
+static inline LONG call_vectored_handler( PVECTORED_EXCEPTION_HANDLER func,
+                                          EXCEPTION_POINTERS *ptr )
+{
+    return func( ptr );
+}
+#endif
+ 
 /**********************************************************************
  *           call_vectored_handlers
  *
@@ -172,7 +220,7 @@ LONG call_vectored_handlers( EXCEPTION_RECORD *rec, CONTEXT *context )
 
         TRACE( "calling handler at %p code=%lx flags=%lx\n",
                func, rec->ExceptionCode, rec->ExceptionFlags );
-        ret = func( &except_ptrs );
+        ret = call_vectored_handler( func, &except_ptrs );
         TRACE( "handler at %p returned %lx\n", func, ret );
 
         RtlEnterCriticalSection( &vectored_handlers_section );

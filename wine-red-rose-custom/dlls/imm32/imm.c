@@ -603,6 +603,8 @@ static void ime_save_input_context( struct ime *ime, HIMC himc, INPUTCONTEXT *ct
     ctx->hCompStr = old.hCompStr;
     ctx->hCandInfo = old.hCandInfo;
     ctx->hGuideLine = old.hGuideLine;
+    ctx->fdwConversion = old.fdwConversion;
+    ctx->fdwSentence = old.fdwSentence;
     if (!(ctx->hPrivate = ImmCreateIMCC( ime->info.dwPrivateDataSize )))
         WARN( "Failed to allocate IME private data\n" );
 
@@ -718,6 +720,7 @@ static void input_context_init( INPUTCONTEXT *ctx )
     COMPOSITIONSTRING *str;
     CANDIDATEINFO *info;
     GUIDELINE *line;
+    struct ime *ime;
     UINT i;
 
     if (!(ctx->hMsgBuf = ImmCreateIMCC( 0 )))
@@ -755,6 +758,13 @@ static void input_context_init( INPUTCONTEXT *ctx )
 
     for (i = 0; i < ARRAY_SIZE(ctx->cfCandForm); i++)
         ctx->cfCandForm[i].dwIndex = ~0u;
+
+    if ((ime = ime_acquire( GetKeyboardLayout( 0 ) )))
+    {
+        ctx->fdwConversion = ime->info.fdwConversionCaps;
+        ctx->fdwSentence = ime->info.fdwSentenceCaps;
+        ime_release( ime );
+    }
 }
 
 static void IMM_FreeThreadData(void)

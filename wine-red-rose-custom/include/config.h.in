@@ -717,6 +717,9 @@
 /* Define if Xrandr has the XRRGetProviderResources function */
 #undef HAVE_XRRGETPROVIDERRESOURCES
 
+/* Define to 1 if you have the <zlib.h> header file. */
+#undef HAVE_ZLIB_H
+
 /* Define to 1 if you have the `__builtin_popcount' built-in function. */
 #undef HAVE___BUILTIN_POPCOUNT
 

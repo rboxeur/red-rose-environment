@@ -64,6 +64,16 @@ HRESULT WINAPI DwmEnableComposition(UINT uCompositionAction)
 }
 
 /**********************************************************************
+ *           DwmpSetColorizationColor         (DWMAPI.@)
+ */
+HRESULT WINAPI DwmpSetColorizationColor(DWORD *colorization, BOOL *opaque_blend)
+{
+    FIXME("(%p %p) stub\n", colorization, opaque_blend);
+
+    return S_OK;
+}
+
+/**********************************************************************
  *           DwmExtendFrameIntoClientArea    (DWMAPI.@)
  */
 HRESULT WINAPI DwmExtendFrameIntoClientArea(HWND hwnd, const MARGINS* margins)

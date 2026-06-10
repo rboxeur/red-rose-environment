@@ -210,9 +210,20 @@ static HRESULT WINAPI d3d8_surface_LockRect(IDirect3DSurface8 *iface,
     struct wined3d_map_desc map_desc;
     HRESULT hr;
     D3DRESOURCETYPE type;
+    D3DSURFACE_DESC desc;
 
     TRACE("iface %p, locked_rect %p, rect %s, flags %#lx.\n",
             iface, locked_rect, wine_dbgstr_rect(rect), flags);
+
+    IDirect3DSurface8_GetDesc(iface, &desc);
+
+    if (desc.MultiSampleType)
+    {
+        WARN("Trying to lock a multisampled surface, returning D3DERR_INVALIDCALL.\n");
+        locked_rect->Pitch = 0;
+        locked_rect->pBits = NULL;
+        return D3DERR_INVALIDCALL;
+    }
 
     wined3d_mutex_lock();
 

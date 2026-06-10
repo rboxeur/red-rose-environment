@@ -345,6 +345,8 @@ library WindowsInstaller
             View* OpenView([in] BSTR Sql);
         [id(DISPID_DATABASE_SUMMARYINFORMATION), propget]
             SummaryInfo *SummaryInformation([in, defaultvalue(0)] long UpdateCount);
+        [id(DISPID_DATABASE_COMMIT)]
+            void Commit();
     }
 
     typedef enum {

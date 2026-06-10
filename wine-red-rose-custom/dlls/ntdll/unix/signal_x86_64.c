@@ -123,6 +123,12 @@ __ASM_GLOBAL_FUNC( alloc_fs_sel,
                    "popq %rbx\n\t"
                    "ret" );
 
+#ifndef PR_SET_SYSCALL_USER_DISPATCH
+#define PR_SET_SYSCALL_USER_DISPATCH 59
+#define PR_SYS_DISPATCH_OFF          0
+#define PR_SYS_DISPATCH_ON           1
+#endif
+
 #ifndef FP_XSTATE_MAGIC1
 #define FP_XSTATE_MAGIC1 0x46505853
 #endif

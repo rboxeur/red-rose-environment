@@ -690,6 +690,8 @@ GETTEXTPO_LIBS
 FREETYPE_LIBS
 FREETYPE_CFLAGS
 RESOLV_LIBS
+ZLIB_LIBS
+ZLIB_CFLAGS
 GPHOTO2_PORT_LIBS
 GPHOTO2_PORT_CFLAGS
 GPHOTO2_LIBS
@@ -736,6 +738,8 @@ XML2_PE_LIBS
 XML2_PE_CFLAGS
 VKD3D_PE_LIBS
 VKD3D_PE_CFLAGS
+TOMCRYPT_PE_LIBS
+TOMCRYPT_PE_CFLAGS
 TIFF_PE_LIBS
 TIFF_PE_CFLAGS
 PNG_PE_LIBS
@@ -772,7 +776,6 @@ SECURITY_LIBS
 APPKIT_LIBS
 CORESERVICES_LIBS
 APPLICATIONSERVICES_LIBS
-METAL_LIBS
 IOKIT_LIBS
 DISKARBITRATION_LIBS
 COREFOUNDATION_LIBS
@@ -984,6 +987,7 @@ with_xrender
 with_xshape
 with_xshm
 with_xxf86vm
+with_zlib
 with_system_dllpath
 with_wine_tools
 with_wine64
@@ -1000,6 +1004,7 @@ enable_advapi32
 enable_advpack
 enable_amsi
 enable_amd_ags_x64
+enable_amdxc64
 enable_amstream
 enable_apisetschema
 enable_apphelp
@@ -1028,6 +1033,7 @@ enable_capi2032
 enable_cards
 enable_cdosys
 enable_cfgmgr32
+enable_chakra
 enable_clusapi
 enable_cng_sys
 enable_combase
@@ -1050,6 +1056,7 @@ enable_cryptnet
 enable_cryptowinrt
 enable_cryptsp
 enable_cryptui
+enable_cryptxml
 enable_ctapi32
 enable_ctl3d32
 enable_d2d1
@@ -1161,8 +1168,11 @@ enable_dx8vb
 enable_dxcore
 enable_dxdiagn
 enable_dxgi
+enable_dxgkrnl_sys
+enable_dxgmms1_sys
 enable_dxtrans
 enable_dxva2
+enable_embeddedbrowserwebview
 enable_esent
 enable_evr
 enable_explorerframe
@@ -1216,6 +1226,7 @@ enable_iprop
 enable_irprops_cpl
 enable_itircl
 enable_itss
+enable_iyuv_32
 enable_joy_cpl
 enable_jscript
 enable_jsproxy
@@ -1500,12 +1511,15 @@ enable_websocket
 enable_wer
 enable_wevtapi
 enable_wevtsvc
+enable_wkscli
 enable_wiaservc
 enable_wimgapi
+enable_win32k_sys
 enable_win32u
 enable_windows_applicationmodel
 enable_windows_devices_bluetooth
 enable_windows_devices_enumeration
+enable_windows_devices_radios
 enable_windows_devices_usb
 enable_windows_gaming_input
 enable_windows_gaming_ui_gamebar
@@ -1565,6 +1579,7 @@ enable_wldp
 enable_wmasf
 enable_wmi
 enable_wmilib_sys
+enable_wminet_utils
 enable_wmiutils
 enable_wmp
 enable_wmphoto
@@ -1650,6 +1665,7 @@ enable_png
 enable_strmbase
 enable_strmiids
 enable_tiff
+enable_tomcrypt
 enable_uuid
 enable_vkd3d
 enable_wbemuuid
@@ -1709,6 +1725,7 @@ enable_netsh
 enable_netstat
 enable_ngen
 enable_notepad
+enable_odbcad32
 enable_oleview
 enable_ping
 enable_plugplay
@@ -1820,6 +1837,8 @@ PNG_PE_CFLAGS
 PNG_PE_LIBS
 TIFF_PE_CFLAGS
 TIFF_PE_LIBS
+TOMCRYPT_PE_CFLAGS
+TOMCRYPT_PE_LIBS
 VKD3D_PE_CFLAGS
 VKD3D_PE_LIBS
 XML2_PE_CFLAGS
@@ -1858,6 +1877,8 @@ GPHOTO2_CFLAGS
 GPHOTO2_LIBS
 GPHOTO2_PORT_CFLAGS
 GPHOTO2_PORT_LIBS
+ZLIB_CFLAGS
+ZLIB_LIBS
 FREETYPE_CFLAGS
 FREETYPE_LIBS
 PULSE_CFLAGS
@@ -2512,7 +2533,7 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --enable-archs={i386,x86_64,arm,aarch64}
+  --enable-archs={i386,x86_64,arm,aarch64,arm64ec,none}
                           enable multiple architectures for PE compilation
   --disable-win16         do not include Win16 support
   --enable-win64          build a Win64 emulator on AMD64 (won't run Win32
@@ -2578,6 +2599,7 @@ Optional Packages:
   --without-xshape        do not use the Xshape extension
   --without-xshm          do not use XShm (shared memory extension)
   --without-xxf86vm       do not use XFree video mode extension
+  --without-zlib          do not use zlib
   --with-system-dllpath=PATH
                           load external PE dependencies from colon-separated
                           path PATH
@@ -2643,6 +2665,11 @@ Some influential environment variables:
               C compiler flags for the PE tiff, overriding the bundled version
   TIFF_PE_LIBS
               Linker flags for the PE tiff, overriding the bundled version
+  TOMCRYPT_PE_CFLAGS
+              C compiler flags for the PE tomcrypt, overriding the bundled
+              version
+  TOMCRYPT_PE_LIBS
+              Linker flags for the PE tomcrypt, overriding the bundled version
   VKD3D_PE_CFLAGS
               C compiler flags for the PE vkd3d, overriding the bundled
               version
@@ -2708,6 +2735,8 @@ Some influential environment variables:
               C compiler flags for libgphoto2_port, overriding pkg-config
   GPHOTO2_PORT_LIBS
               Linker flags for libgphoto2_port, overriding pkg-config
+  ZLIB_CFLAGS C compiler flags for zlib, overriding pkg-config
+  ZLIB_LIBS   Linker flags for zlib, overriding pkg-config
   FREETYPE_CFLAGS
               C compiler flags for freetype2, overriding pkg-config
   FREETYPE_LIBS
@@ -4640,6 +4669,13 @@ fi
 if test ${with_xxf86vm+y}
 then :
   withval=$with_xxf86vm; if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_xf86vmode_h=no; ac_cv_header_X11_extensions_xf86vmproto_h=no; fi
+fi
+
+
+# Check whether --with-zlib was given.
+if test ${with_zlib+y}
+then :
+  withval=$with_zlib;
 fi
 
 
@@ -9588,7 +9624,7 @@ case $host_os in
   cygwin*|mingw32*)
     LIBEXT="dll"
     DLLEXT=""
-    EXTRACFLAGS="-D__WINE_PE_BUILD"
+    EXTRACFLAGS="-D__WINE_PE_BUILD -D_GNU_SOURCE"
         if test "x$HOST_ARCH" = xi386
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -Wl,--disable-stdcall-fixup" >&5
@@ -9638,8 +9674,6 @@ fi
     DISKARBITRATION_LIBS="-framework DiskArbitration -framework CoreFoundation"
 
     IOKIT_LIBS="-framework IOKit -framework CoreFoundation"
-
-    METAL_LIBS="-framework Metal"
 
     APPLICATIONSERVICES_LIBS="-framework ApplicationServices"
 
@@ -11779,6 +11813,40 @@ if eval test \"x\$"$as_ac_var"\" = x"yes"
 then :
   as_fn_append ${wine_arch}_EXTRACFLAGS " -mpreferred-stack-boundary=2"
 fi }
+            { as_ac_var=`printf "%s\n" "ac_cv_${wine_arch}_cflags_-msse -mfpmath=sse" | $as_tr_sh`
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether $CC supports -msse -mfpmath=sse" >&5
+printf %s "checking whether $CC supports -msse -mfpmath=sse... " >&6; }
+if eval test \${$as_ac_var+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_wine_try_cflags_saved=$CFLAGS
+ac_wine_try_cflags_saved_exeext=$ac_exeext
+CFLAGS="$CFLAGS -nostdlib -nodefaultlibs -msse -mfpmath=sse"
+ac_exeext=".exe"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+void *__os_arm64x_dispatch_ret = 0;
+int __cdecl mainCRTStartup(void) { return 0; }
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  eval "$as_ac_var=yes"
+else $as_nop
+  eval "$as_ac_var=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+CFLAGS=$ac_wine_try_cflags_saved
+ac_exeext=$ac_wine_try_cflags_saved_exeext
+fi
+eval ac_res=\$$as_ac_var
+	       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+printf "%s\n" "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_var"\" = x"yes"
+then :
+  as_fn_append ${wine_arch}_EXTRACFLAGS " -msse -mfpmath=sse"
+fi }
             { as_ac_var=`printf "%s\n" "ac_cv_${wine_arch}_cflags_-Wl,--disable-stdcall-fixup" | $as_tr_sh`
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether $CC supports -Wl,--disable-stdcall-fixup" >&5
 printf %s "checking whether $CC supports -Wl,--disable-stdcall-fixup... " >&6; }
@@ -12198,9 +12266,11 @@ then :
 fi
 fi
 FAUDIO_PE_LIBS=${FAUDIO_PE_LIBS:-"-lFAudio"}
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $FAUDIO_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW FAudio.h" >&5
+if test "x$FAUDIO_PE_CFLAGS" != "x" -o "x$FAUDIO_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $FAUDIO_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW FAudio.h" >&5
 printf %s "checking for MinGW FAudio.h... " >&6; }
 if test ${ac_cv_mingw_header_FAudio_h+y}
 then :
@@ -12286,7 +12356,8 @@ fi
 else $as_nop
   FAUDIO_PE_CFLAGS=""; FAUDIO_PE_LIBS=""
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$FAUDIO_PE_LIBS" = "x"
     then
@@ -12308,9 +12379,11 @@ then :
 fi
 fi
 FLUIDSYNTH_PE_LIBS=${FLUIDSYNTH_PE_LIBS:-"-lfluidsynth"}
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $FLUIDSYNTH_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW fluidsynth.h" >&5
+if test "x$FLUIDSYNTH_PE_CFLAGS" != "x" -o "x$FLUIDSYNTH_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $FLUIDSYNTH_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW fluidsynth.h" >&5
 printf %s "checking for MinGW fluidsynth.h... " >&6; }
 if test ${ac_cv_mingw_header_fluidsynth_h+y}
 then :
@@ -12396,7 +12469,8 @@ fi
 else $as_nop
   FLUIDSYNTH_PE_CFLAGS=""; FLUIDSYNTH_PE_LIBS=""
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$FLUIDSYNTH_PE_LIBS" = "x"
     then
@@ -12418,9 +12492,11 @@ then :
 fi
 fi
 
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $JPEG_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW jpeglib.h" >&5
+if test "x$JPEG_PE_CFLAGS" != "x" -o "x$JPEG_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $JPEG_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW jpeglib.h" >&5
 printf %s "checking for MinGW jpeglib.h... " >&6; }
 if test ${ac_cv_mingw_header_jpeglib_h+y}
 then :
@@ -12507,7 +12583,8 @@ fi
 else $as_nop
   JPEG_PE_CFLAGS=""; JPEG_PE_LIBS=""
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$JPEG_PE_LIBS" = "x"
     then
@@ -12529,9 +12606,11 @@ then :
 fi
 fi
 LCMS2_PE_LIBS=${LCMS2_PE_LIBS:-"-llcms2"}
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $LCMS2_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW lcms2.h" >&5
+if test "x$LCMS2_PE_CFLAGS" != "x" -o "x$LCMS2_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $LCMS2_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW lcms2.h" >&5
 printf %s "checking for MinGW lcms2.h... " >&6; }
 if test ${ac_cv_mingw_header_lcms2_h+y}
 then :
@@ -12617,7 +12696,8 @@ fi
 else $as_nop
   LCMS2_PE_CFLAGS=""; LCMS2_PE_LIBS=""
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$LCMS2_PE_LIBS" = "x"
     then
@@ -12639,9 +12719,11 @@ then :
 fi
 fi
 MPG123_PE_LIBS=${MPG123_PE_LIBS:-"-lmpg123"}
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $MPG123_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW mpg123.h" >&5
+if test "x$MPG123_PE_CFLAGS" != "x" -o "x$MPG123_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $MPG123_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW mpg123.h" >&5
 printf %s "checking for MinGW mpg123.h... " >&6; }
 if test ${ac_cv_mingw_header_mpg123_h+y}
 then :
@@ -12727,7 +12809,8 @@ fi
 else $as_nop
   MPG123_PE_CFLAGS=""; MPG123_PE_LIBS=""
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$MPG123_PE_LIBS" = "x"
     then
@@ -12749,9 +12832,11 @@ then :
 fi
 fi
 
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $PNG_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW png.h" >&5
+if test "x$PNG_PE_CFLAGS" != "x" -o "x$PNG_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $PNG_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW png.h" >&5
 printf %s "checking for MinGW png.h... " >&6; }
 if test ${ac_cv_mingw_header_png_h+y}
 then :
@@ -12837,7 +12922,8 @@ fi
 else $as_nop
   PNG_PE_CFLAGS=""; PNG_PE_LIBS=""
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$PNG_PE_LIBS" = "x"
     then
@@ -12859,9 +12945,11 @@ then :
 fi
 fi
 
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $TIFF_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW tiffio.h" >&5
+if test "x$TIFF_PE_CFLAGS" != "x" -o "x$TIFF_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $TIFF_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW tiffio.h" >&5
 printf %s "checking for MinGW tiffio.h... " >&6; }
 if test ${ac_cv_mingw_header_tiffio_h+y}
 then :
@@ -12947,7 +13035,8 @@ fi
 else $as_nop
   TIFF_PE_CFLAGS=""; TIFF_PE_LIBS=""
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$TIFF_PE_LIBS" = "x"
     then
@@ -12969,9 +13058,11 @@ then :
 fi
 fi
 XML2_PE_LIBS=${XML2_PE_LIBS:-"-lxml2"}
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $XML2_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW libxml/parser.h" >&5
+if test "x$XML2_PE_CFLAGS" != "x" -o "x$XML2_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $XML2_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW libxml/parser.h" >&5
 printf %s "checking for MinGW libxml/parser.h... " >&6; }
 if test ${ac_cv_mingw_header_libxml_parser_h+y}
 then :
@@ -13138,7 +13229,8 @@ fi
             XML2_PE_CFLAGS=""
             XML2_PE_LIBS=""
         fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$XML2_PE_LIBS" = "x"
     then
@@ -13160,9 +13252,11 @@ then :
 fi
 fi
 XSLT_PE_LIBS=${XSLT_PE_LIBS:-"-lxslt"}
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $XSLT_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW libxslt/pattern.h" >&5
+if test "x$XSLT_PE_CFLAGS" != "x" -o "x$XSLT_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $XSLT_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW libxslt/pattern.h" >&5
 printf %s "checking for MinGW libxslt/pattern.h... " >&6; }
 if test ${ac_cv_mingw_header_libxslt_pattern_h+y}
 then :
@@ -13291,7 +13385,8 @@ fi
             XSLT_PE_CFLAGS=""
             XSLT_PE_LIBS=""
         fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$XSLT_PE_LIBS" = "x"
     then
@@ -13313,9 +13408,11 @@ then :
 fi
 fi
 VKD3D_PE_LIBS=${VKD3D_PE_LIBS:-"-lvkd3d -lvkd3d-shader"}
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $VKD3D_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW vkd3d.h" >&5
+if test "x$VKD3D_PE_CFLAGS" != "x" -o "x$VKD3D_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $VKD3D_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW vkd3d.h" >&5
 printf %s "checking for MinGW vkd3d.h... " >&6; }
 if test ${ac_cv_mingw_header_vkd3d_h+y}
 then :
@@ -13496,7 +13593,8 @@ fi
             VKD3D_PE_CFLAGS=""
             VKD3D_PE_LIBS=""
         fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$VKD3D_PE_LIBS" = "x"
     then
@@ -13518,9 +13616,11 @@ then :
 fi
 fi
 ZLIB_PE_LIBS=${ZLIB_PE_LIBS:-"-lz"}
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $ZLIB_PE_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW zlib.h" >&5
+if test "x$ZLIB_PE_CFLAGS" != "x" -o "x$ZLIB_PE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$CPPFLAGS $ZLIB_PE_CFLAGS"
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MinGW zlib.h" >&5
 printf %s "checking for MinGW zlib.h... " >&6; }
 if test ${ac_cv_mingw_header_zlib_h+y}
 then :
@@ -13606,7 +13706,8 @@ fi
 else $as_nop
   ZLIB_PE_CFLAGS=""; ZLIB_PE_LIBS=""
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+       CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     if test "x$ZLIB_PE_LIBS" = "x"
     then
@@ -13778,6 +13879,21 @@ else $as_nop
 fi
 printf "%s\n" "$as_me:${as_lineno-$LINENO}: tiff cflags: $TIFF_PE_CFLAGS" >&5
 printf "%s\n" "$as_me:${as_lineno-$LINENO}: tiff libs: $TIFF_PE_LIBS" >&5
+
+if ${TOMCRYPT_PE_LIBS:+false} :
+then :
+  TOMCRYPT_PE_LIBS=tomcrypt
+   if ${TOMCRYPT_PE_CFLAGS:+false} :
+then :
+  TOMCRYPT_PE_CFLAGS="-I\$(top_srcdir)/libs/tomcrypt/src/headers -DLTC_NO_PROTOTYPES -DLTC_SOURCE"
+else $as_nop
+  enable_tomcrypt=no
+fi
+else $as_nop
+  enable_tomcrypt=no
+fi
+printf "%s\n" "$as_me:${as_lineno-$LINENO}: tomcrypt cflags: $TOMCRYPT_PE_CFLAGS" >&5
+printf "%s\n" "$as_me:${as_lineno-$LINENO}: tomcrypt libs: $TOMCRYPT_PE_LIBS" >&5
 
 if ${VKD3D_PE_LIBS:+false} :
 then :
@@ -16076,9 +16192,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $WAYLAND_CLIENT_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "wayland-client.h" "ac_cv_header_wayland_client_h" "$ac_includes_default"
+if test "x$WAYLAND_CLIENT_CFLAGS" != "x" -o "x$WAYLAND_CLIENT_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $WAYLAND_CLIENT_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "wayland-client.h" "ac_cv_header_wayland_client_h" "$ac_includes_default"
 if test "x$ac_cv_header_wayland_client_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for wl_display_connect in -lwayland-client" >&5
@@ -16170,7 +16288,8 @@ fi
 
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     rm -f conftest.err
 if ${XKBCOMMON_CFLAGS:+false} :
@@ -16197,9 +16316,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $XKBCOMMON_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "xkbcommon/xkbcommon.h" "ac_cv_header_xkbcommon_xkbcommon_h" "$ac_includes_default"
+if test "x$XKBCOMMON_CFLAGS" != "x" -o "x$XKBCOMMON_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $XKBCOMMON_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "xkbcommon/xkbcommon.h" "ac_cv_header_xkbcommon_xkbcommon_h" "$ac_includes_default"
 if test "x$ac_cv_header_xkbcommon_xkbcommon_h" = xyes
 then :
   printf "%s\n" "#define HAVE_XKBCOMMON_XKBCOMMON_H 1" >>confdefs.h
@@ -16248,7 +16369,8 @@ else $as_nop
   XKBCOMMON_LIBS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     rm -f conftest.err
 if ${XKBREGISTRY_CFLAGS:+false} :
@@ -16275,9 +16397,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $XKBREGISTRY_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "xkbcommon/xkbregistry.h" "ac_cv_header_xkbcommon_xkbregistry_h" "$ac_includes_default"
+if test "x$XKBREGISTRY_CFLAGS" != "x" -o "x$XKBREGISTRY_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $XKBREGISTRY_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "xkbcommon/xkbregistry.h" "ac_cv_header_xkbcommon_xkbregistry_h" "$ac_includes_default"
 if test "x$ac_cv_header_xkbcommon_xkbregistry_h" = xyes
 then :
   printf "%s\n" "#define HAVE_XKBCOMMON_XKBREGISTRY_H 1" >>confdefs.h
@@ -16326,7 +16450,8 @@ else $as_nop
   XKBREGISTRY_LIBS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test -z "$WAYLAND_CLIENT_LIBS" -o -z "$WAYLAND_SCANNER" -o -z "$XKBCOMMON_LIBS" -o -z "$XKBREGISTRY_LIBS" -o "$ac_cv_header_linux_input_h" = "no"
@@ -16383,16 +16508,6 @@ then :
 
 fi
 
-fi
-if test "x$ac_cv_lib_OpenCL_clGetPlatformInfo" != xyes
-then :
-  case "x$with_opencl" in
-  x)   as_fn_append wine_notices "|OpenCL ${notice_platform}development files not found, OpenCL won't be supported." ;;
-  xno) ;;
-  *)   as_fn_error $? "OpenCL ${notice_platform}development files not found, OpenCL won't be supported.
-This is an error since --with-opencl was requested." "$LINENO" 5 ;;
-esac
-enable_opencl=${enable_opencl:-no}
 fi
 
 if test "$ac_cv_header_pcap_pcap_h" = "yes"
@@ -16537,9 +16652,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $INOTIFY_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "sys/inotify.h" "ac_cv_header_sys_inotify_h" "$ac_includes_default"
+if test "x$INOTIFY_CFLAGS" != "x" -o "x$INOTIFY_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $INOTIFY_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "sys/inotify.h" "ac_cv_header_sys_inotify_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_inotify_h" = xyes
 then :
   printf "%s\n" "#define HAVE_SYS_INOTIFY_H 1" >>confdefs.h
@@ -16588,7 +16705,8 @@ else $as_nop
   INOTIFY_LIBS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "$ac_cv_header_sys_inotify_h" != "yes"
@@ -16629,9 +16747,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $DBUS_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "dbus/dbus.h" "ac_cv_header_dbus_dbus_h" "$ac_includes_default"
+if test "x$DBUS_CFLAGS" != "x" -o "x$DBUS_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $DBUS_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "dbus/dbus.h" "ac_cv_header_dbus_dbus_h" "$ac_includes_default"
 if test "x$ac_cv_header_dbus_dbus_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for -ldbus-1" >&5
@@ -16692,7 +16812,8 @@ else $as_nop
   DBUS_CFLAGS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 case $host_os in
@@ -16736,9 +16857,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $GNUTLS_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "gnutls/gnutls.h" "ac_cv_header_gnutls_gnutls_h" "$ac_includes_default"
+if test "x$GNUTLS_CFLAGS" != "x" -o "x$GNUTLS_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $GNUTLS_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "gnutls/gnutls.h" "ac_cv_header_gnutls_gnutls_h" "$ac_includes_default"
 if test "x$ac_cv_header_gnutls_gnutls_h" = xyes
 then :
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -16831,7 +16954,8 @@ else $as_nop
   GNUTLS_CFLAGS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_gnutls" = "x"
@@ -16870,9 +16994,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $DRM_CFLAGS"
-       for ac_header in xf86drm.h
+if test "x$DRM_CFLAGS" != "x" -o "x$DRM_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $DRM_CFLAGS"
+            for ac_header in xf86drm.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "xf86drm.h" "ac_cv_header_xf86drm_h" "$ac_includes_default"
 if test "x$ac_cv_header_xf86drm_h" = xyes
@@ -16935,7 +17061,8 @@ fi
 fi
 
 done
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 
 rm -f conftest.err
@@ -16963,9 +17090,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $DRMAMDGPU_CFLAGS"
-       for ac_header in amdgpu_drm.h
+if test "x$DRMAMDGPU_CFLAGS" != "x" -o "x$DRMAMDGPU_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $DRMAMDGPU_CFLAGS"
+            for ac_header in amdgpu_drm.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "amdgpu_drm.h" "ac_cv_header_amdgpu_drm_h" "$ac_includes_default"
 if test "x$ac_cv_header_amdgpu_drm_h" = xyes
@@ -17028,7 +17157,8 @@ fi
 fi
 
 done
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 
 if test "x$with_gnutls" != "xno"
@@ -17058,9 +17188,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $GMP_CFLAGS"
-       for ac_header in gmp.h
+if test "x$GMP_CFLAGS" != "x" -o "x$GMP_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $GMP_CFLAGS"
+            for ac_header in gmp.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "gmp.h" "ac_cv_header_gmp_h" "$ac_includes_default"
 if test "x$ac_cv_header_gmp_h" = xyes
@@ -17123,7 +17255,8 @@ fi
 fi
 
 done
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 
@@ -17154,9 +17287,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $SANE_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "sane/sane.h" "ac_cv_header_sane_sane_h" "$ac_includes_default"
+if test "x$SANE_CFLAGS" != "x" -o "x$SANE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $SANE_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "sane/sane.h" "ac_cv_header_sane_sane_h" "$ac_includes_default"
 if test "x$ac_cv_header_sane_sane_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for sane_init in -lsane" >&5
@@ -17201,7 +17336,8 @@ fi
 
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "$ac_cv_lib_sane_sane_init" != "yes"
@@ -17217,7 +17353,93 @@ fi
 
 if test "x$with_usb" != "xno"
 then
-    rm -f conftest.err
+
+    case $host_os in
+      freebsd*)
+        rm -f conftest.err
+if ${USB_CFLAGS:+false} :
+then :
+  if test ${PKG_CONFIG+y}
+then :
+  USB_CFLAGS=`$PKG_CONFIG --cflags libusb-1.0 2>conftest.err`
+fi
+fi
+
+if ${USB_LIBS:+false} :
+then :
+  if test ${PKG_CONFIG+y}
+then :
+  USB_LIBS=`$PKG_CONFIG --libs libusb-1.0 2>/dev/null`
+fi
+fi
+
+USB_LIBS=${USB_LIBS:-"-lusb"}
+printf "%s\n" "$as_me:${as_lineno-$LINENO}: libusb-1.0 cflags: $USB_CFLAGS" >&5
+printf "%s\n" "$as_me:${as_lineno-$LINENO}: libusb-1.0 libs: $USB_LIBS" >&5
+if test -s conftest.err; then
+     printf %s "$as_me:${as_lineno-$LINENO}: libusb-1.0 errors: " >&5
+     cat conftest.err >&5
+fi
+rm -f conftest.err
+if test "x$USB_CFLAGS" != "x" -o "x$USB_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $USB_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "libusb.h" "ac_cv_header_libusb_h" "$ac_includes_default"
+if test "x$ac_cv_header_libusb_h" = xyes
+then :
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libusb_interrupt_event_handler in -lusb" >&5
+printf %s "checking for libusb_interrupt_event_handler in -lusb... " >&6; }
+if test ${ac_cv_lib_usb_libusb_interrupt_event_handler+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lusb $USB_LIBS $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char libusb_interrupt_event_handler ();
+int
+main (void)
+{
+return libusb_interrupt_event_handler ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_usb_libusb_interrupt_event_handler=yes
+else $as_nop
+  ac_cv_lib_usb_libusb_interrupt_event_handler=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_usb_libusb_interrupt_event_handler" >&5
+printf "%s\n" "$ac_cv_lib_usb_libusb_interrupt_event_handler" >&6; }
+if test "x$ac_cv_lib_usb_libusb_interrupt_event_handler" = xyes
+then :
+  :
+else $as_nop
+  USB_LIBS=""
+fi
+
+else $as_nop
+  USB_LIBS=""
+fi
+
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
+
+        ;;
+      *)
+        rm -f conftest.err
 if ${USB_CFLAGS:+false} :
 then :
   if test ${PKG_CONFIG+y}
@@ -17242,9 +17464,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $USB_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "libusb.h" "ac_cv_header_libusb_h" "$ac_includes_default"
+if test "x$USB_CFLAGS" != "x" -o "x$USB_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $USB_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "libusb.h" "ac_cv_header_libusb_h" "$ac_includes_default"
 if test "x$ac_cv_header_libusb_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libusb_interrupt_event_handler in -lusb-1.0" >&5
@@ -17293,10 +17517,16 @@ else $as_nop
   USB_LIBS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
+
+        ;;
+    esac
 
 fi
-if test "$ac_cv_lib_usb_1_0_libusb_interrupt_event_handler" != "yes"
+case $host_os in
+    freebsd*)
+        if test "$ac_cv_lib_usb_libusb_interrupt_event_handler" != "yes"
 then :
   case "x$with_usb" in
   x)   as_fn_append wine_notices "|libusb-1.0 ${notice_platform}development files not found (or too old), USB devices won't be supported." ;;
@@ -17306,6 +17536,20 @@ This is an error since --with-usb was requested." "$LINENO" 5 ;;
 esac
 enable_wineusb_sys=${enable_wineusb_sys:-no}
 fi
+    ;;
+    *)
+        if test "$ac_cv_lib_usb_1_0_libusb_interrupt_event_handler" != "yes"
+then :
+  case "x$with_usb" in
+  x)   as_fn_append wine_notices "|libusb-1.0 ${notice_platform}development files not found (or too old), USB devices won't be supported." ;;
+  xno) ;;
+  *)   as_fn_error $? "libusb-1.0 ${notice_platform}development files not found (or too old), USB devices won't be supported.
+This is an error since --with-usb was requested." "$LINENO" 5 ;;
+esac
+enable_wineusb_sys=${enable_wineusb_sys:-no}
+fi
+    ;;
+esac
 
 if test "x$with_v4l2" != "xno"
 then
@@ -17402,9 +17646,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $GPHOTO2_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "gphoto2-camera.h" "ac_cv_header_gphoto2_camera_h" "$ac_includes_default"
+if test "x$GPHOTO2_CFLAGS" != "x" -o "x$GPHOTO2_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $GPHOTO2_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "gphoto2-camera.h" "ac_cv_header_gphoto2_camera_h" "$ac_includes_default"
 if test "x$ac_cv_header_gphoto2_camera_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for gp_camera_new in -lgphoto2" >&5
@@ -17449,7 +17695,8 @@ fi
 
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
     rm -f conftest.err
 if ${GPHOTO2_PORT_CFLAGS:+false} :
@@ -17476,9 +17723,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $GPHOTO2_PORT_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "gphoto2-port.h" "ac_cv_header_gphoto2_port_h" "$ac_includes_default"
+if test "x$GPHOTO2_PORT_CFLAGS" != "x" -o "x$GPHOTO2_PORT_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $GPHOTO2_PORT_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "gphoto2-port.h" "ac_cv_header_gphoto2_port_h" "$ac_includes_default"
 if test "x$ac_cv_header_gphoto2_port_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for gp_port_info_list_new in -lgphoto2_port" >&5
@@ -17529,7 +17778,8 @@ else $as_nop
   GPHOTO2_PORT_LIBS=""; GPHOTO2_PORT_CFLAGS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "$ac_cv_lib_gphoto2_gp_camera_new" != "yes"
@@ -17553,6 +17803,100 @@ esac
 
 fi
 
+if test "x$with_zlib" != "xno"
+then
+    rm -f conftest.err
+if ${ZLIB_CFLAGS:+false} :
+then :
+  if test ${PKG_CONFIG+y}
+then :
+  ZLIB_CFLAGS=`$PKG_CONFIG --cflags zlib 2>conftest.err`
+fi
+fi
+
+if ${ZLIB_LIBS:+false} :
+then :
+  if test ${PKG_CONFIG+y}
+then :
+  ZLIB_LIBS=`$PKG_CONFIG --libs zlib 2>/dev/null`
+fi
+fi
+
+
+printf "%s\n" "$as_me:${as_lineno-$LINENO}: zlib cflags: $ZLIB_CFLAGS" >&5
+printf "%s\n" "$as_me:${as_lineno-$LINENO}: zlib libs: $ZLIB_LIBS" >&5
+if test -s conftest.err; then
+     printf %s "$as_me:${as_lineno-$LINENO}: zlib errors: " >&5
+     cat conftest.err >&5
+fi
+rm -f conftest.err
+if test "x$ZLIB_CFLAGS" != "x" -o "x$ZLIB_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $ZLIB_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "zlib.h" "ac_cv_header_zlib_h" "$ac_includes_default"
+if test "x$ac_cv_header_zlib_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_ZLIB_H 1" >>confdefs.h
+
+fi
+
+         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for compress in -lz" >&5
+printf %s "checking for compress in -lz... " >&6; }
+if test ${ac_cv_lib_z_compress+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lz $ZLIB_LIBS $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char compress ();
+int
+main (void)
+{
+return compress ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_z_compress=yes
+else $as_nop
+  ac_cv_lib_z_compress=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_z_compress" >&5
+printf "%s\n" "$ac_cv_lib_z_compress" >&6; }
+if test "x$ac_cv_lib_z_compress" = xyes
+then :
+  :
+else $as_nop
+  ZLIB_LIBS=""
+fi
+
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
+
+fi
+if test "$ac_cv_header_zlib_h" != "yes"
+then :
+  case "x$with_zlib" in
+  x)   as_fn_append wine_notices "|libz ${notice_platform}development files not found (or too old), wrc compressed resources won't be supported." ;;
+  xno) ;;
+  *)   as_fn_error $? "libz ${notice_platform}development files not found (or too old), wrc compressed resources won't be supported.
+This is an error since --with-zlib was requested." "$LINENO" 5 ;;
+esac
+
+fi
 
 if test "$ac_cv_header_resolv_h" = "yes"
 then
@@ -17677,9 +18021,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $FREETYPE_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "ft2build.h" "ac_cv_header_ft2build_h" "$ac_includes_default"
+if test "x$FREETYPE_CFLAGS" != "x" -o "x$FREETYPE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $FREETYPE_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "ft2build.h" "ac_cv_header_ft2build_h" "$ac_includes_default"
 if test "x$ac_cv_header_ft2build_h" = xyes
 then :
   printf "%s\n" "#define HAVE_FT2BUILD_H 1" >>confdefs.h
@@ -17759,7 +18105,8 @@ fi
             FREETYPE_CFLAGS=""
             FREETYPE_LIBS=""
         fi
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_freetype" = x
@@ -17881,9 +18228,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $PULSE_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "pulse/pulseaudio.h" "ac_cv_header_pulse_pulseaudio_h" "$ac_includes_default"
+if test "x$PULSE_CFLAGS" != "x" -o "x$PULSE_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $PULSE_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "pulse/pulseaudio.h" "ac_cv_header_pulse_pulseaudio_h" "$ac_includes_default"
 if test "x$ac_cv_header_pulse_pulseaudio_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for pa_stream_is_corked in -lpulse" >&5
@@ -17932,7 +18281,8 @@ else $as_nop
   PULSE_LIBS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test -z "$PULSE_LIBS"
@@ -17973,9 +18323,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $GSTREAMER_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "gst/gst.h" "ac_cv_header_gst_gst_h" "$ac_includes_default"
+if test "x$GSTREAMER_CFLAGS" != "x" -o "x$GSTREAMER_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $GSTREAMER_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "gst/gst.h" "ac_cv_header_gst_gst_h" "$ac_includes_default"
 if test "x$ac_cv_header_gst_gst_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether gint64 defined by gst/gst.h is indeed 64-bit" >&5
@@ -18045,7 +18397,8 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_glib2_broken" != xyes -a "x$ac_cv_lib_gstreamer_1_0_gst_pad_new" != xyes
@@ -18227,9 +18580,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $UDEV_CFLAGS"
-       for ac_header in libudev.h
+if test "x$UDEV_CFLAGS" != "x" -o "x$UDEV_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $UDEV_CFLAGS"
+            for ac_header in libudev.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "libudev.h" "ac_cv_header_libudev_h" "$ac_includes_default"
 if test "x$ac_cv_header_libudev_h" = xyes
@@ -18284,7 +18639,8 @@ else $as_nop
 fi
 
 done
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$UDEV_LIBS" = "x"
@@ -18325,9 +18681,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $UNWIND_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for unw_step" >&5
+if test "x$UNWIND_CFLAGS" != "x" -o "x$UNWIND_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $UNWIND_CFLAGS"
+     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for unw_step" >&5
 printf %s "checking for unw_step... " >&6; }
 if test ${wine_cv_have_unw_step+y}
 then :
@@ -18399,7 +18757,8 @@ printf "%s\n" "$wine_cv_have_libunwind_unw_step" >&6; }
 printf "%s\n" "#define HAVE_LIBUNWIND 1" >>confdefs.h
 
         fi
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 case $host in
@@ -18443,9 +18802,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $SDL2_CFLAGS"
-       for ac_header in SDL.h
+if test "x$SDL2_CFLAGS" != "x" -o "x$SDL2_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $SDL2_CFLAGS"
+            for ac_header in SDL.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "SDL.h" "ac_cv_header_SDL_h" "$ac_includes_default"
 if test "x$ac_cv_header_SDL_h" = xyes
@@ -18508,7 +18869,8 @@ fi
 fi
 
 done
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_SDL2" = "x"
@@ -18549,9 +18911,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $CAPI20_CFLAGS"
-    ac_fn_c_check_header_compile "$LINENO" "capi20.h" "ac_cv_header_capi20_h" "#define __user
+if test "x$CAPI20_CFLAGS" != "x" -o "x$CAPI20_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $CAPI20_CFLAGS"
+         ac_fn_c_check_header_compile "$LINENO" "capi20.h" "ac_cv_header_capi20_h" "#define __user
 "
 if test "x$ac_cv_header_capi20_h" = xyes
 then :
@@ -18611,7 +18975,8 @@ else $as_nop
 fi
 
     fi
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_capi20_capi20_register" != xyes
@@ -18652,9 +19017,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $CUPS_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "cups/cups.h" "ac_cv_header_cups_cups_h" "$ac_includes_default"
+if test "x$CUPS_CFLAGS" != "x" -o "x$CUPS_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $CUPS_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "cups/cups.h" "ac_cv_header_cups_cups_h" "$ac_includes_default"
 if test "x$ac_cv_header_cups_cups_h" = xyes
 then :
   printf "%s\n" "#define HAVE_CUPS_CUPS_H 1" >>confdefs.h
@@ -18727,7 +19094,8 @@ fi
                             CUPS_CFLAGS=""
                             CUPS_LIBS=""
                         fi
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_cups" = "x"
@@ -18768,9 +19136,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $FONTCONFIG_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "fontconfig/fontconfig.h" "ac_cv_header_fontconfig_fontconfig_h" "$ac_includes_default"
+if test "x$FONTCONFIG_CFLAGS" != "x" -o "x$FONTCONFIG_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $FONTCONFIG_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "fontconfig/fontconfig.h" "ac_cv_header_fontconfig_fontconfig_h" "$ac_includes_default"
 if test "x$ac_cv_header_fontconfig_fontconfig_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for -lfontconfig" >&5
@@ -18831,7 +19201,8 @@ else $as_nop
   FONTCONFIG_CFLAGS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_fontconfig" = "x"
@@ -18872,9 +19243,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $KRB5_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "krb5/krb5.h" "ac_cv_header_krb5_krb5_h" "$ac_includes_default"
+if test "x$KRB5_CFLAGS" != "x" -o "x$KRB5_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $KRB5_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "krb5/krb5.h" "ac_cv_header_krb5_krb5_h" "$ac_includes_default"
 if test "x$ac_cv_header_krb5_krb5_h" = xyes
 then :
   printf "%s\n" "#define HAVE_KRB5_KRB5_H 1" >>confdefs.h
@@ -18940,7 +19313,8 @@ fi
          else
              KRB5_CFLAGS=""
          fi
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_krb5" = "x"
@@ -18982,9 +19356,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $GSSAPI_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "gssapi/gssapi.h" "ac_cv_header_gssapi_gssapi_h" "$ac_includes_default"
+if test "x$GSSAPI_CFLAGS" != "x" -o "x$GSSAPI_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $GSSAPI_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "gssapi/gssapi.h" "ac_cv_header_gssapi_gssapi_h" "$ac_includes_default"
 if test "x$ac_cv_header_gssapi_gssapi_h" = xyes
 then :
   printf "%s\n" "#define HAVE_GSSAPI_GSSAPI_H 1" >>confdefs.h
@@ -19056,7 +19432,8 @@ fi
         else
             GSSAPI_CFLAGS=""
         fi
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_gssapi_krb5" = "x"
@@ -19201,9 +19578,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $NETAPI_CFLAGS"
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for -lnetapi" >&5
+if test "x$NETAPI_CFLAGS" != "x" -o "x$NETAPI_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $NETAPI_CFLAGS"
+     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for -lnetapi" >&5
 printf %s "checking for -lnetapi... " >&6; }
 if test ${ac_cv_lib_soname_netapi+y}
 then :
@@ -19258,7 +19637,8 @@ printf "%s\n" "#define SONAME_LIBNETAPI \"$ac_cv_lib_soname_netapi\"" >>confdefs
 
 
 fi
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_netapi" = "x"
@@ -19499,9 +19879,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $GCRYPT_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "gcrypt.h" "ac_cv_header_gcrypt_h" "$ac_includes_default"
+if test "x$GCRYPT_CFLAGS" != "x" -o "x$GCRYPT_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $GCRYPT_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "gcrypt.h" "ac_cv_header_gcrypt_h" "$ac_includes_default"
 if test "x$ac_cv_header_gcrypt_h" = xyes
 then :
   printf "%s\n" "#define HAVE_GCRYPT_H 1" >>confdefs.h
@@ -19565,7 +19947,8 @@ printf "%s\n" "#define SONAME_LIBGCRYPT \"$ac_cv_lib_soname_gcrypt\"" >>confdefs
 
 fi
         fi
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "x$ac_cv_lib_soname_gcrypt" = "x"
@@ -19606,9 +19989,11 @@ if test -s conftest.err; then
      cat conftest.err >&5
 fi
 rm -f conftest.err
-ac_save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $PIPER_CFLAGS"
-ac_fn_c_check_header_compile "$LINENO" "piper/piper_c.h" "ac_cv_header_piper_piper_c_h" "$ac_includes_default"
+if test "x$PIPER_CFLAGS" != "x" -o "x$PIPER_LIBS" != "x"
+then :
+  ac_save_CPPFLAGS=$CPPFLAGS
+     CPPFLAGS="$CPPFLAGS $PIPER_CFLAGS"
+     ac_fn_c_check_header_compile "$LINENO" "piper/piper_c.h" "ac_cv_header_piper_piper_c_h" "$ac_includes_default"
 if test "x$ac_cv_header_piper_piper_c_h" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for piperInitialize in -lpiper" >&5
@@ -19657,7 +20042,8 @@ else $as_nop
   PIPER_LIBS=""
 fi
 
-CPPFLAGS=$ac_save_CPPFLAGS
+     CPPFLAGS=$ac_save_CPPFLAGS
+fi
 
 fi
 if test "$ac_cv_lib_piper_piperInitialize" != "yes"
@@ -22375,6 +22761,7 @@ wine_fn_config_makefile dlls/advpack enable_advpack
 wine_fn_config_makefile dlls/advpack/tests enable_tests
 wine_fn_config_makefile dlls/amsi enable_amsi
 wine_fn_config_makefile dlls/amd_ags_x64 enable_amd_ags_x64
+wine_fn_config_makefile dlls/amdxc64 enable_amdxc64
 wine_fn_config_makefile dlls/amstream enable_amstream
 wine_fn_config_makefile dlls/amstream/tests enable_tests
 wine_fn_config_makefile dlls/apisetschema enable_apisetschema
@@ -22417,6 +22804,7 @@ wine_fn_config_makefile dlls/cards enable_cards
 wine_fn_config_makefile dlls/cdosys enable_cdosys
 wine_fn_config_makefile dlls/cfgmgr32 enable_cfgmgr32
 wine_fn_config_makefile dlls/cfgmgr32/tests enable_tests
+wine_fn_config_makefile dlls/chakra enable_chakra
 wine_fn_config_makefile dlls/clusapi enable_clusapi
 wine_fn_config_makefile dlls/cng.sys enable_cng_sys
 wine_fn_config_makefile dlls/combase enable_combase
@@ -22455,6 +22843,8 @@ wine_fn_config_makefile dlls/cryptowinrt/tests enable_tests
 wine_fn_config_makefile dlls/cryptsp enable_cryptsp
 wine_fn_config_makefile dlls/cryptui enable_cryptui
 wine_fn_config_makefile dlls/cryptui/tests enable_tests
+wine_fn_config_makefile dlls/cryptxml enable_cryptxml
+wine_fn_config_makefile dlls/cryptxml/tests enable_tests
 wine_fn_config_makefile dlls/ctapi32 enable_ctapi32
 wine_fn_config_makefile dlls/ctl3d.dll16 enable_win16
 wine_fn_config_makefile dlls/ctl3d32 enable_ctl3d32
@@ -22623,13 +23013,17 @@ wine_fn_config_makefile dlls/dwrite enable_dwrite
 wine_fn_config_makefile dlls/dwrite/tests enable_tests
 wine_fn_config_makefile dlls/dx8vb enable_dx8vb
 wine_fn_config_makefile dlls/dxcore enable_dxcore
+wine_fn_config_makefile dlls/dxcore/tests enable_tests
 wine_fn_config_makefile dlls/dxdiagn enable_dxdiagn
 wine_fn_config_makefile dlls/dxdiagn/tests enable_tests
 wine_fn_config_makefile dlls/dxgi enable_dxgi
 wine_fn_config_makefile dlls/dxgi/tests enable_tests
+wine_fn_config_makefile dlls/dxgkrnl.sys enable_dxgkrnl_sys
+wine_fn_config_makefile dlls/dxgmms1.sys enable_dxgmms1_sys
 wine_fn_config_makefile dlls/dxtrans enable_dxtrans
 wine_fn_config_makefile dlls/dxva2 enable_dxva2
 wine_fn_config_makefile dlls/dxva2/tests enable_tests
+wine_fn_config_makefile dlls/embeddedbrowserwebview enable_embeddedbrowserwebview
 wine_fn_config_makefile dlls/esent enable_esent
 wine_fn_config_makefile dlls/evr enable_evr
 wine_fn_config_makefile dlls/evr/tests enable_tests
@@ -22709,6 +23103,8 @@ wine_fn_config_makefile dlls/irprops.cpl enable_irprops_cpl
 wine_fn_config_makefile dlls/itircl enable_itircl
 wine_fn_config_makefile dlls/itss enable_itss
 wine_fn_config_makefile dlls/itss/tests enable_tests
+wine_fn_config_makefile dlls/iyuv_32 enable_iyuv_32
+wine_fn_config_makefile dlls/iyuv_32/tests enable_tests
 wine_fn_config_makefile dlls/joy.cpl enable_joy_cpl
 wine_fn_config_makefile dlls/jscript enable_jscript
 wine_fn_config_makefile dlls/jscript/tests enable_tests
@@ -23090,6 +23486,7 @@ wine_fn_config_makefile dlls/taskschd enable_taskschd
 wine_fn_config_makefile dlls/taskschd/tests enable_tests
 wine_fn_config_makefile dlls/tbs enable_tbs
 wine_fn_config_makefile dlls/tdh enable_tdh
+wine_fn_config_makefile dlls/tdh/tests enable_tests
 wine_fn_config_makefile dlls/tdi.sys enable_tdi_sys
 wine_fn_config_makefile dlls/threadpoolwinrt enable_threadpoolwinrt
 wine_fn_config_makefile dlls/threadpoolwinrt/tests enable_tests
@@ -23168,9 +23565,11 @@ wine_fn_config_makefile dlls/wer/tests enable_tests
 wine_fn_config_makefile dlls/wevtapi enable_wevtapi
 wine_fn_config_makefile dlls/wevtapi/tests enable_tests
 wine_fn_config_makefile dlls/wevtsvc enable_wevtsvc
+wine_fn_config_makefile dlls/wkscli enable_wkscli
 wine_fn_config_makefile dlls/wiaservc enable_wiaservc
 wine_fn_config_makefile dlls/wiaservc/tests enable_tests
 wine_fn_config_makefile dlls/wimgapi enable_wimgapi
+wine_fn_config_makefile dlls/win32k.sys enable_win32k_sys
 wine_fn_config_makefile dlls/win32s16.dll16 enable_win16
 wine_fn_config_makefile dlls/win32u enable_win32u
 wine_fn_config_makefile dlls/win32u/tests enable_tests
@@ -23183,6 +23582,8 @@ wine_fn_config_makefile dlls/windows.devices.bluetooth enable_windows_devices_bl
 wine_fn_config_makefile dlls/windows.devices.bluetooth/tests enable_tests
 wine_fn_config_makefile dlls/windows.devices.enumeration enable_windows_devices_enumeration
 wine_fn_config_makefile dlls/windows.devices.enumeration/tests enable_tests
+wine_fn_config_makefile dlls/windows.devices.radios enable_windows_devices_radios
+wine_fn_config_makefile dlls/windows.devices.radios/tests enable_tests
 wine_fn_config_makefile dlls/windows.devices.usb enable_windows_devices_usb
 wine_fn_config_makefile dlls/windows.devices.usb/tests enable_tests
 wine_fn_config_makefile dlls/windows.gaming.input enable_windows_gaming_input
@@ -23276,6 +23677,7 @@ wine_fn_config_makefile dlls/wldp/tests enable_tests
 wine_fn_config_makefile dlls/wmasf enable_wmasf
 wine_fn_config_makefile dlls/wmi enable_wmi
 wine_fn_config_makefile dlls/wmilib.sys enable_wmilib_sys
+wine_fn_config_makefile dlls/wminet_utils enable_wminet_utils
 wine_fn_config_makefile dlls/wmiutils enable_wmiutils
 wine_fn_config_makefile dlls/wmiutils/tests enable_tests
 wine_fn_config_makefile dlls/wmp enable_wmp
@@ -23377,6 +23779,7 @@ wine_fn_config_makefile libs/png enable_png
 wine_fn_config_makefile libs/strmbase enable_strmbase
 wine_fn_config_makefile libs/strmiids enable_strmiids
 wine_fn_config_makefile libs/tiff enable_tiff
+wine_fn_config_makefile libs/tomcrypt enable_tomcrypt
 wine_fn_config_makefile libs/uuid enable_uuid
 wine_fn_config_makefile libs/vkd3d enable_vkd3d
 wine_fn_config_makefile libs/wbemuuid enable_wbemuuid
@@ -23443,6 +23846,7 @@ wine_fn_config_makefile programs/netsh enable_netsh
 wine_fn_config_makefile programs/netstat enable_netstat
 wine_fn_config_makefile programs/ngen enable_ngen
 wine_fn_config_makefile programs/notepad enable_notepad
+wine_fn_config_makefile programs/odbcad32 enable_odbcad32
 wine_fn_config_makefile programs/oleview enable_oleview
 wine_fn_config_makefile programs/ping enable_ping
 wine_fn_config_makefile programs/plugplay enable_plugplay
@@ -23652,7 +24056,7 @@ maintainer-clean::
 
 as_fn_append wine_rules "
 dlls/ntdll/unix/version.c: dummy
-	@version=\`(GIT_DIR=${wine_srcdir}.git git describe HEAD 2>/dev/null || echo \"wine-\$(PACKAGE_VERSION)\") | sed -n -e '\$\$s/\(.*\)/const char wine_build[] = \"\\1\";/p'\` && (echo \$\$version | cmp -s - \$@) || echo \$\$version >\$@ || (rm -f \$@ && exit 1)
+	@version=\`(GIT_DIR=${wine_srcdir}.git git describe HEAD 2>/dev/null || echo \"wine-\$(PACKAGE_VERSION)\") | sed -n -e '\$\$s/\(.*\)/const char wine_build[] = \"\\1 (Staging)\";/p'\` && (echo \$\$version | cmp -s - \$@) || echo \$\$version >\$@ || (rm -f \$@ && exit 1)
 programs/winetest/build.rc: dummy
 	@build=\"STRINGTABLE { 1 \\\"\`GIT_DIR=${wine_srcdir}.git git rev-parse HEAD 2>/dev/null\`\\\" }\" && (echo \$\$build | cmp -s - \$@) || echo \$\$build >\$@ || (rm -f \$@ && exit 1)
 programs/winetest/build.nfo:
@@ -24519,7 +24923,6 @@ CARBON_LIBS = $CARBON_LIBS
 COREFOUNDATION_LIBS = $COREFOUNDATION_LIBS
 DISKARBITRATION_LIBS = $DISKARBITRATION_LIBS
 IOKIT_LIBS = $IOKIT_LIBS
-METAL_LIBS = $METAL_LIBS
 APPLICATIONSERVICES_LIBS = $APPLICATIONSERVICES_LIBS
 CORESERVICES_LIBS = $CORESERVICES_LIBS
 APPKIT_LIBS = $APPKIT_LIBS
@@ -24556,6 +24959,8 @@ PNG_PE_CFLAGS = $PNG_PE_CFLAGS
 PNG_PE_LIBS = $PNG_PE_LIBS
 TIFF_PE_CFLAGS = $TIFF_PE_CFLAGS
 TIFF_PE_LIBS = $TIFF_PE_LIBS
+TOMCRYPT_PE_CFLAGS = $TOMCRYPT_PE_CFLAGS
+TOMCRYPT_PE_LIBS = $TOMCRYPT_PE_LIBS
 VKD3D_PE_CFLAGS = $VKD3D_PE_CFLAGS
 VKD3D_PE_LIBS = $VKD3D_PE_LIBS
 XML2_PE_CFLAGS = $XML2_PE_CFLAGS
@@ -24602,6 +25007,8 @@ GPHOTO2_CFLAGS = $GPHOTO2_CFLAGS
 GPHOTO2_LIBS = $GPHOTO2_LIBS
 GPHOTO2_PORT_CFLAGS = $GPHOTO2_PORT_CFLAGS
 GPHOTO2_PORT_LIBS = $GPHOTO2_PORT_LIBS
+ZLIB_CFLAGS = $ZLIB_CFLAGS
+ZLIB_LIBS = $ZLIB_LIBS
 RESOLV_LIBS = $RESOLV_LIBS
 FREETYPE_CFLAGS = $FREETYPE_CFLAGS
 FREETYPE_LIBS = $FREETYPE_LIBS

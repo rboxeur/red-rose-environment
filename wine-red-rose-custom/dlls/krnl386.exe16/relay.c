@@ -199,7 +199,7 @@ BOOL SNOOP16_ShowDebugmsgSnoop(const char *module, int ordinal, const char *func
  *
  * Return the ordinal, name, and type info corresponding to a CS:IP address.
  */
-static const CALLFROM16 *get_entry_point( STACK16FRAME *frame, LPSTR module, LPSTR func, WORD *pOrd )
+static const CALLFROM16 *get_entry_point( STACK16FRAME *frame, char module[256], char func[256], WORD *pOrd )
 {
     WORD i, max_offset;
     register BYTE *p;
@@ -390,7 +390,7 @@ int relay_call_from_16( void *entry_point, unsigned char *args16, CONTEXT *conte
     WORD ordinal;
     unsigned int i, j, nb_args = 0;
     int ret_val, args32[20];
-    char module[10], func[64];
+    char module[256], func[256];
     const CALLFROM16 *call;
 
     frame = CURRENT_STACK16;

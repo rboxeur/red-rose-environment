@@ -1479,7 +1479,7 @@ void* __attribute__((used)) wld_start( void **stack )
     for (i = 0; preload_info[i].size; i++)
     {
         if ((char *)av >= (char *)preload_info[i].addr &&
-            (char *)pargc <= (char *)preload_info[i].addr + preload_info[i].size)
+            (char *)pargc - 0x1000 <= (char *)preload_info[i].addr + preload_info[i].size)
         {
             remove_preload_range( i );
             i--;

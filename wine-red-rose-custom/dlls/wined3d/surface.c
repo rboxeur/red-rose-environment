@@ -1042,6 +1042,22 @@ do { \
             dBottomLeft  = dTopLeft + ((dst_height - 1) * dst_map.row_pitch);
             dBottomRight = dBottomLeft + ((dst_width - 1) * bpp);
 
+            if (same_sub_resource &&
+                    !(dst_box->top < src_box->top || dst_box->right <= src_box->left || src_box->right <= dst_box->left)
+                    && fx->fx & (WINEDDBLTFX_MIRRORLEFTRIGHT | WINEDDBLTFX_MIRRORUPDOWN | WINEDDBLTFX_ROTATE180
+                    | WINEDDBLTFX_ROTATE270 | WINEDDBLTFX_ROTATE90))
+            {
+                if ((tmp_buffer = malloc(src_height * src_map.row_pitch)))
+                {
+                    memcpy(tmp_buffer, sbase, src_height * src_map.row_pitch);
+                    sbase = tmp_buffer;
+                }
+            }
+            else
+            {
+                tmp_buffer = NULL;
+            }
+
             if (fx->fx & WINEDDBLTFX_ARITHSTRETCHY)
             {
                 /* I don't think we need to do anything about this flag. */
@@ -1183,6 +1199,7 @@ do { \
                 goto error;
 #undef COPY_COLORKEY_FX
         }
+        free(tmp_buffer);
     }
 
 error:

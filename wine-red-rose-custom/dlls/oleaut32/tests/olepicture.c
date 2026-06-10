@@ -1428,7 +1428,7 @@ static void test_load_save_icon(void)
     ok(size == -1, "expected -1, got %ld\n", size);
 
     offset.QuadPart = 0;
-    hr = IStream_Seek(dst_stream, offset, SEEK_SET, NULL);
+    hr = IStream_Seek(dst_stream, offset, STREAM_SEEK_SET, NULL);
     ok(hr == S_OK, "IStream_Seek %#lx\n", hr);
 
     hr = IPicture_QueryInterface(pic, &IID_IPersistStream, (void **)&src_stream);

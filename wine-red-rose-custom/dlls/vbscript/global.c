@@ -1192,6 +1192,9 @@ static HRESULT Global_LBound(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt,
         return E_NOTIMPL;
     }
 
+    if(!sa)
+        return MAKE_VBSERROR(VBSE_OUT_OF_BOUNDS);
+
     if(args_cnt == 2) {
         hres = to_int(arg + 1, &dim);
         if(FAILED(hres))
@@ -1232,6 +1235,9 @@ static HRESULT Global_UBound(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt,
         FIXME("arg %s not supported\n", debugstr_variant(arg));
         return E_NOTIMPL;
     }
+
+    if(!sa)
+        return MAKE_VBSERROR(VBSE_OUT_OF_BOUNDS);
 
     if(args_cnt == 2) {
         hres = to_int(arg + 1, &dim);
@@ -1330,6 +1336,19 @@ static HRESULT Global_Left(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, 
 
     TRACE("(%s %s)\n", debugstr_variant(args+1), debugstr_variant(args));
 
+    if(V_VT(args+1) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    hres = to_int(args+1, &len);
+    if(FAILED(hres))
+        return hres;
+
+    if(len < 0)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+
+    if(V_VT(args) == VT_NULL)
+        return return_null(res);
+
     if(V_VT(args) == VT_BSTR) {
         str = V_BSTR(args);
     }else {
@@ -1337,15 +1356,6 @@ static HRESULT Global_Left(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, 
         if(FAILED(hres))
             return hres;
         str = conv_str;
-    }
-
-    hres = to_int(args+1, &len);
-    if(FAILED(hres))
-        return hres;
-
-    if(len < 0) {
-        FIXME("len = %d\n", len);
-        return E_FAIL;
     }
 
     str_len = SysStringLen(str);
@@ -3229,9 +3239,13 @@ static HRESULT Global_TypeName(BuiltinDisp *This, VARIANT *arg, unsigned args_cn
             return return_string(res, L"Empty");
         case VT_NULL:
             return return_string(res, L"Null");
-        case VT_DISPATCH:
+        case VT_DISPATCH: {
+            const WCHAR *class_name;
+
             if (!V_DISPATCH(arg))
                 return return_string(res, L"Nothing");
+            if ((class_name = vbdisp_class_name(V_DISPATCH(arg))))
+                return return_string(res, class_name);
             if (SUCCEEDED(IDispatch_GetTypeInfo(V_DISPATCH(arg), 0, GetUserDefaultLCID(), &typeinfo)))
             {
                 hres = ITypeInfo_GetDocumentation(typeinfo, MEMBERID_NIL, &name, NULL, NULL, NULL);
@@ -3243,6 +3257,7 @@ static HRESULT Global_TypeName(BuiltinDisp *This, VARIANT *arg, unsigned args_cn
                 SysFreeString(name);
             }
             return return_string(res, L"Object");
+        }
         default:
             FIXME("arg %s not supported\n", debugstr_variant(arg));
             return E_NOTIMPL;

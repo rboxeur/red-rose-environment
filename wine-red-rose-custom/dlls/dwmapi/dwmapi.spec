@@ -2,7 +2,7 @@
 101 stub DwmpDxUpdateWindowSharedSurface
 102 stdcall DwmEnableComposition(long)
 103 stub -noname DwmpRestartComposition
-104 stub -noname DwmpSetColorizationColor
+104 stdcall -noname DwmpSetColorizationColor(ptr ptr)
 105 stub -noname DwmpStartOrStopFlip3D
 106 stub -noname DwmpIsCompositionCapable
 107 stub -noname DwmpGetGlobalState

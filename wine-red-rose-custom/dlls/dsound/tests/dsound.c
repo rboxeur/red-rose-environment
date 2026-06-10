@@ -291,6 +291,9 @@ static void IDirectSound_tests(void)
         IDirectSound_Release(dso);
 }
 
+#define AUDCLNT_ERR(n) MAKE_HRESULT(SEVERITY_ERROR, FACILITY_AUDCLNT, n)
+#define AUDCLNT_E_DEVICE_IN_USE AUDCLNT_ERR(0x0a)
+
 static HRESULT test_dsound(LPGUID lpGuid)
 {
     HRESULT rc;
@@ -327,7 +330,11 @@ static HRESULT test_dsound(LPGUID lpGuid)
 
         /* Create a second DirectSound object */
         rc = DirectSoundCreate(lpGuid, &dso1, NULL);
-        ok(rc==DS_OK,"DirectSoundCreate() failed: %08lx\n",rc);
+        /* Running without pulseaudio can't open twice. */
+        if (rc==AUDCLNT_E_DEVICE_IN_USE)
+            skip("Failed to open device a second time, skipping test.\n");
+        else
+            ok(rc==DS_OK,"DirectSoundCreate() failed: %08lx\n",rc);
         if (rc==DS_OK) {
             /* Release the second DirectSound object */
             ref=IDirectSound_Release(dso1);
@@ -2002,6 +2009,179 @@ static void test_implicit_mta(void)
     ok(test_apt_data.type == APTTYPE_UNITIALIZED, "got apt type %d.\n", test_apt_data.type);
 }
 
+static void test_primary_independent(void)
+{
+    HRESULT rc;
+    LPDIRECTSOUND dso1=NULL;
+    LPDIRECTSOUND dso2=NULL;
+    LPDIRECTSOUNDBUFFER primary1=NULL;
+    LPDIRECTSOUNDBUFFER primary2=NULL;
+    DSBUFFERDESC bufdesc;
+    DSBCAPS bufcaps;
+    LONG vol;
+
+    rc=DirectSoundCreate(NULL,&dso1,NULL);
+    ok(rc==DS_OK||rc==DSERR_NODRIVER||rc==DSERR_ALLOCATED||rc==E_FAIL,
+       "DirectSoundCreate() failed: %08lx\n",rc);
+    if (rc!=DS_OK)
+        return;
+
+    rc=DirectSoundCreate(NULL,&dso2,NULL);
+    ok(rc==DS_OK||rc==DSERR_NODRIVER||rc==DSERR_ALLOCATED||rc==E_FAIL,
+       "DirectSoundCreate() failed: %08lx\n",rc);
+    if (rc!=DS_OK) {
+        IDirectSound_Release(dso1);
+        return;
+    }
+
+    rc=IDirectSound_SetCooperativeLevel(dso1,get_hwnd(),DSSCL_PRIORITY);
+    ok(rc==DS_OK,"IDirectSound_SetCooperativeLevel(dso1) failed: %08lx\n",rc);
+    if (rc!=DS_OK)
+        goto EXIT;
+
+    rc=IDirectSound_SetCooperativeLevel(dso2,get_hwnd(),DSSCL_PRIORITY);
+    ok(rc==DS_OK,"IDirectSound_SetCooperativeLevel(dso2) failed: %08lx\n",rc);
+    if (rc!=DS_OK)
+        goto EXIT;
+
+    /* Create a primary buffer on dso1 with CTRL3D but without CTRLVOLUME */
+    ZeroMemory(&bufdesc, sizeof(bufdesc));
+    bufdesc.dwSize=sizeof(bufdesc);
+    bufdesc.dwFlags=DSBCAPS_PRIMARYBUFFER|DSBCAPS_CTRL3D;
+    rc=IDirectSound_CreateSoundBuffer(dso1,&bufdesc,&primary1,NULL);
+    ok(rc==DS_OK && primary1!=NULL,
+       "IDirectSound_CreateSoundBuffer(dso1) failed: %08lx\n",rc);
+    if (rc!=DS_OK || primary1==NULL)
+        goto EXIT;
+
+    /* Create a primary buffer on dso2 with CTRLVOLUME */
+    ZeroMemory(&bufdesc, sizeof(bufdesc));
+    bufdesc.dwSize=sizeof(bufdesc);
+    bufdesc.dwFlags=DSBCAPS_PRIMARYBUFFER|DSBCAPS_CTRLVOLUME;
+    rc=IDirectSound_CreateSoundBuffer(dso2,&bufdesc,&primary2,NULL);
+    ok(rc==DS_OK && primary2!=NULL,
+       "IDirectSound_CreateSoundBuffer(dso2) failed: %08lx\n",rc);
+    if (rc!=DS_OK || primary2==NULL)
+        goto RELEASE1;
+
+    /* Check whether the two IDirectSound objects share a primary buffer */
+    todo_wine
+    ok(primary1!=primary2,
+       "Two IDirectSound objects should have independent primary buffers\n");
+
+    /* GetVolume on dso2's primary buffer should succeed */
+    todo_wine
+    {
+        rc=IDirectSoundBuffer_GetVolume(primary2,&vol);
+        ok(rc==DS_OK,
+           "IDirectSoundBuffer_GetVolume(primary2) failed: %08lx\n",rc);
+    }
+
+    /* Verify dso2's primary buffer has CTRLVOLUME */
+    ZeroMemory(&bufcaps, sizeof(bufcaps));
+    bufcaps.dwSize=sizeof(bufcaps);
+    rc=IDirectSoundBuffer_GetCaps(primary2,&bufcaps);
+    ok(rc==DS_OK,"IDirectSoundBuffer_GetCaps(primary2) failed: %08lx\n",rc);
+    if (rc==DS_OK) {
+        todo_wine
+        ok(bufcaps.dwFlags & DSBCAPS_CTRLVOLUME,
+           "primary2 should have DSBCAPS_CTRLVOLUME: %08lx\n",bufcaps.dwFlags);
+    }
+
+    IDirectSoundBuffer_Release(primary2);
+
+RELEASE1:
+    IDirectSoundBuffer_Release(primary1);
+
+EXIT:
+    IDirectSound_Release(dso2);
+    IDirectSound_Release(dso1);
+}
+
+static void test_primary_independent(void)
+{
+    HRESULT rc;
+    LPDIRECTSOUND dso1=NULL;
+    LPDIRECTSOUND dso2=NULL;
+    LPDIRECTSOUNDBUFFER primary1=NULL;
+    LPDIRECTSOUNDBUFFER primary2=NULL;
+    DSBUFFERDESC bufdesc;
+    DSBCAPS bufcaps;
+    LONG vol;
+
+    rc=DirectSoundCreate(NULL,&dso1,NULL);
+    ok(rc==DS_OK||rc==DSERR_NODRIVER||rc==DSERR_ALLOCATED||rc==E_FAIL,
+       "DirectSoundCreate() failed: %08lx\n",rc);
+    if (rc!=DS_OK)
+        return;
+
+    rc=DirectSoundCreate(NULL,&dso2,NULL);
+    ok(rc==DS_OK||rc==DSERR_NODRIVER||rc==DSERR_ALLOCATED||rc==E_FAIL,
+       "DirectSoundCreate() failed: %08lx\n",rc);
+    if (rc!=DS_OK) {
+        IDirectSound_Release(dso1);
+        return;
+    }
+
+    rc=IDirectSound_SetCooperativeLevel(dso1,get_hwnd(),DSSCL_PRIORITY);
+    ok(rc==DS_OK,"IDirectSound_SetCooperativeLevel(dso1) failed: %08lx\n",rc);
+    if (rc!=DS_OK)
+        goto EXIT;
+
+    rc=IDirectSound_SetCooperativeLevel(dso2,get_hwnd(),DSSCL_PRIORITY);
+    ok(rc==DS_OK,"IDirectSound_SetCooperativeLevel(dso2) failed: %08lx\n",rc);
+    if (rc!=DS_OK)
+        goto EXIT;
+
+    /* Create a primary buffer on dso1 with CTRL3D but without CTRLVOLUME */
+    ZeroMemory(&bufdesc, sizeof(bufdesc));
+    bufdesc.dwSize=sizeof(bufdesc);
+    bufdesc.dwFlags=DSBCAPS_PRIMARYBUFFER|DSBCAPS_CTRL3D;
+    rc=IDirectSound_CreateSoundBuffer(dso1,&bufdesc,&primary1,NULL);
+    ok(rc==DS_OK && primary1!=NULL,
+       "IDirectSound_CreateSoundBuffer(dso1) failed: %08lx\n",rc);
+    if (rc!=DS_OK || primary1==NULL)
+        goto EXIT;
+
+    /* Create a primary buffer on dso2 with CTRLVOLUME */
+    ZeroMemory(&bufdesc, sizeof(bufdesc));
+    bufdesc.dwSize=sizeof(bufdesc);
+    bufdesc.dwFlags=DSBCAPS_PRIMARYBUFFER|DSBCAPS_CTRLVOLUME;
+    rc=IDirectSound_CreateSoundBuffer(dso2,&bufdesc,&primary2,NULL);
+    ok(rc==DS_OK && primary2!=NULL,
+       "IDirectSound_CreateSoundBuffer(dso2) failed: %08lx\n",rc);
+    if (rc!=DS_OK || primary2==NULL)
+        goto RELEASE1;
+
+    /* Check whether the two IDirectSound objects share a primary buffer */
+    ok(primary1!=primary2,
+       "Two IDirectSound objects should have independent primary buffers\n");
+
+    /* GetVolume on dso2's primary buffer should succeed */
+    rc=IDirectSoundBuffer_GetVolume(primary2,&vol);
+    ok(rc==DS_OK,
+       "IDirectSoundBuffer_GetVolume(primary2) failed: %08lx\n",rc);
+
+    /* Verify dso2's primary buffer has CTRLVOLUME */
+    ZeroMemory(&bufcaps, sizeof(bufcaps));
+    bufcaps.dwSize=sizeof(bufcaps);
+    rc=IDirectSoundBuffer_GetCaps(primary2,&bufcaps);
+    ok(rc==DS_OK,"IDirectSoundBuffer_GetCaps(primary2) failed: %08lx\n",rc);
+    if (rc==DS_OK) {
+        ok(bufcaps.dwFlags & DSBCAPS_CTRLVOLUME,
+           "primary2 should have DSBCAPS_CTRLVOLUME: %08lx\n",bufcaps.dwFlags);
+    }
+
+    IDirectSoundBuffer_Release(primary2);
+
+RELEASE1:
+    IDirectSoundBuffer_Release(primary1);
+
+EXIT:
+    IDirectSound_Release(dso2);
+    IDirectSound_Release(dso1);
+}
+
 START_TEST(dsound)
 {
     CoInitialize(NULL);
@@ -2011,6 +2191,7 @@ START_TEST(dsound)
     IDirectSound_tests();
     dsound_tests();
     test_hw_buffers();
+    test_primary_independent();
 
     CoUninitialize();
 }

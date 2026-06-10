@@ -29,8 +29,6 @@
 #include "d3d.h"
 #include "unknwn.h"
 
-static HRESULT (WINAPI *pDirectDrawCreateEx)(GUID *, void **, REFIID, IUnknown *);
-
 static IDirectDraw *lpDD;
 static DDCAPS ddcaps;
 
@@ -70,6 +68,21 @@ static ULONG getref(IUnknown *iface)
 {
     IUnknown_AddRef(iface);
     return IUnknown_Release(iface);
+}
+
+#define check_surface_caps(a, b, c, d) check_surface_caps_(__LINE__, (a), (b), (c), (d))
+static void check_surface_caps_(unsigned int line, IDirectDrawSurface *surface, DWORD expected_caps,
+        DWORD exclude_caps, DWORD expected_buffer_count)
+{
+    DDSURFACEDESC surface_desc = {.dwSize = sizeof(surface_desc) };
+    HRESULT hr;
+
+    hr = IDirectDrawSurface_GetSurfaceDesc(surface, &surface_desc);
+    ok_(__FILE__, line)(hr == DD_OK, "got %#lx.\n", hr);
+    ok_(__FILE__, line)((surface_desc.ddsCaps.dwCaps & ~exclude_caps) == expected_caps, "got %#lx, expected %#lx.\n",
+            surface_desc.ddsCaps.dwCaps & ~exclude_caps, expected_caps);
+    ok_(__FILE__, line)(surface_desc.dwBackBufferCount == expected_buffer_count, "got backbuffer count %ld, expected %ld.\n",
+            surface_desc.dwBackBufferCount, expected_buffer_count);
 }
 
 static void GetDDInterface_1(void)
@@ -1671,6 +1684,7 @@ static void BackBufferCreateSurfaceTest(void)
 
 static void BackBufferAttachmentFlipTest(void)
 {
+    const DWORD placement = DDSCAPS_LOCALVIDMEM | DDSCAPS_VIDEOMEMORY | DDSCAPS_SYSTEMMEMORY;
     HRESULT hr;
     IDirectDrawSurface *surface1, *surface2, *surface3, *surface4;
     DDSURFACEDESC ddsd;
@@ -1680,106 +1694,110 @@ static void BackBufferAttachmentFlipTest(void)
     hr = IDirectDraw_SetCooperativeLevel(lpDD, window, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
     ok(hr == DD_OK, "Got hr %#lx.\n", hr);
 
+    /* Try a single primary and a two back buffers */
+    memset(&ddsd, 0, sizeof(ddsd));
+    ddsd.dwSize = sizeof(ddsd);
+    ddsd.dwFlags = DDSD_CAPS;
+    ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
+    hr = IDirectDraw_CreateSurface(lpDD, &ddsd, &surface1, NULL);
+    check_surface_caps(surface1, DDSCAPS_PRIMARYSURFACE | DDSCAPS_VISIBLE, placement, 0);
+
     /* Perform attachment tests on a back-buffer */
+    memset(&ddsd, 0, sizeof(ddsd));
+    ddsd.dwSize = sizeof(ddsd);
+    hr = IDirectDrawSurface_GetSurfaceDesc(surface1, &ddsd);
+    ok(hr==DD_OK, "Got hr %#lx.\n", hr);
+    ddsd.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
+    ddsd.ddsCaps.dwCaps = DDSCAPS_BACKBUFFER;
+    hr = IDirectDraw_CreateSurface(lpDD, &ddsd, &surface2, NULL);
+    ok(SUCCEEDED(hr), "Got hr %#lx.\n", hr);
+
+    ddsd.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
+    ddsd.ddsCaps.dwCaps = DDSCAPS_BACKBUFFER;
+    hr = IDirectDraw_CreateSurface(lpDD, &ddsd, &surface3, NULL);
+    ok(hr==DD_OK, "Got hr %#lx.\n", hr);
+
+    /* This one has a different size */
     memset(&ddsd, 0, sizeof(ddsd));
     ddsd.dwSize = sizeof(ddsd);
     ddsd.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
     ddsd.ddsCaps.dwCaps = DDSCAPS_BACKBUFFER;
-    ddsd.dwWidth = GetSystemMetrics(SM_CXSCREEN);
-    ddsd.dwHeight = GetSystemMetrics(SM_CYSCREEN);
-    hr = IDirectDraw_CreateSurface(lpDD, &ddsd, &surface2, NULL);
-    ok(SUCCEEDED(hr), "Got hr %#lx.\n", hr);
+    ddsd.dwWidth = 128;
+    ddsd.dwHeight = 128;
+    hr = IDirectDraw_CreateSurface(lpDD, &ddsd, &surface4, NULL);
+    ok(hr==DD_OK, "Got hr %#lx.\n", hr);
 
-    if (surface2 != NULL)
+    hr = IDirectDrawSurface_AddAttachedSurface(surface1, surface2);
+    ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE),
+       "Attaching a back buffer to a front buffer returned %#lx\n", hr);
+    if(SUCCEEDED(hr))
     {
-        /* Try a single primary and a two back buffers */
-        memset(&ddsd, 0, sizeof(ddsd));
-        ddsd.dwSize = sizeof(ddsd);
-        ddsd.dwFlags = DDSD_CAPS;
-        ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-        hr = IDirectDraw_CreateSurface(lpDD, &ddsd, &surface1, NULL);
-        ok(hr==DD_OK, "Got hr %#lx.\n", hr);
+        /* Try flipping the surfaces */
+        check_surface_caps(surface1, DDSCAPS_PRIMARYSURFACE | DDSCAPS_VISIBLE | DDSCAPS_FRONTBUFFER | DDSCAPS_FLIP, placement, 0);
+        check_surface_caps(surface2, DDSCAPS_BACKBUFFER | DDSCAPS_FLIP, placement, 0);
+        hr = IDirectDrawSurface_Flip(surface1, NULL, DDFLIP_WAIT);
+        ok(hr == DD_OK, "Got hr %#lx.\n", hr);
+        hr = IDirectDrawSurface_Flip(surface2, NULL, DDFLIP_WAIT);
+        ok(hr == DDERR_NOTFLIPPABLE, "Got hr %#lx.\n", hr);
 
-        memset(&ddsd, 0, sizeof(ddsd));
-        ddsd.dwSize = sizeof(ddsd);
-        ddsd.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
-        ddsd.ddsCaps.dwCaps = DDSCAPS_BACKBUFFER;
-        ddsd.dwWidth = GetSystemMetrics(SM_CXSCREEN);
-        ddsd.dwHeight = GetSystemMetrics(SM_CYSCREEN);
-        hr = IDirectDraw_CreateSurface(lpDD, &ddsd, &surface3, NULL);
-        ok(hr==DD_OK, "Got hr %#lx.\n", hr);
-
-        /* This one has a different size */
-        memset(&ddsd, 0, sizeof(ddsd));
-        ddsd.dwSize = sizeof(ddsd);
-        ddsd.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;
-        ddsd.ddsCaps.dwCaps = DDSCAPS_BACKBUFFER;
-        ddsd.dwWidth = 128;
-        ddsd.dwHeight = 128;
-        hr = IDirectDraw_CreateSurface(lpDD, &ddsd, &surface4, NULL);
-        ok(hr==DD_OK, "Got hr %#lx.\n", hr);
-
-        hr = IDirectDrawSurface_AddAttachedSurface(surface1, surface2);
-        todo_wine ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE),
-           "Attaching a back buffer to a front buffer returned %#lx\n", hr);
-        if(SUCCEEDED(hr))
-        {
-            /* Try flipping the surfaces */
-            hr = IDirectDrawSurface_Flip(surface1, NULL, DDFLIP_WAIT);
-            todo_wine ok(hr == DD_OK, "Got hr %#lx.\n", hr);
-            hr = IDirectDrawSurface_Flip(surface2, NULL, DDFLIP_WAIT);
-            todo_wine ok(hr == DDERR_NOTFLIPPABLE, "Got hr %#lx.\n", hr);
-
-            /* Try the reverse without detaching first */
-            hr = IDirectDrawSurface_AddAttachedSurface(surface2, surface1);
-            ok(hr == DDERR_SURFACEALREADYATTACHED, "Got hr %#lx.\n", hr);
-            hr = IDirectDrawSurface_DeleteAttachedSurface(surface1, 0, surface2);
-            ok(hr == DD_OK, "Got hr %#lx.\n", hr);
-        }
+        /* Try the reverse without detaching first */
         hr = IDirectDrawSurface_AddAttachedSurface(surface2, surface1);
-        todo_wine ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE),
-           "Attaching a front buffer to a back buffer returned %#lx\n", hr);
-        if(SUCCEEDED(hr))
-        {
-            /* Try flipping the surfaces */
-            hr = IDirectDrawSurface_Flip(surface1, NULL, DDFLIP_WAIT);
-            todo_wine ok(hr == DD_OK, "Got hr %#lx.\n", hr);
-            hr = IDirectDrawSurface_Flip(surface2, NULL, DDFLIP_WAIT);
-            todo_wine ok(hr == DDERR_NOTFLIPPABLE, "Got hr %#lx.\n", hr);
-
-            /* Try to detach reversed */
-            hr = IDirectDrawSurface_DeleteAttachedSurface(surface1, 0, surface2);
-            ok(hr == DDERR_CANNOTDETACHSURFACE, "Got hr %#lx.\n", hr);
-            /* Now the proper detach */
-            hr = IDirectDrawSurface_DeleteAttachedSurface(surface2, 0, surface1);
-            ok(hr == DD_OK, "Got hr %#lx.\n", hr);
-        }
-        hr = IDirectDrawSurface_AddAttachedSurface(surface2, surface3);
-        todo_wine ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE),
-           "Attaching a back buffer to another back buffer returned %#lx\n", hr);
-        if(SUCCEEDED(hr))
-        {
-            /* Try flipping the surfaces */
-            hr = IDirectDrawSurface_Flip(surface3, NULL, DDFLIP_WAIT);
-            todo_wine ok(hr == DD_OK, "Got hr %#lx.\n", hr);
-            hr = IDirectDrawSurface_Flip(surface2, NULL, DDFLIP_WAIT);
-            todo_wine ok(hr == DDERR_NOTFLIPPABLE, "Got hr %#lx.\n", hr);
-            hr = IDirectDrawSurface_Flip(surface1, NULL, DDFLIP_WAIT);
-            ok(hr == DDERR_NOTFLIPPABLE, "Got hr %#lx.\n", hr);
-
-            hr = IDirectDrawSurface_DeleteAttachedSurface(surface2, 0, surface3);
-            ok(hr == DD_OK, "Got hr %#lx.\n", hr);
-        }
-        hr = IDirectDrawSurface_AddAttachedSurface(surface1, surface4);
-        ok(hr == DDERR_CANNOTATTACHSURFACE, "Got hr %#lx.\n", hr);
-        hr = IDirectDrawSurface_AddAttachedSurface(surface4, surface1);
-        ok(hr == DDERR_CANNOTATTACHSURFACE, "Got hr %#lx.\n", hr);
-
-        IDirectDrawSurface_Release(surface4);
-        IDirectDrawSurface_Release(surface3);
-        IDirectDrawSurface_Release(surface2);
-        IDirectDrawSurface_Release(surface1);
+        ok(hr == DDERR_SURFACEALREADYATTACHED, "Got hr %#lx.\n", hr);
+        hr = IDirectDrawSurface_DeleteAttachedSurface(surface1, 0, surface2);
+        ok(hr == DD_OK, "Got hr %#lx.\n", hr);
+        check_surface_caps(surface1, DDSCAPS_PRIMARYSURFACE | DDSCAPS_VISIBLE, placement, 0);
+        check_surface_caps(surface2, DDSCAPS_BACKBUFFER, placement, 0);
     }
+    hr = IDirectDrawSurface_AddAttachedSurface(surface2, surface1);
+    ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE),
+       "Attaching a front buffer to a back buffer returned %#lx\n", hr);
+    if(SUCCEEDED(hr))
+    {
+        check_surface_caps(surface1, DDSCAPS_PRIMARYSURFACE | DDSCAPS_VISIBLE | DDSCAPS_FRONTBUFFER | DDSCAPS_FLIP, placement, 0);
+        check_surface_caps(surface2, DDSCAPS_BACKBUFFER | DDSCAPS_FLIP, placement, 0);
+        /* Try flipping the surfaces */
+        hr = IDirectDrawSurface_Flip(surface1, NULL, DDFLIP_WAIT);
+        ok(hr == DD_OK, "Got hr %#lx.\n", hr);
+        hr = IDirectDrawSurface_Flip(surface2, NULL, DDFLIP_WAIT);
+        ok(hr == DDERR_NOTFLIPPABLE, "Got hr %#lx.\n", hr);
+
+        /* Try to detach reversed */
+        hr = IDirectDrawSurface_DeleteAttachedSurface(surface1, 0, surface2);
+        ok(hr == DDERR_CANNOTDETACHSURFACE, "Got hr %#lx.\n", hr);
+        /* Now the proper detach */
+        hr = IDirectDrawSurface_DeleteAttachedSurface(surface2, 0, surface1);
+        ok(hr == DD_OK, "Got hr %#lx.\n", hr);
+        check_surface_caps(surface1, DDSCAPS_PRIMARYSURFACE | DDSCAPS_VISIBLE, placement, 0);
+        check_surface_caps(surface2, DDSCAPS_BACKBUFFER, placement, 0);
+    }
+    check_surface_caps(surface3, DDSCAPS_BACKBUFFER, placement, 0);
+    hr = IDirectDrawSurface_AddAttachedSurface(surface2, surface3);
+    ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE),
+       "Attaching a back buffer to another back buffer returned %#lx\n", hr);
+    if(SUCCEEDED(hr))
+    {
+        /* Try flipping the surfaces */
+        check_surface_caps(surface2, DDSCAPS_BACKBUFFER | DDSCAPS_FLIP, placement, 0);
+        check_surface_caps(surface3, DDSCAPS_FRONTBUFFER | DDSCAPS_BACKBUFFER | DDSCAPS_FLIP, placement, 0);
+        hr = IDirectDrawSurface_Flip(surface3, NULL, DDFLIP_WAIT);
+        ok(hr == DD_OK, "Got hr %#lx.\n", hr);
+        hr = IDirectDrawSurface_Flip(surface2, NULL, DDFLIP_WAIT);
+        ok(hr == DDERR_NOTFLIPPABLE, "Got hr %#lx.\n", hr);
+        hr = IDirectDrawSurface_Flip(surface1, NULL, DDFLIP_WAIT);
+        ok(hr == DDERR_NOTFLIPPABLE, "Got hr %#lx.\n", hr);
+
+        hr = IDirectDrawSurface_DeleteAttachedSurface(surface2, 0, surface3);
+        ok(hr == DD_OK, "Got hr %#lx.\n", hr);
+    }
+    hr = IDirectDrawSurface_AddAttachedSurface(surface1, surface4);
+    ok(hr == DDERR_CANNOTATTACHSURFACE, "Got hr %#lx.\n", hr);
+    hr = IDirectDrawSurface_AddAttachedSurface(surface4, surface1);
+    ok(hr == DDERR_CANNOTATTACHSURFACE, "Got hr %#lx.\n", hr);
+
+    IDirectDrawSurface_Release(surface4);
+    IDirectDrawSurface_Release(surface3);
+    IDirectDrawSurface_Release(surface2);
+    IDirectDrawSurface_Release(surface1);
 
     hr =IDirectDraw_SetCooperativeLevel(lpDD, NULL, DDSCL_NORMAL);
     ok(hr == DD_OK, "Got hr %#lx.\n", hr);
@@ -2465,9 +2483,6 @@ START_TEST(dsurface)
 {
     HRESULT ret;
     IDirectDraw4 *dd4;
-
-    HMODULE ddraw_mod = GetModuleHandleA("ddraw.dll");
-    pDirectDrawCreateEx = (void *) GetProcAddress(ddraw_mod, "DirectDrawCreateEx");
 
     if (!CreateDirectDraw())
         return;

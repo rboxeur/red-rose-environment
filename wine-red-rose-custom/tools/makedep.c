@@ -4080,6 +4080,9 @@ static void output_gitignore( const char *dest, struct strarray files )
         output( "%s\n", files.str[i] );
     }
 
+    // Add Mac-specific files to .gitignore:
+    output(".DS_Store\n");
+
     if (fclose( output_file )) fatal_perror( "write" );
     output_file = NULL;
     rename_temp_file( dest );

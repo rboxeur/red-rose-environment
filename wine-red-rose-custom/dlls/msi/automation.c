@@ -1326,6 +1326,18 @@ HRESULT database_invoke(
             else return DISP_E_MEMBERNOTFOUND;
             break;
 
+        case DISPID_DATABASE_COMMIT:
+            if (wFlags & DISPATCH_METHOD)
+            {
+                if ((ret = MsiDatabaseCommit(This->msiHandle)) != ERROR_SUCCESS)
+                {
+                    ERR("MsiDatabaseCommit returned %d\n", ret);
+                    return DISP_E_EXCEPTION;
+                }
+            }
+            else return DISP_E_MEMBERNOTFOUND;
+            break;
+
         case DISPID_INSTALLER_LASTERRORRECORD:
             return DatabaseImpl_LastErrorRecord(wFlags, pDispParams,
                                                 pVarResult, pExcepInfo,

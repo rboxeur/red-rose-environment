@@ -1978,7 +1978,7 @@ static void BackBuffer3DAttachmentTest(void)
         ok(hr == DD_OK, "Got hr %#lx.\n", hr);
 
         hr = IDirectDrawSurface_AddAttachedSurface(surface1, surface2);
-        todo_wine ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE), "Got hr %#lx.\n", hr);
+        ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE), "Got hr %#lx.\n", hr);
         if(SUCCEEDED(hr))
         {
             /* Try the reverse without detaching first */
@@ -1988,7 +1988,7 @@ static void BackBuffer3DAttachmentTest(void)
             ok(hr == DD_OK, "Got hr %#lx.\n", hr);
         }
         hr = IDirectDrawSurface_AddAttachedSurface(surface2, surface1);
-        todo_wine ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE), "Got hr %#lx.\n", hr);
+        ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE), "Got hr %#lx.\n", hr);
         if(SUCCEEDED(hr))
         {
             /* Try to detach reversed */
@@ -1999,7 +1999,7 @@ static void BackBuffer3DAttachmentTest(void)
             ok(hr == DD_OK, "Got hr %#lx.\n", hr);
         }
         hr = IDirectDrawSurface_AddAttachedSurface(surface2, surface3);
-        todo_wine ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE), "Got hr %#lx.\n", hr);
+        ok(hr == DD_OK || broken(hr == DDERR_CANNOTATTACHSURFACE), "Got hr %#lx.\n", hr);
         if(SUCCEEDED(hr))
         {
             hr = IDirectDrawSurface_DeleteAttachedSurface(surface2, 0, surface3);

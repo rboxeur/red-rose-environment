@@ -152,6 +152,35 @@ static UINT_PTR CALLBACK printer_properties_hook_procA(HWND hdlg, UINT msg, WPAR
     return 0;
 }
 
+static UINT_PTR CALLBACK check_hook_proc_not_called(HWND hdlg, UINT msg, WPARAM wp, LPARAM lp)
+{
+    ok(0, "Hook proc should not be called\n");
+    return 0;
+}
+
+static UINT_PTR CALLBACK check_hook_proc_msg_handlingA(HWND hdlg, UINT msg, WPARAM wp, LPARAM lp)
+{
+    if (msg == WM_INITDIALOG)
+    {
+        PRINTDLGA* dlg = (PRINTDLGA*)lp;
+        BOOL* hook_inited = (BOOL*)dlg->lCustData;
+
+        *hook_inited = TRUE;
+
+        PostMessageA(hdlg, WM_COMMAND, IDCANCEL, 0);
+    }
+    else if (msg == WM_COMMAND && wp == IDCANCEL)
+    {
+        PostMessageA(hdlg, WM_COMMAND, IDOK, 0);
+
+        /* Returning a non-zero value for IDCANCEL should prevent the message
+         * from being processed further. Otherwise, it would result in the
+         * dialog closing and PrintDlgA returning FALSE. */
+        return TRUE;
+    }
+    return 0;
+}
+
 static void test_PrintDlgA(void)
 {
     DWORD res, n_copies = 0;
@@ -163,6 +192,7 @@ static void test_PrintDlgA(void)
     CHAR   buffer[MAX_PATH];
     LPSTR  ptr;
     DEVMODEA *dm;
+    BOOL hook_inited;
 
     pDlg = malloc((sizeof(PRINTDLGA)) * 2);
     if (!pDlg) return;
@@ -316,6 +346,51 @@ static void test_PrintDlgA(void)
     GlobalUnlock(pDlg->hDevMode);
     GlobalFree(pDlg->hDevMode);
 
+    /* Validate some message handling behaviors of a print dialog hook. */
+    ZeroMemory(pDlg, sizeof(*pDlg));
+    hook_inited = FALSE;
+    pDlg->lStructSize = sizeof(*pDlg);
+    pDlg->Flags = PD_ENABLEPRINTHOOK;
+    pDlg->lpfnPrintHook = check_hook_proc_msg_handlingA;
+    pDlg->lCustData = (LPARAM)&hook_inited;
+    res = PrintDlgA(pDlg);
+    ok(res, "PrintDlg error %#lx\n", CommDlgExtendedError());
+    ok(hook_inited, "expected hook procedure to be called with WM_INITDIALOG\n");
+
+    /* Validate some message handling behaviors of a setup dialog hook. */
+    ZeroMemory(pDlg, sizeof(*pDlg));
+    hook_inited = FALSE;
+    pDlg->lStructSize = sizeof(*pDlg);
+    pDlg->Flags = PD_PRINTSETUP | PD_ENABLESETUPHOOK;
+    pDlg->lpfnSetupHook = check_hook_proc_msg_handlingA;
+    pDlg->lCustData = (LPARAM)&hook_inited;
+    res = PrintDlgA(pDlg);
+    ok(res, "PrintDlg error %#lx\n", CommDlgExtendedError());
+    ok(hook_inited, "expected hook procedure to be called with WM_INITDIALOG\n");
+
+    /* If both hooks are specified, only the appropriate one for the specified mode is invoked. */
+    ZeroMemory(pDlg, sizeof(*pDlg));
+    hook_inited = FALSE;
+    pDlg->lStructSize = sizeof(*pDlg);
+    pDlg->Flags = PD_ENABLEPRINTHOOK | PD_ENABLESETUPHOOK;
+    pDlg->lpfnPrintHook = check_hook_proc_msg_handlingA;
+    pDlg->lpfnSetupHook = check_hook_proc_not_called;
+    pDlg->lCustData = (LPARAM)&hook_inited;
+    res = PrintDlgA(pDlg);
+    ok(res, "PrintDlg error %#lx\n", CommDlgExtendedError());
+    ok(hook_inited, "expected hook procedure to be called with WM_INITDIALOG\n");
+
+    ZeroMemory(pDlg, sizeof(*pDlg));
+    hook_inited = FALSE;
+    pDlg->lStructSize = sizeof(*pDlg);
+    pDlg->Flags = PD_PRINTSETUP | PD_ENABLEPRINTHOOK | PD_ENABLESETUPHOOK;
+    pDlg->lpfnPrintHook = check_hook_proc_not_called;
+    pDlg->lpfnSetupHook = check_hook_proc_msg_handlingA;
+    pDlg->lCustData = (LPARAM)&hook_inited;
+    res = PrintDlgA(pDlg);
+    ok(res, "PrintDlg error %#lx\n", CommDlgExtendedError());
+    ok(hook_inited, "expected hook procedure to be called with WM_INITDIALOG\n");
+
     free(pDlg);
 }
 
@@ -346,11 +421,35 @@ static UINT_PTR CALLBACK printer_properties_hook_procW(HWND hdlg, UINT msg, WPAR
     return 0;
 }
 
+static UINT_PTR CALLBACK check_hook_proc_msg_handlingW(HWND hdlg, UINT msg, WPARAM wp, LPARAM lp)
+{
+    if (msg == WM_INITDIALOG)
+    {
+        PRINTDLGW* dlg = (PRINTDLGW*)lp;
+        BOOL* hook_inited = (BOOL*)dlg->lCustData;
+
+        *hook_inited = TRUE;
+
+        PostMessageW(hdlg, WM_COMMAND, IDCANCEL, 0);
+    }
+    else if (msg == WM_COMMAND && wp == IDCANCEL)
+    {
+        PostMessageW(hdlg, WM_COMMAND, IDOK, 0);
+
+        /* Returning a non-zero value for IDCANCEL should prevent the message
+         * from being processed further. Otherwise, it would result in the
+         * dialog closing and PrintDlgW returning FALSE. */
+        return TRUE;
+    }
+    return 0;
+}
+
 void test_PrintDlgW(void)
 {
     PRINTDLGW pd = { 0 };
     DEVMODEW* dm;
     DWORD name_size = 0;
+    BOOL res, hook_inited;
 
     GetDefaultPrinterW(NULL, &name_size);
     if(name_size == 0)
@@ -377,6 +476,51 @@ void test_PrintDlgW(void)
     ok(dm->dmPaperSize == 888, "expected 888, but got %d.\n", dm->dmPaperSize);
     GlobalUnlock(pd.hDevMode);
     GlobalFree(pd.hDevMode);
+
+    /* Validate some message handling behaviors of a print dialog hook. */
+    ZeroMemory(&pd, sizeof(pd));
+    hook_inited = FALSE;
+    pd.lStructSize = sizeof(pd);
+    pd.Flags = PD_ENABLEPRINTHOOK;
+    pd.lpfnPrintHook = check_hook_proc_msg_handlingW;
+    pd.lCustData = (LPARAM)&hook_inited;
+    res = PrintDlgW(&pd);
+    ok(res, "PrintDlg error %#lx\n", CommDlgExtendedError());
+    ok(hook_inited, "expected hook procedure to be called with WM_INITDIALOG\n");
+
+    /* Validate some message handling behaviors of a setup dialog hook. */
+    ZeroMemory(&pd, sizeof(pd));
+    hook_inited = FALSE;
+    pd.lStructSize = sizeof(pd);
+    pd.Flags = PD_PRINTSETUP | PD_ENABLESETUPHOOK;
+    pd.lpfnSetupHook = check_hook_proc_msg_handlingW;
+    pd.lCustData = (LPARAM)&hook_inited;
+    res = PrintDlgW(&pd);
+    ok(res, "PrintDlg error %#lx\n", CommDlgExtendedError());
+    ok(hook_inited, "expected hook procedure to be called with WM_INITDIALOG\n");
+
+    /* If both hooks are specified, only the appropriate one for the specified mode is invoked. */
+    ZeroMemory(&pd, sizeof(pd));
+    hook_inited = FALSE;
+    pd.lStructSize = sizeof(pd);
+    pd.Flags = PD_ENABLEPRINTHOOK | PD_ENABLESETUPHOOK;
+    pd.lpfnPrintHook = check_hook_proc_msg_handlingW;
+    pd.lpfnSetupHook = check_hook_proc_not_called;
+    pd.lCustData = (LPARAM)&hook_inited;
+    res = PrintDlgW(&pd);
+    ok(res, "PrintDlg error %#lx\n", CommDlgExtendedError());
+    ok(hook_inited, "expected hook procedure to be called with WM_INITDIALOG\n");
+
+    ZeroMemory(&pd, sizeof(pd));
+    hook_inited = FALSE;
+    pd.lStructSize = sizeof(pd);
+    pd.Flags = PD_PRINTSETUP | PD_ENABLEPRINTHOOK | PD_ENABLESETUPHOOK;
+    pd.lpfnPrintHook = check_hook_proc_not_called;
+    pd.lpfnSetupHook = check_hook_proc_msg_handlingW;
+    pd.lCustData = (LPARAM)&hook_inited;
+    res = PrintDlgW(&pd);
+    ok(res, "PrintDlg error %#lx\n", CommDlgExtendedError());
+    ok(hook_inited, "expected hook procedure to be called with WM_INITDIALOG\n");
 }
 
 /* ########################### */

@@ -3834,7 +3834,6 @@ static void test_GdipMeasureString(void)
 
         expectf(0.0, bounds.X);
         expectf(0.0, bounds.Y);
-        todo_wine
         expectf_(height, bounds.Height, height / 100.0);
         expectf_(bounds.Height / base_cy, bounds.Width / base_cx, 0.1);
         expect(7, chars);
@@ -3851,7 +3850,6 @@ static void test_GdipMeasureString(void)
         expect(Ok, status);
         expectf(50.0, bounds.X);
         expectf(50.0, bounds.Y);
-        todo_wine
         expectf_(height, bounds.Height, height / 100.0);
         expectf_(bounds.Height / base_cy, bounds.Width / base_cx, 0.1);
         expect(7, chars);

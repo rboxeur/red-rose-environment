@@ -195,6 +195,7 @@ struct ddraw_surface
     struct ddraw_surface *next_attached;
     struct ddraw_surface *first_attached;
     IUnknown                *attached_iface;
+    DWORD detach_clear_flags;
 
     /* Complex surfaces are organized in a tree, although the tree is degenerated to a list in most cases.
      * In mipmap and primary surfaces each level has only one attachment, which is the next surface level.
@@ -207,6 +208,7 @@ struct ddraw_surface
      * but no pointer to prevent temptations to traverse it in the wrong direction.
      */
     unsigned int is_root : 1;
+    unsigned int is_chain_start : 1;
     unsigned int is_lost : 1;
     unsigned int sysmem_fallback : 1;
 

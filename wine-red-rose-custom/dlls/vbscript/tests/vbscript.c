@@ -105,6 +105,9 @@ DEFINE_EXPECT(GetItemInfo_visible);
 DEFINE_EXPECT(GetItemInfo_visible_code);
 DEFINE_EXPECT(GetItemInfo_persistent);
 DEFINE_EXPECT(testCall);
+DEFINE_EXPECT(host_shadow_method);
+DEFINE_EXPECT(host_shadow_propput);
+DEFINE_EXPECT(host_shadow_propget);
 
 DEFINE_GUID(CLSID_VBScript, 0xb54f3741, 0x5b07, 0x11cf, 0xa4,0xb0, 0x00,0xaa,0x00,0x4a,0x55,0xe8);
 DEFINE_GUID(CLSID_VBScriptRegExp, 0x3f4daca4, 0x160d, 0x11d2, 0xa8,0xe9, 0x00,0x10,0x4b,0x36,0x5c,0x9f);
@@ -301,6 +304,53 @@ static const IDispatchVtbl persistent_named_item_vtbl = {
 
 static IDispatch persistent_named_item = { &persistent_named_item_vtbl };
 
+static HRESULT WINAPI shadowing_GetIDsOfNames(IDispatch *iface, REFIID riid, LPOLESTR *names, UINT name_cnt,
+                                              LCID lcid, DISPID *ids)
+{
+    ok(name_cnt == 1, "name_cnt = %u\n", name_cnt);
+    if(!wcscmp(names[0], L"shadowMethod")) {
+        *ids = 1;
+        return S_OK;
+    }
+    if(!wcscmp(names[0], L"shadowProp")) {
+        *ids = 2;
+        return S_OK;
+    }
+    return DISP_E_UNKNOWNNAME;
+}
+
+static HRESULT WINAPI shadowing_Invoke(IDispatch *iface, DISPID id, REFIID riid, LCID lcid, WORD flags,
+                                       DISPPARAMS *dp, VARIANT *res, EXCEPINFO *ei, UINT *err)
+{
+    if(id == 1) {
+        CHECK_EXPECT(host_shadow_method);
+        ok(flags == DISPATCH_METHOD, "flags = %x\n", flags);
+        return S_OK;
+    }
+    if(id == 2) {
+        if(flags & DISPATCH_PROPERTYPUT) {
+            CHECK_EXPECT(host_shadow_propput);
+            return S_OK;
+        }
+        CHECK_EXPECT(host_shadow_propget);
+        return S_OK;
+    }
+    ok(0, "unexpected dispid %ld\n", id);
+    return E_FAIL;
+}
+
+static const IDispatchVtbl shadowing_named_item_vtbl = {
+    Dispatch_QueryInterface,
+    Dispatch_AddRef,
+    Dispatch_Release,
+    Dispatch_GetTypeInfoCount,
+    Dispatch_GetTypeInfo,
+    shadowing_GetIDsOfNames,
+    shadowing_Invoke
+};
+
+static IDispatch shadowing_named_item = { &shadowing_named_item_vtbl };
+
 static HRESULT WINAPI ActiveScriptSite_QueryInterface(IActiveScriptSite *iface, REFIID riid, void **ppv)
 {
     *ppv = NULL;
@@ -364,6 +414,11 @@ static HRESULT WINAPI ActiveScriptSite_GetItemInfo(IActiveScriptSite *iface, LPC
         CHECK_EXPECT(GetItemInfo_persistent);
         IDispatch_AddRef(&persistent_named_item);
         *item_unk = (IUnknown*)&persistent_named_item;
+        return S_OK;
+    }
+    if(!wcscmp(name, L"shadowingItem")) {
+        IDispatch_AddRef(&shadowing_named_item);
+        *item_unk = (IUnknown*)&shadowing_named_item;
         return S_OK;
     }
     ok(0, "unexpected call %s\n", wine_dbgstr_w(name));
@@ -2703,6 +2758,332 @@ static void test_named_items(void)
     ok(!ref, "ref = %ld\n", ref);
 }
 
+static void test_named_item_sub_shadowing(void)
+{
+    IActiveScriptParse *parse;
+    IActiveScript *script;
+    HRESULT hres;
+    LONG ref;
+
+    /* A script-side Sub with the same name as a host method shadows the
+     * host for unqualified calls; the host method is reached only via
+     * qualified `item.method` access. */
+
+    script = create_vbscript();
+    hres = IActiveScript_QueryInterface(script, &IID_IActiveScriptParse, (void**)&parse);
+    ok(hres == S_OK, "Could not get IActiveScriptParse: %08lx\n", hres);
+
+    SET_EXPECT(GetLCID);
+    hres = IActiveScript_SetScriptSite(script, &ActiveScriptSite);
+    ok(hres == S_OK, "SetScriptSite failed: %08lx\n", hres);
+    CHECK_CALLED(GetLCID);
+
+    hres = IActiveScript_AddNamedItem(script, L"shadowingItem", SCRIPTITEM_ISVISIBLE);
+    ok(hres == S_OK, "AddNamedItem failed: %08lx\n", hres);
+
+    SET_EXPECT(OnStateChange_INITIALIZED);
+    hres = IActiveScriptParse_InitNew(parse);
+    ok(hres == S_OK, "InitNew failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_INITIALIZED);
+
+    SET_EXPECT(OnStateChange_CONNECTED);
+    hres = IActiveScript_SetScriptState(script, SCRIPTSTATE_CONNECTED);
+    ok(hres == S_OK, "SetScriptState failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_CONNECTED);
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"sub shadowMethod\nend sub\n",
+            L"shadowingItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnLeaveScript);
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"shadowMethod\n",
+            L"shadowingItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnLeaveScript);
+    ok(!called_host_shadow_method, "host shadowMethod called for unqualified call\n");
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(host_shadow_method);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"shadowingItem.shadowMethod\n",
+            NULL, NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(host_shadow_method);
+    CHECK_CALLED(OnLeaveScript);
+
+    SET_EXPECT(OnStateChange_DISCONNECTED);
+    SET_EXPECT(OnStateChange_INITIALIZED);
+    SET_EXPECT(OnStateChange_CLOSED);
+    hres = IActiveScript_Close(script);
+    ok(hres == S_OK, "Close failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_DISCONNECTED);
+    CHECK_CALLED(OnStateChange_INITIALIZED);
+    CHECK_CALLED(OnStateChange_CLOSED);
+
+    IActiveScriptParse_Release(parse);
+    ref = IActiveScript_Release(script);
+    ok(!ref, "ref = %ld\n", ref);
+}
+
+static void test_named_item_dim_shadowing(void)
+{
+    IActiveScriptParse *parse;
+    IActiveScript *script;
+    HRESULT hres;
+    LONG ref;
+
+    /* Dim with the same name as a host property shadows the host for
+     * unqualified read/write; the host property is reached only via
+     * qualified `item.prop` access. */
+
+    script = create_vbscript();
+    hres = IActiveScript_QueryInterface(script, &IID_IActiveScriptParse, (void**)&parse);
+    ok(hres == S_OK, "Could not get IActiveScriptParse: %08lx\n", hres);
+
+    SET_EXPECT(GetLCID);
+    hres = IActiveScript_SetScriptSite(script, &ActiveScriptSite);
+    ok(hres == S_OK, "SetScriptSite failed: %08lx\n", hres);
+    CHECK_CALLED(GetLCID);
+
+    hres = IActiveScript_AddNamedItem(script, L"shadowingItem", SCRIPTITEM_ISVISIBLE);
+    ok(hres == S_OK, "AddNamedItem failed: %08lx\n", hres);
+
+    SET_EXPECT(OnStateChange_INITIALIZED);
+    hres = IActiveScriptParse_InitNew(parse);
+    ok(hres == S_OK, "InitNew failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_INITIALIZED);
+
+    SET_EXPECT(OnStateChange_CONNECTED);
+    hres = IActiveScript_SetScriptState(script, SCRIPTSTATE_CONNECTED);
+    ok(hres == S_OK, "SetScriptState failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_CONNECTED);
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"dim shadowProp\n",
+            L"shadowingItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnLeaveScript);
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"shadowProp = 5\n",
+            L"shadowingItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnLeaveScript);
+    ok(!called_host_shadow_propput, "host shadowProp PUT called after Dim shadowing\n");
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"dim x\nx = shadowProp\n",
+            L"shadowingItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnLeaveScript);
+    ok(!called_host_shadow_propget, "host shadowProp GET called after Dim shadowing\n");
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(host_shadow_propput);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"shadowingItem.shadowProp = 7\n",
+            NULL, NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(host_shadow_propput);
+    CHECK_CALLED(OnLeaveScript);
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(host_shadow_propget);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"dim y\ny = shadowingItem.shadowProp\n",
+            NULL, NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(host_shadow_propget);
+    CHECK_CALLED(OnLeaveScript);
+
+    SET_EXPECT(OnStateChange_DISCONNECTED);
+    SET_EXPECT(OnStateChange_INITIALIZED);
+    SET_EXPECT(OnStateChange_CLOSED);
+    hres = IActiveScript_Close(script);
+    ok(hres == S_OK, "Close failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_DISCONNECTED);
+    CHECK_CALLED(OnStateChange_INITIALIZED);
+    CHECK_CALLED(OnStateChange_CLOSED);
+
+    IActiveScriptParse_Release(parse);
+    ref = IActiveScript_Release(script);
+    ok(!ref, "ref = %ld\n", ref);
+}
+
+static void test_named_item_no_dim_routes_to_host(void)
+{
+    IActiveScriptParse *parse;
+    IActiveScript *script;
+    HRESULT hres;
+    LONG ref;
+
+    /* Without a Dim declaration, an unqualified assignment to a name the
+     * host exposes routes to the host's IDispatch (the named item is
+     * implicitly consulted in unqualified lookups). */
+
+    script = create_vbscript();
+    hres = IActiveScript_QueryInterface(script, &IID_IActiveScriptParse, (void**)&parse);
+    ok(hres == S_OK, "Could not get IActiveScriptParse: %08lx\n", hres);
+
+    SET_EXPECT(GetLCID);
+    hres = IActiveScript_SetScriptSite(script, &ActiveScriptSite);
+    ok(hres == S_OK, "SetScriptSite failed: %08lx\n", hres);
+    CHECK_CALLED(GetLCID);
+
+    hres = IActiveScript_AddNamedItem(script, L"shadowingItem", SCRIPTITEM_ISVISIBLE);
+    ok(hres == S_OK, "AddNamedItem failed: %08lx\n", hres);
+
+    SET_EXPECT(OnStateChange_INITIALIZED);
+    hres = IActiveScriptParse_InitNew(parse);
+    ok(hres == S_OK, "InitNew failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_INITIALIZED);
+
+    SET_EXPECT(OnStateChange_CONNECTED);
+    hres = IActiveScript_SetScriptState(script, SCRIPTSTATE_CONNECTED);
+    ok(hres == S_OK, "SetScriptState failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_CONNECTED);
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(host_shadow_propput);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"shadowProp = 5\n",
+            L"shadowingItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(host_shadow_propput);
+    CHECK_CALLED(OnLeaveScript);
+
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(host_shadow_method);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"shadowMethod\n",
+            L"shadowingItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(host_shadow_method);
+    CHECK_CALLED(OnLeaveScript);
+
+    SET_EXPECT(OnStateChange_DISCONNECTED);
+    SET_EXPECT(OnStateChange_INITIALIZED);
+    SET_EXPECT(OnStateChange_CLOSED);
+    hres = IActiveScript_Close(script);
+    ok(hres == S_OK, "Close failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_DISCONNECTED);
+    CHECK_CALLED(OnStateChange_INITIALIZED);
+    CHECK_CALLED(OnStateChange_CLOSED);
+
+    IActiveScriptParse_Release(parse);
+    ref = IActiveScript_Release(script);
+    ok(!ref, "ref = %ld\n", ref);
+}
+
+static void test_const_at_top_level(void)
+{
+    IActiveScriptParse *parse;
+    IActiveScript *script;
+    HRESULT hres;
+    LONG ref;
+
+    /* Top-level const behavior: succeeds when the constant name does not
+     * conflict with a member of the named item, fails (name-redefined,
+     * reported via OnScriptError) when it does. Without a named item
+     * context, top-level const always succeeds. Inside a Sub it works
+     * normally. */
+
+    script = create_vbscript();
+    hres = IActiveScript_QueryInterface(script, &IID_IActiveScriptParse, (void**)&parse);
+    ok(hres == S_OK, "Could not get IActiveScriptParse: %08lx\n", hres);
+
+    SET_EXPECT(GetLCID);
+    hres = IActiveScript_SetScriptSite(script, &ActiveScriptSite);
+    ok(hres == S_OK, "SetScriptSite failed: %08lx\n", hres);
+    CHECK_CALLED(GetLCID);
+
+    hres = IActiveScript_AddNamedItem(script, L"visibleItem", SCRIPTITEM_ISVISIBLE);
+    ok(hres == S_OK, "AddNamedItem failed: %08lx\n", hres);
+
+    SET_EXPECT(OnStateChange_INITIALIZED);
+    hres = IActiveScriptParse_InitNew(parse);
+    ok(hres == S_OK, "InitNew failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_INITIALIZED);
+
+    SET_EXPECT(OnStateChange_CONNECTED);
+    hres = IActiveScript_SetScriptState(script, SCRIPTSTATE_CONNECTED);
+    ok(hres == S_OK, "SetScriptState failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_CONNECTED);
+
+    /* A top-level const whose name does NOT conflict with anything on the
+     * host succeeds on both. */
+    SET_EXPECT(GetItemInfo_visible);
+    SET_EXPECT(GetIDsOfNames_visible);
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"const NEW_NAME = 99\n", L"visibleItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(GetItemInfo_visible);
+    CHECK_CALLED(GetIDsOfNames_visible);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnLeaveScript);
+
+    /* A top-level const whose name conflicts with a host member fails: the
+     * engine raises a name-redefined error and reports it via
+     * OnScriptError. */
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnScriptError);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"const testCall = 1\n", L"visibleItem", NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(FAILED(hres), "ParseScriptText returned: %08lx, expected failure\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnScriptError);
+    CHECK_CALLED(OnLeaveScript);
+
+    /* Without a named item context the parse succeeds on both. */
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse, L"const MIN = 1\n", NULL, NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnLeaveScript);
+
+    /* const inside a Sub is accepted on both. */
+    SET_EXPECT(OnEnterScript);
+    SET_EXPECT(OnLeaveScript);
+    hres = IActiveScriptParse_ParseScriptText(parse,
+            L"sub useConst\nconst INNER = 2\nif INNER <> 2 then err.raise 500\nend sub\nuseConst\n",
+            NULL, NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(OnEnterScript);
+    CHECK_CALLED(OnLeaveScript);
+
+    SET_EXPECT(OnStateChange_DISCONNECTED);
+    SET_EXPECT(OnStateChange_INITIALIZED);
+    SET_EXPECT(OnStateChange_CLOSED);
+    hres = IActiveScript_Close(script);
+    ok(hres == S_OK, "Close failed: %08lx\n", hres);
+    CHECK_CALLED(OnStateChange_DISCONNECTED);
+    CHECK_CALLED(OnStateChange_INITIALIZED);
+    CHECK_CALLED(OnStateChange_CLOSED);
+
+    IActiveScriptParse_Release(parse);
+    ref = IActiveScript_Release(script);
+    ok(!ref, "ref = %ld\n", ref);
+}
+
 static void test_RegExp(void)
 {
     IRegExp2 *regexp;
@@ -2925,6 +3306,9 @@ START_TEST(vbscript)
         test_vbscript_initializing();
         test_param_ids();
         test_named_items();
+        test_named_item_sub_shadowing();
+        test_named_item_dim_shadowing();
+        test_named_item_no_dim_routes_to_host();
         test_scriptdisp();
         test_code_persistence();
         test_script_typeinfo();

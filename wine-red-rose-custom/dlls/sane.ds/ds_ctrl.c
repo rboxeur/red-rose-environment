@@ -261,6 +261,7 @@ TW_UINT16 SANE_PendingXfersEndXfer (pTW_IDENTITY pOrigin,
                 SANE_Notify(MSG_CLOSEDSREQ);
             }
         }
+        TRACE("Count %d, currentState %d\n", pPendingXfers->Count, activeDS.currentState);
         twRC = TWRC_SUCCESS;
         activeDS.twCC = TWCC_SUCCESS;
     }
@@ -378,7 +379,7 @@ TW_UINT16 SANE_GetDSStatus (pTW_IDENTITY pOrigin,
 {
     pTW_STATUS pSourceStatus = (pTW_STATUS) pData;
 
-    TRACE ("DG_CONTROL/DAT_STATUS/MSG_GET\n");
+    TRACE ("DG_CONTROL/DAT_STATUS/MSG_GET => %u\n", activeDS.twCC);
     pSourceStatus->ConditionCode = activeDS.twCC;
     /* Reset the condition code */
     activeDS.twCC = TWCC_SUCCESS;
@@ -393,7 +394,7 @@ TW_UINT16 SANE_DisableDSUserInterface (pTW_IDENTITY pOrigin,
 
     TRACE ("DG_CONTROL/DAT_USERINTERFACE/MSG_DISABLEDS\n");
 
-    if (activeDS.currentState != 5)
+    if (activeDS.currentState != 5 && activeDS.currentState != 6)
     {
         twRC = TWRC_FAILURE;
         activeDS.twCC = TWCC_SEQERROR;

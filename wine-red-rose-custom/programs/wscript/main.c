@@ -399,9 +399,18 @@ static BSTR get_script_str(const WCHAR *filename)
     if(!file_map)
         return NULL;
 
-    len = MultiByteToWideChar(CP_ACP, 0, file_map, size, NULL, 0);
-    ret = SysAllocStringLen(NULL, len);
-    MultiByteToWideChar(CP_ACP, 0, file_map, size, ret, len);
+    if(size >= 2 && (BYTE)file_map[0] == 0xff && (BYTE)file_map[1] == 0xfe) // UTF-16LE
+    {
+        ret = SysAllocStringLen(NULL, size - 2);
+        if (ret)
+            CopyMemory(ret, file_map + 2, size - 2);
+    }
+    else
+    {
+        len = MultiByteToWideChar(CP_ACP, 0, file_map, size, NULL, 0);
+        ret = SysAllocStringLen(NULL, len);
+        MultiByteToWideChar(CP_ACP, 0, file_map, size, ret, len);
+    }
 
     UnmapViewOfFile(file_map);
     return ret;

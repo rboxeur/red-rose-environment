@@ -86,6 +86,8 @@ int primary_monitor = 0;
 BOOL client_side_graphics = TRUE;
 BOOL client_side_with_render = TRUE;
 BOOL shape_layered_windows = TRUE;
+BOOL clamp_x_cursor_to_best_size = FALSE;
+BOOL fit_w_cursor_to_best_size = FALSE;
 int copy_default_colors = 128;
 int alloc_system_colors = 256;
 unsigned int limit_number_of_resolutions;
@@ -642,6 +644,12 @@ static void setup_options(void)
             ERR( "HACK: limit_number_of_resolutions %u.\n", limit_number_of_resolutions );
         }
     }
+
+    if (!get_config_key( hkey, appkey, "ClampXCursorToBestSize", buffer, sizeof(buffer) ))
+        clamp_x_cursor_to_best_size = IS_OPTION_TRUE( buffer[0] );
+
+    if (!get_config_key( hkey, appkey, "FitWCursorToBestSize", buffer, sizeof(buffer) ))
+        fit_w_cursor_to_best_size = IS_OPTION_TRUE( buffer[0] );
 
     get_config_key( hkey, appkey, "InputStyle", input_style, sizeof(input_style) );
 

@@ -1,7 +1,5 @@
 MODULE  = dxcore.dll
 IMPORTS = dxgi
 
-EXTRADLLFLAGS = -Wb,--prefer-native
-
 SOURCES = \
 	dxcore.c

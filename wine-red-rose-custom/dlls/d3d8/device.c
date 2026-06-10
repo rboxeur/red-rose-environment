@@ -937,6 +937,20 @@ static HRESULT CDECL reset_enum_callback(struct wined3d_resource *resource)
     return D3DERR_DEVICELOST;
 }
 
+static BOOL d3d_format_check_multisampled_support(D3DFORMAT format)
+{
+    switch (format)
+    {
+        /* 16-bit format support was patchy as far back as Windows XP, but is nonexistent now. */
+        case D3DFMT_R5G6B5:
+        case D3DFMT_X1R5G5B5:
+        case D3DFMT_A1R5G5B5:
+            return FALSE;
+        default:
+            return TRUE;
+    }
+}
+
 static HRESULT WINAPI d3d8_device_Reset(IDirect3DDevice8 *iface,
         D3DPRESENT_PARAMETERS *present_parameters)
 {
@@ -953,6 +967,11 @@ static HRESULT WINAPI d3d8_device_Reset(IDirect3DDevice8 *iface,
         WARN("App not active, returning D3DERR_DEVICELOST.\n");
         return D3DERR_DEVICELOST;
     }
+
+    if (present_parameters->MultiSampleType
+            && !d3d_format_check_multisampled_support(present_parameters->BackBufferFormat))
+        return D3DERR_INVALIDCALL;
+
     output_idx = device->adapter_ordinal;
     if (!wined3d_swapchain_desc_from_d3d8(&swapchain_desc,
             device->d3d_parent->wined3d_outputs[output_idx], present_parameters))

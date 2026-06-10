@@ -444,22 +444,22 @@ static const struct nls_update_font_list
     /* Japanese */
     { 932, 932, "vga932.fon", "jvgafix.fon", "jvgasys.fon",
       "coure.fon", "serife.fon", "jsmalle.fon", "sserife.fon", "sseriff.fon",
-      "MS UI Gothic","MS Serif"
+      "Yu Gothic UI","MS Serif"
     },
     /* Chinese Simplified */
     { 936, 936, "vga936.fon", "svgafix.fon", "svgasys.fon",
       "coure.fon", "serife.fon", "smalle.fon", "sserife.fon", "sseriff.fon",
-      "SimSun", "NSimSun"
+      "Microsoft YaHei UI", "NSimSun"
     },
     /* Korean */
     { 949, 949, "vga949.fon", "hvgafix.fon", "hvgasys.fon",
       "coure.fon", "serife.fon", "smalle.fon", "sserife.fon", "sseriff.fon",
-      "Gulim",  "Batang"
+      "Malgun Gothic",  "Batang"
     },
     /* Chinese Traditional */
     { 950, 950, "vga950.fon", "cvgafix.fon", "cvgasys.fon",
       "coure.fon", "serife.fon", "smalle.fon", "sserife.fon", "sseriff.fon",
-      "PMingLiU",  "MingLiU"
+      "Microsoft JhengHei UI",  "MingLiU"
     }
 };
 
@@ -1558,6 +1558,8 @@ static const WCHAR yu_gothic_ui_semilightW[] =
     {'Y','u',' ','G','o','t','h','i','c',' ','U','I',' ','S','e','m','i','l','i','g','h','t',0};
 static const WCHAR yu_gothic_ui_semiboldW[] =
     {'Y','u',' ','G','o','t','h','i','c',' ','U','I',' ','S','e','m','i','b','o','l','d',0};
+static const WCHAR segoe_uiW[] =
+    {'S','e','g','o','e',' ','U','I',0};
 static const WCHAR meiryoW[] =
     {'M','e','i','r','y','o',0};
 static const WCHAR meiryo_boldW[] =
@@ -1620,47 +1622,47 @@ static const struct font_links_defaults_list
 };
 
 static const char system_link_tahoma_sc[] =
+    "MSYH.TTC,Microsoft YaHei UI\0"
     "SIMSUN.TTC,SimSun\0"
     "MINGLIU.TTC,PMingLiu\0"
     "MSGOTHIC.TTC,MS UI Gothic\0"
     "BATANG.TTC,Batang\0"
-    "MSYH.TTC,Microsoft YaHei UI\0"
     "MSJH.TTC,Microsoft JhengHei UI\0"
     "YUGOTHM.TTC,Yu Gothic UI\0"
     "MALGUN.TTF,Malgun Gothic\0"
     "SEGUISYM.TTF,Segoe UI Symbol\0";
 
 static const char system_link_tahoma_tc[] =
+    "MSJH.TTC,Microsoft JhengHei UI\0"
     "MINGLIU.TTC,PMingLiu\0"
     "SIMSUN.TTC,SimSun\0"
     "MSGOTHIC.TTC,MS UI Gothic\0"
     "BATANG.TTC,Batang\0"
-    "MSJH.TTC,Microsoft JhengHei UI\0"
     "MSYH.TTC,Microsoft YaHei UI\0"
     "YUGOTHM.TTC,Yu Gothic UI\0"
     "MALGUN.TTF,Malgun Gothic\0"
     "SEGUISYM.TTF,Segoe UI Symbol\0";
 
 static const char system_link_tahoma_jp[] =
+    "YUGOTHM.TTC,Yu Gothic UI\0"
     "MSGOTHIC.TTC,MS UI Gothic\0"
     "MINGLIU.TTC,PMingLiU\0"
     "SIMSUN.TTC,SimSun\0"
     "GULIM.TTC,Gulim\0"
-    "YUGOTHM.TTC,Yu Gothic UI\0"
     "MSJH.TTC,Microsoft JhengHei UI\0"
     "MSYH.TTC,Microsoft YaHei UI\0"
     "MALGUN.TTF,Malgun Gothic\0"
     "SEGUISYM.TTF,Segoe UI Symbol\0";
 
 static const char system_link_tahoma_kr[] =
+    "MALGUN.TTF,Malgun Gothic\0"
     "GULIM.TTC,Gulim\0"
     "MSGOTHIC.TTC,MS UI Gothic\0"
     "MINGLIU.TTC,PMingLiU\0"
     "SIMSUN.TTC,SimSun\0"
-    "MALGUN.TTF,Malgun Gothic\0"
-    "YUGOTHM.TTC,Yu Gothic UI\0"
-    "MSJH.TTC,Microsoft JhengHei UI\0"
     "MSYH.TTC,Microsoft YaHei UI\0"
+    "MSJH.TTC,Microsoft JhengHei UI\0"
+    "YUGOTHM.TTC,Yu Gothic UI\0"
     "SEGUISYM.TTF,Segoe UI Symbol\0";
 
 static const char system_link_tahoma_non_cjk[] =
@@ -1672,6 +1674,71 @@ static const char system_link_tahoma_non_cjk[] =
     "MSJH.TTC,Microsoft JhengHei UI\0"
     "MSYH.TTC,Microsoft YaHei UI\0"
     "MALGUN.TTF,Malgun Gothic\0"
+    "SEGUISYM.TTF,Segoe UI Symbol\0";
+
+static const char system_link_segoe_ui_non_cjk[] =
+    "TAHOMA.TTF,Tahoma\0"
+    "MEIRYO.TTC,Meiryo UI\0"
+    "MSGOTHIC.TTC,MS UI Gothic\0"
+    "MSJH.TTC,Microsoft JhengHei UI\0"
+    "MSYH.TTC,Microsoft YaHei UI\0"
+    "MALGUN.TTF,Malgun Gothic\0"
+    "MINGLIU.TTC,PMingLiU\0"
+    "SIMSUN.TTC,SimSun\0"
+    "GULIM.TTC,Gulim\0"
+    "YUGOTHM.TTC,Yu Gothic UI\0"
+    "SEGUISYM.TTF,Segoe UI Symbol\0";
+
+static const char system_link_segoe_ui_sc[] =
+    "TAHOMA.TTF,Tahoma\0"
+    "MSYH.TTC,Microsoft YaHei UI\0"
+    "SIMSUN.TTC,SimSun\0"
+    "MEIRYO.TTC,Meiryo UI\0"
+    "MSGOTHIC.TTC,MS UI Gothic\0"
+    "MSJH.TTC,Microsoft JhengHei UI\0"
+    "MALGUN.TTF,Malgun Gothic\0"
+    "MINGLIU.TTC,PMingLiU\0"
+    "GULIM.TTC,Gulim\0"
+    "YUGOTHM.TTC,Yu Gothic UI\0"
+    "SEGUISYM.TTF,Segoe UI Symbol\0";
+
+static const char system_link_segoe_ui_tc[] =
+    "TAHOMA.TTF,Tahoma\0"
+    "MSJH.TTC,Microsoft JhengHei UI\0"
+    "MINGLIU.TTC,PMingLiU\0"
+    "MEIRYO.TTC,Meiryo UI\0"
+    "MSGOTHIC.TTC,MS UI Gothic\0"
+    "MSYH.TTC,Microsoft YaHei UI\0"
+    "MALGUN.TTF,Malgun Gothic\0"
+    "SIMSUN.TTC,SimSun\0"
+    "GULIM.TTC,Gulim\0"
+    "YUGOTHM.TTC,Yu Gothic UI\0"
+    "SEGUISYM.TTF,Segoe UI Symbol\0";
+
+static const char system_link_segoe_ui_jp[] =
+    "TAHOMA.TTF,Tahoma\0"
+    "MEIRYO.TTC,Meiryo UI\0"
+    "YUGOTHM.TTC,Yu Gothic UI\0"
+    "MSGOTHIC.TTC,MS UI Gothic\0"
+    "MSJH.TTC,Microsoft JhengHei UI\0"
+    "MSYH.TTC,Microsoft YaHei UI\0"
+    "MALGUN.TTF,Malgun Gothic\0"
+    "MINGLIU.TTC,PMingLiU\0"
+    "SIMSUN.TTC,SimSun\0"
+    "GULIM.TTC,Gulim\0"
+    "SEGUISYM.TTF,Segoe UI Symbol\0";
+
+static const char system_link_segoe_ui_kr[] =
+    "TAHOMA.TTF,Tahoma\0"
+    "MALGUN.TTF,Malgun Gothic\0"
+    "GULIM.TTC,Gulim\0"
+    "MEIRYO.TTC,Meiryo UI\0"
+    "MSGOTHIC.TTC,MS UI Gothic\0"
+    "MSJH.TTC,Microsoft JhengHei UI\0"
+    "MSYH.TTC,Microsoft YaHei UI\0"
+    "MINGLIU.TTC,PMingLiU\0"
+    "SIMSUN.TTC,SimSun\0"
+    "YUGOTHM.TTC,Yu Gothic UI\0"
     "SEGUISYM.TTF,Segoe UI Symbol\0";
 
 static const char system_link_ms_gothic[] =
@@ -1929,6 +1996,14 @@ static const struct system_link_reg
 }
 default_system_link[] =
 {
+    {
+        segoe_uiW, TRUE,
+        system_link_segoe_ui_non_cjk, sizeof(system_link_segoe_ui_non_cjk),
+        system_link_segoe_ui_sc,      sizeof(system_link_segoe_ui_sc),
+        system_link_segoe_ui_tc,      sizeof(system_link_segoe_ui_tc),
+        system_link_segoe_ui_jp,      sizeof(system_link_segoe_ui_jp),
+        system_link_segoe_ui_kr,      sizeof(system_link_segoe_ui_kr),
+    },
     {
         tahomaW, TRUE,
         system_link_tahoma_non_cjk, sizeof(system_link_tahoma_non_cjk),
@@ -4678,9 +4753,11 @@ static HFONT font_SelectFont( PHYSDEV dev, HFONT hfont, UINT *aa_flags )
 
     if (hfont)
     {
+        BOOL can_use_bitmap = !!(NtGdiGetDeviceCaps( dc->hSelf, TEXTCAPS ) & TC_RA_ABLE);
+        UINT new_font_smoothing, new_subpixel_orientation;
+        BOOL update_font_smoothing;
         LOGFONTW lf;
         FMAT2 dcmat;
-        BOOL can_use_bitmap = !!(NtGdiGetDeviceCaps( dc->hSelf, TEXTCAPS ) & TC_RA_ABLE);
 
         NtGdiExtGetObjectW( hfont, sizeof(lf), &lf );
         switch (lf.lfQuality)
@@ -4730,17 +4807,28 @@ static HFONT font_SelectFont( PHYSDEV dev, HFONT hfont, UINT *aa_flags )
         }
         TRACE( "DC transform %f %f %f %f\n", dcmat.eM11, dcmat.eM12, dcmat.eM21, dcmat.eM22 );
 
+        update_font_smoothing = get_font_smoothing_aa( &new_font_smoothing,
+                                                       &new_subpixel_orientation );
+
         pthread_mutex_lock( &font_lock );
+        if (update_font_smoothing)
+        {
+            font_smoothing = new_font_smoothing;
+            subpixel_orientation = new_subpixel_orientation;
+        }
 
         font = select_font( &lf, dcmat, can_use_bitmap );
 
         if (font)
         {
-            if (!*aa_flags) *aa_flags = font->aa_flags;
             if (!*aa_flags)
             {
                 if (lf.lfQuality == CLEARTYPE_QUALITY || lf.lfQuality == CLEARTYPE_NATURAL_QUALITY)
                     *aa_flags = subpixel_orientation;
+                else if (font_smoothing == GGO_BITMAP)
+                    *aa_flags = GGO_BITMAP;
+                else if (font->aa_flags)
+                    *aa_flags = font->aa_flags;
                 else
                     *aa_flags = font_smoothing;
             }

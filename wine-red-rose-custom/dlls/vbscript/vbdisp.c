@@ -1069,6 +1069,12 @@ static inline vbdisp_t *unsafe_impl_from_IDispatch(IDispatch *iface)
         : NULL;
 }
 
+const WCHAR *vbdisp_class_name(IDispatch *disp)
+{
+    vbdisp_t *vbdisp = unsafe_impl_from_IDispatch(disp);
+    return vbdisp && vbdisp->desc ? vbdisp->desc->name : NULL;
+}
+
 HRESULT create_vbdisp(const class_desc_t *desc, vbdisp_t **ret)
 {
     vbdisp_t *vbdisp;
@@ -1098,6 +1104,7 @@ HRESULT create_vbdisp(const class_desc_t *desc, vbdisp_t **ret)
                     hres = E_OUTOFMEMORY;
                     break;
                 }
+                vbdisp->arrays[i]->fFeatures |= FADF_FIXEDSIZE | FADF_STATIC;
             }
 
             if(SUCCEEDED(hres)) {

@@ -889,6 +889,12 @@ typedef struct SHARDAPPIDINFOIDLIST
     PCWSTR pszAppID;
 } SHARDAPPIDINFOIDLIST;
 
+typedef struct SHARDAPPIDINFOLINK
+{
+    IShellLinkW *psl;
+    PCWSTR pszAppID;
+} SHARDAPPIDINFOLINK;
+
 /****************************************************************************
  * SHBrowseForFolder API
  */

@@ -246,18 +246,61 @@ static INT_PTR CDECL cabinet_notify(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION 
 static BOOL extract_cabinet(const WCHAR *filename, const WCHAR *destination)
 {
     char *filenameA = NULL;
+    CHAR pszCabinet[MAX_PATH], pszCabPath[MAX_PATH], *filepart = NULL;
+    DWORD fpnsize;
     BOOL ret = FALSE;
     HFDI hfdi;
     ERF erf;
 
+    if (!(filenameA = strdupWtoA(filename)))
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+    
+    if (strlen(filenameA) >= MAX_PATH)
+    {
+        SetLastError(ERROR_BAD_PATHNAME);
+        free(filenameA);
+        return FALSE;
+    }
+    
+    fpnsize = GetFullPathNameA(filenameA, MAX_PATH, pszCabPath, &filepart);
+    
+    if (!fpnsize || fpnsize > MAX_PATH)
+    {
+        SetLastError(ERROR_BAD_PATHNAME);
+        free(filenameA);
+        return FALSE;
+    }
+
+    if (filepart)
+    {
+        strcpy(pszCabinet, filepart);
+        *filepart = '\0';
+    }
+    else
+    {
+        strcpy(pszCabinet, filenameA);
+        pszCabPath[0] = '\0';
+    }
+
+    free(filenameA);
+
+    TRACE("path: %s, cabfile: %s\n", debugstr_a(pszCabPath), debugstr_a(pszCabinet));
+
     hfdi = FDICreate(cabinet_alloc, cabinet_free, cabinet_open, cabinet_read,
                      cabinet_write, cabinet_close, cabinet_seek, 0, &erf);
-    if (!hfdi) return FALSE;
-
-    if ((filenameA = strdupWtoA(filename)))
+    if (!hfdi)
     {
-        ret = FDICopy(hfdi, filenameA, NULL, 0, cabinet_notify, NULL, (void *)destination);
-        free(filenameA);
+        ERR("FDICreate failed\n");
+        return FALSE;
+    }
+
+    ret = FDICopy(hfdi, pszCabinet, pszCabPath, 0, cabinet_notify, NULL, (void *)destination);
+    if (!ret)
+    {
+        ERR("FDICopy failed\n");
     }
 
     FDIDestroy(hfdi);
@@ -507,6 +550,7 @@ static WCHAR *lookup_expression(struct assembly_entry *assembly, const WCHAR *ke
         else csidl = CSIDL_PROGRAM_FILES_COMMON;
     }
 #ifdef __x86_64__
+    else if (!wcsicmp(key, L"runtime.syswow64")) csidl = CSIDL_SYSTEMX86;
     else if (!wcsicmp(key, L"runtime.programfilesx86")) csidl = CSIDL_PROGRAM_FILESX86;
     else if (!wcsicmp(key, L"runtime.commonfilesx86")) csidl = CSIDL_PROGRAM_FILES_COMMONX86;
 #endif

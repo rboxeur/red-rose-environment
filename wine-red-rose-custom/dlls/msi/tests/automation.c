@@ -1355,6 +1355,13 @@ static HRESULT Database_OpenView(IDispatch *pDatabase, LPCWSTR szSql, IDispatch 
     return hr;
 }
 
+static HRESULT Database_Commit(IDispatch *pDatabase)
+{
+    VARIANT varresult;
+    DISPPARAMS dispparams = {0};
+    return invoke(pDatabase, "Commit", DISPATCH_METHOD, &dispparams, &varresult, VT_EMPTY);
+}
+
 static HRESULT Database_SummaryInformation(IDispatch *pDatabase, int iUpdateCount, IDispatch **pSummaryInfo)
 {
     VARIANT varresult;
@@ -1822,6 +1829,10 @@ static void test_Database(IDispatch *pDatabase, BOOL readonly)
         test_SummaryInfo(pSummaryInfo, summary_info, ARRAY_SIZE(summary_info), readonly);
         IDispatch_Release(pSummaryInfo);
     }
+
+    /* Database::Commit */
+    hr = Database_Commit(pDatabase);
+    ok(hr == S_OK, "Database_Commit failed, hresult %#lx\n", hr);
 }
 
 static void test_Session(IDispatch *pSession)

@@ -3888,7 +3888,7 @@ NTSTATUS nt_to_unix_file_name_internal( const OBJECT_ATTRIBUTES *attr, char **na
     }
     else
     {
-        TRACE( "%s not found in %s\n", debugstr_w(name), unix_name );
+        TRACE( "%s not found in %s\n", debugstr_wn(name, name_len), unix_name );
         free( unix_name );
     }
     return status;

@@ -645,9 +645,6 @@ static inline void writer_inc_indent(mxwriter *This)
 static inline void writer_dec_indent(mxwriter *This)
 {
     if (This->indent) This->indent--;
-    /* depth is decreased only when element is closed, meaning it's not a text node
-       at this point */
-    This->text = FALSE;
 }
 
 static void set_element_name(mxwriter *This, const WCHAR *name, int len)
@@ -2605,7 +2602,7 @@ HRESULT MXWriter_create(MSXML_VERSION version, void **ppObj)
     This->cdata = FALSE;
     This->indent = 0;
     This->text = FALSE;
-    This->newline = FALSE;
+    This->newline = TRUE;
 
     This->dest = NULL;
 
