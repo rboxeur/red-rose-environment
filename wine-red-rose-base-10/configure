@@ -1211,7 +1211,6 @@ enable_ia2comproxy
 enable_iccvid
 enable_icmp
 enable_icmui
-enable_icu
 enable_ieframe
 enable_ieproxy
 enable_iertutil
@@ -15929,6 +15928,61 @@ enable_winex11_drv=${enable_winex11_drv:-no}
 fi
 fi
 
+if test "$ac_cv_header_CL_cl_h" = "yes"
+then
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for clGetPlatformInfo in -lOpenCL" >&5
+printf %s "checking for clGetPlatformInfo in -lOpenCL... " >&6; }
+if test ${ac_cv_lib_OpenCL_clGetPlatformInfo+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lOpenCL  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char clGetPlatformInfo ();
+int
+main (void)
+{
+return clGetPlatformInfo ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_OpenCL_clGetPlatformInfo=yes
+else $as_nop
+  ac_cv_lib_OpenCL_clGetPlatformInfo=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_OpenCL_clGetPlatformInfo" >&5
+printf "%s\n" "$ac_cv_lib_OpenCL_clGetPlatformInfo" >&6; }
+if test "x$ac_cv_lib_OpenCL_clGetPlatformInfo" = xyes
+then :
+  OPENCL_LIBS="-lOpenCL"
+
+fi
+
+fi
+if test "x$ac_cv_lib_OpenCL_clGetPlatformInfo" != xyes
+then :
+  case "x$with_opencl" in
+  x)   as_fn_append wine_notices "|OpenCL ${notice_platform}development files not found, OpenCL won't be supported." ;;
+  xno) ;;
+  *)   as_fn_error $? "OpenCL ${notice_platform}development files not found, OpenCL won't be supported.
+This is an error since --with-opencl was requested." "$LINENO" 5 ;;
+esac
+enable_opencl=${enable_opencl:-no}
+fi
+
 if test "$ac_cv_header_pcap_pcap_h" = "yes"
 then
     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for pcap_init in -lpcap" >&5
@@ -22057,7 +22111,6 @@ wine_fn_config_makefile dlls/iccvid enable_iccvid
 wine_fn_config_makefile dlls/icmp enable_icmp
 wine_fn_config_makefile dlls/icmui enable_icmui
 wine_fn_config_makefile dlls/icmui/tests enable_tests
-wine_fn_config_makefile dlls/icu enable_icu
 wine_fn_config_makefile dlls/ieframe enable_ieframe
 wine_fn_config_makefile dlls/ieframe/tests enable_tests
 wine_fn_config_makefile dlls/ieproxy enable_ieproxy
