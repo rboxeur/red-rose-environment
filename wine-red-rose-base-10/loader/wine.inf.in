@@ -3239,3 +3239,4 @@ HKCU,Software\Wine\AppDefaults\PhotoShop.exe\DllOverrides,"*gdiplus",,"builtin,n
 HKCU,Software\Wine\AppDefaults\PhotoShop.exe\DllOverrides,"*msxml3",,"builtin,native"
 HKCU,Software\Wine\AppDefaults\PhotoShop.exe\DllOverrides,"*msxml6",,"builtin,native"
 HKCU,Software\Wine\AppDefaults\HordesOfHunger.exe\DllOverrides,"dsound",,"builtin,native"
+HKCU,Software\Wine\DllOverrides,"winewayland.drv",0x2,"disabled"
