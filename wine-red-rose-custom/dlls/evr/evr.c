@@ -494,6 +494,8 @@ static void evr_start_stream(struct strmbase_renderer *iface)
 
     if (filter->mixer)
         IMFTransform_ProcessMessage(filter->mixer, MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0);
+    if (filter->presenter)
+        IMFVideoPresenter_OnClockStart(filter->presenter, MFGetSystemTime(), PRESENTATION_CURRENT_POSITION);
 }
 
 static void evr_stop_stream(struct strmbase_renderer *iface)
@@ -504,8 +506,10 @@ static void evr_stop_stream(struct strmbase_renderer *iface)
 
     if (SUCCEEDED(IMFTransform_ProcessMessage(filter->mixer, MFT_MESSAGE_NOTIFY_END_OF_STREAM, 0)))
     {
-        if (SUCCEEDED(IMFVideoPresenter_ProcessMessage(filter->presenter, MFVP_MESSAGE_ENDSTREAMING, 0)))
+        if (SUCCEEDED(IMFVideoPresenter_ProcessMessage(filter->presenter, MFVP_MESSAGE_ENDSTREAMING, 0))) {
             IMFTransform_ProcessMessage(filter->mixer, MFT_MESSAGE_NOTIFY_END_STREAMING, 0);
+            IMFVideoPresenter_OnClockStop(filter->presenter, MFGetSystemTime());
+        }
     }
 }
 

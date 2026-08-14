@@ -164,6 +164,15 @@ static HRESULT d3d11_create_device(IDXGIAdapter *adapter, D3D_DRIVER_TYPE driver
             adapter, debug_d3d_driver_type(driver_type), swrast, flags, feature_levels, levels, sdk_version,
             device_out, obtained_feature_level, immediate_context);
 
+    /* Fail and force software video decoding for UnityPlayer.dll until support for
+     * D3D11_CREATE_DEVICE_VIDEO_SUPPORT needing cross-device multi-thread safety:
+     * https://bugs.winehq.org/show_bug.cgi?id=50277#c43 */
+    if (flags & D3D11_CREATE_DEVICE_VIDEO_SUPPORT)
+    {
+        FIXME("D3D11_CREATE_DEVICE_VIDEO_SUPPORT not yet fully supported.\n");
+        return E_FAIL;
+    }
+
     if (device_out)
         *device_out = NULL;
     if (obtained_feature_level)

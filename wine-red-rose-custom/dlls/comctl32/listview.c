@@ -901,6 +901,9 @@ static BOOL notify_click(const LISTVIEW_INFO *infoPtr, INT code, const LVHITTEST
     ZeroMemory(&nmia, sizeof(nmia));
     nmia.iItem = lvht->iItem;
     nmia.iSubItem = lvht->iSubItem;
+#if __WINE_COMCTL32_VERSION == 6
+    if (infoPtr->uView == LV_VIEW_DETAILS && lvht->iItem == -1) nmia.iSubItem = 0;
+#endif
     nmia.ptAction = lvht->pt;
     item.mask = LVIF_PARAM;
     item.iItem = lvht->iItem;

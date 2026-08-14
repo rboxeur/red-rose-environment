@@ -848,6 +848,15 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
     input.ki.wScan = scan & 0xff;
     input.ki.wVk = NtUserMapVirtualKeyEx(scan, MAPVK_VSC_TO_VK_EX, keyboard_hkl);
     if (scan & ~0xff) input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+    /* these keys are extended despite not having an extended scan code */
+    else switch (key)
+    {
+    case KEY_NUMLOCK:
+    case KEY_RIGHTSHIFT:
+        input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+        break;
+    default: break;
+    }
 
     if (state == WL_KEYBOARD_KEY_STATE_RELEASED) input.ki.dwFlags |= KEYEVENTF_KEYUP;
     __wine_send_input(hwnd, &input, NULL);
@@ -866,8 +875,11 @@ static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboar
           serial, mods_depressed, mods_latched, mods_locked, xkb_group);
 
     pthread_mutex_lock(&keyboard->mutex);
-    xkb_state_update_mask(keyboard->xkb_state, mods_depressed, mods_latched,
-                          mods_locked, 0, 0, xkb_group);
+    if (keyboard->xkb_state)
+    {
+        xkb_state_update_mask(keyboard->xkb_state, mods_depressed, mods_latched,
+                              mods_locked, 0, 0, xkb_group);
+    }
     pthread_mutex_unlock(&keyboard->mutex);
 
     set_current_xkb_group(xkb_group);

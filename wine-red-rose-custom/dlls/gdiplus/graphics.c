@@ -3298,10 +3298,10 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
 
             TRACE("src_area: %d x %d\n", src_area.Width, src_area.Height);
 
-            src_data = calloc(src_area.Width * src_area.Height, sizeof(ARGB));
+            src_data = calloc((size_t)src_area.Width * src_area.Height, sizeof(ARGB));
             if (!src_data)
                 return OutOfMemory;
-            src_stride = sizeof(ARGB) * src_area.Width;
+            src_stride = (INT)(sizeof(ARGB) * (size_t)src_area.Width);
 
             /* Read the bits we need from the source bitmap into a compatible buffer. */
             lockeddata.Width = src_area.Width;
@@ -3355,14 +3355,14 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
                     return stat;
                 }
 
-                dst_stride = sizeof(ARGB) * (dst_area.right - dst_area.left);
+                dst_stride = (INT)(sizeof(ARGB) * (size_t)(dst_area.right - dst_area.left));
                 x_dx = dst_to_src.matrix[0];
                 x_dy = dst_to_src.matrix[1];
                 y_dx = dst_to_src.matrix[2];
                 y_dy = dst_to_src.matrix[3];
 
                 /* Transform the bits as needed to the destination. */
-                dst_data = dst_dyn_data = calloc((dst_area.right - dst_area.left) * (dst_area.bottom - dst_area.top), sizeof(ARGB));
+                dst_data = dst_dyn_data = calloc((size_t)(dst_area.right - dst_area.left) * (dst_area.bottom - dst_area.top), sizeof(ARGB));
                 if (!dst_data)
                 {
                     free(src_data);
@@ -5544,6 +5544,30 @@ GpStatus gdip_format_string(GpGraphics *graphics, HDC hdc,
             {
                unixstyle_newline = FALSE;
                break;
+            }
+        }
+
+        /* If no newline found within fit, check position fit for \n or \r\n.
+         * Wine's GetTextExtentExPointW may assign non-zero advance width to
+         * newline characters (rendering them as missing-glyph boxes), causing
+         * them to be excluded from the fit count. When this happens, the
+         * newline is invisible to the scan above, leading to incorrect line
+         * breaking under StringFormatFlagsNoWrap. */
+        if (lret == fit && sum + fit < length)
+        {
+            if (*(stringdup + sum + fit) == '\n')
+            {
+                unixstyle_newline = TRUE;
+                fitcpy = fit + 1;
+                fit++;
+            }
+            else if (sum + fit + 1 < length &&
+                     *(stringdup + sum + fit) == '\r' &&
+                     *(stringdup + sum + fit + 1) == '\n')
+            {
+                unixstyle_newline = FALSE;
+                fitcpy = fit + 2;
+                fit += 2;
             }
         }
 

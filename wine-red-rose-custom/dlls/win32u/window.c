@@ -3369,7 +3369,7 @@ static BOOL fixup_swp_flags( WINDOWPOS *winpos, const RECT *old_window_rect, int
  */
 static HWND swp_owner_popups( HWND hwnd, HWND after )
 {
-    HWND owner, *list = NULL;
+    HWND owner, *list = NULL, initial_after = after;
     unsigned int i;
 
     TRACE( "(%p) after = %p\n", hwnd, after );
@@ -3439,6 +3439,8 @@ static HWND swp_owner_popups( HWND hwnd, HWND after )
 
 done:
     free( list );
+
+    if(after == hwnd) after = initial_after;  /* restore initial after value if it was changed to the window itself */
     return after;
 }
 
@@ -5249,8 +5251,6 @@ HWND WINAPI NtUserCreateWindowEx( DWORD ex_style, UNICODE_STRING *class_name,
     win->min_pos.x = win->min_pos.y = -1;
     win->max_pos.x = win->max_pos.y = -1;
     SetRect( &win->normal_rect, cs.x, cs.y, cs.x + cs.cx, cs.y + cs.cy );
-
-    if (win->dwStyle & WS_SYSMENU) NtUserSetSystemMenu( hwnd, 0 );
 
     win->imc = get_default_input_context();
 

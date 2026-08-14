@@ -2596,6 +2596,16 @@ static void test_GetPrinterDriver(void)
 
         SetLastError(0xdeadbeef);
         filled = -1;
+        if (!ret && pGetPrinterDriverW)
+        {
+            buf[3] = 0xab;
+            ret = pGetPrinterDriverW(hprn, NULL, level, buf, 2 , &filled);
+            ok(ret == FALSE && GetLastError() == ERROR_INSUFFICIENT_BUFFER, "level %d: GetPrinterDriver error %ld\n", level, GetLastError());
+            ok(buf[3] == 0xab, "level %d: buffer overflow detected, buf[3] was %x, expected 0xab\n", level, buf[3]);
+        }
+
+        SetLastError(0xdeadbeef);
+        filled = -1;
         ret = GetPrinterDriverA(hprn, NULL, level, buf, needed, &filled);
         ok(ret, "level %d: GetPrinterDriver error %ld\n", level, GetLastError());
         ok(needed == filled, "needed %ld != filled %ld\n", needed, filled);

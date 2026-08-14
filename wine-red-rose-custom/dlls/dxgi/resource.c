@@ -380,9 +380,9 @@ static HRESULT STDMETHODCALLTYPE dxgi_resource_GetDevice(IDXGIResource1 *iface, 
 /* IDXGIResource methods */
 static HRESULT STDMETHODCALLTYPE dxgi_resource_GetSharedHandle(IDXGIResource1 *iface, HANDLE *shared_handle)
 {
+    DWORD access_rights = DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
     FIXME("iface %p, shared_handle %p stub!\n", iface, shared_handle);
-
-    return E_NOTIMPL;
+    return IDXGIResource1_CreateSharedHandle(iface, NULL, access_rights, NULL, shared_handle);
 }
 
 static HRESULT STDMETHODCALLTYPE dxgi_resource_GetUsage(IDXGIResource1 *iface, DXGI_USAGE *usage)
@@ -473,10 +473,13 @@ static HRESULT STDMETHODCALLTYPE dxgi_resource_CreateSubresourceSurface(IDXGIRes
 static HRESULT STDMETHODCALLTYPE dxgi_resource_CreateSharedHandle(IDXGIResource1 *iface,
         const SECURITY_ATTRIBUTES *attributes, DWORD access, const WCHAR *name, HANDLE *handle)
 {
+    struct dxgi_resource *resource = impl_from_IDXGIResource1(iface);
+
     FIXME("iface %p, attributes %p, access %#lx, name %s, handle %p stub!\n", iface, attributes,
             access, wine_dbgstr_w(name), handle);
 
-    return E_NOTIMPL;
+    *handle = resource->outer_unknown;
+    return S_OK;
 }
 
 static const struct IDXGIResource1Vtbl dxgi_resource_vtbl =

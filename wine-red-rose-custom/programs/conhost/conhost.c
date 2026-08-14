@@ -21,11 +21,13 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 
 #include "conhost.h"
 
 #include "wine/server.h"
 #include "wine/debug.h"
+#include "mmsystem.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(console);
 
@@ -2274,6 +2276,101 @@ static void process_csi_sequence_console( struct screen_buffer *screen_buffer, c
     }
 }
 
+struct beep_context 
+{
+   WAVEHDR hdr;
+   HWAVEOUT hwo;
+   HANDLE heap;
+   SHORT *samples;
+};
+
+void CALLBACK beep_callback(HWAVEOUT hwo, UINT umsg, DWORD_PTR context, DWORD_PTR p1, DWORD_PTR p2)
+{
+    switch (umsg) 
+    {
+        case WOM_DONE: 
+        {
+            struct beep_context *ctx = (struct beep_context *)(context);
+            UINT hdr_size = sizeof(ctx->hdr);
+            HANDLE heap = ctx->heap;
+
+            waveOutUnprepareHeader(ctx->hwo, &ctx->hdr, hdr_size);
+            waveOutClose(ctx->hwo);
+            HeapFree(heap, 0, ctx->samples);
+            HeapFree(heap, 0, ctx);
+        }
+        default:
+            break;
+    }
+}
+
+BOOL play_console_beep(void) 
+{
+    const int sample_rate = 41400;    
+    const int duration = 100;    
+
+    const DWORD num_samples = sample_rate * duration / 1000;
+
+    const int beep_frequency = 440;
+
+    HWAVEOUT hwo;
+    WAVEHDR hdr = {0};
+    HANDLE heap;
+    SHORT *samples;
+    struct beep_context *ctx;
+    WAVEFORMATEX wfx = { 
+        .wFormatTag = WAVE_FORMAT_PCM,
+        .nSamplesPerSec = sample_rate,
+        .nChannels = 1,
+        .wBitsPerSample = 16,
+    };
+    
+    heap = GetProcessHeap();
+    ctx = HeapAlloc(heap, 0, sizeof(struct beep_context));
+
+    if(!ctx) return FALSE;
+
+    if (waveOutOpen(&hwo, WAVE_MAPPER, &wfx, (DWORD_PTR)beep_callback, (DWORD_PTR)ctx, CALLBACK_FUNCTION) != MMSYSERR_NOERROR)
+    {
+        HeapFree(heap, 0, ctx);
+        return FALSE;
+    }
+
+    samples = HeapAlloc(heap, HEAP_ZERO_MEMORY, num_samples * 3 * sizeof(SHORT));
+
+    if(!samples)
+    {
+        waveOutClose(hwo);
+        HeapFree(heap, 0, ctx);
+        return FALSE;
+    }
+
+    /* This generates a double beep */
+    for (int i = 0; i < num_samples * 3; i++)
+    {
+        double t;        
+
+        if(i < num_samples || i >= 2 * num_samples)
+        {
+            t = (double)i / sample_rate;
+            samples[i] = (SHORT)(8191 * sin(2.0 * M_PI * beep_frequency * t));
+        }
+    }
+
+    hdr.lpData = (LPSTR)samples;
+    hdr.dwBufferLength = 3 * num_samples * sizeof(SHORT);
+
+    ctx->hdr = hdr;
+    ctx->heap = heap;
+    ctx->hwo=  hwo;
+    ctx->samples = samples;
+
+    if(waveOutPrepareHeader(hwo, &ctx->hdr, sizeof(hdr))) return FALSE;
+    if(waveOutWrite(hwo, &ctx->hdr, sizeof(hdr))) return FALSE;
+
+    return TRUE;
+}
+
 static NTSTATUS write_console( struct screen_buffer *screen_buffer, const WCHAR *buffer, size_t len )
 {
     RECT update_rect;
@@ -2313,7 +2410,10 @@ static NTSTATUS write_console( struct screen_buffer *screen_buffer, const WCHAR 
                 }
                 continue;
             case '\a':
-                FIXME( "beep\n" );
+                if(!play_console_beep())
+                {
+                    ERR("Failed to produce a beep\n");
+                }
                 continue;
             case '\r':
                 screen_buffer->cursor_x = 0;
@@ -2823,10 +2923,18 @@ static NTSTATUS screen_buffer_ioctl( struct screen_buffer *screen_buffer, unsign
         }
 
     case IOCTL_CONDRV_SET_MODE:
-        if (in_size != sizeof(unsigned int) || *out_size) return STATUS_INVALID_PARAMETER;
-        screen_buffer->mode = *(unsigned int *)in_data;
-        TRACE( "set %x mode\n", screen_buffer->mode );
-        return STATUS_SUCCESS;
+        {
+            unsigned int mode;
+
+            if (in_size != sizeof(unsigned int) || *out_size) return STATUS_INVALID_PARAMETER;
+            mode = *(unsigned int *)in_data;
+            /* VT sequences are not supported. */
+            if (mode & (ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN))
+                return STATUS_INVALID_PARAMETER;
+            screen_buffer->mode = mode;
+            TRACE( "set %x mode\n", screen_buffer->mode );
+            return STATUS_SUCCESS;
+        }
 
     case IOCTL_CONDRV_IS_UNIX:
         return screen_buffer->console->is_unix ? STATUS_SUCCESS : STATUS_NOT_SUPPORTED;
@@ -2904,10 +3012,17 @@ static NTSTATUS console_input_ioctl( struct console *console, unsigned int code,
         }
 
     case IOCTL_CONDRV_SET_MODE:
-        if (in_size != sizeof(unsigned int) || *out_size) return STATUS_INVALID_PARAMETER;
-        console->mode = *(unsigned int *)in_data;
-        TRACE( "set %x mode\n", console->mode );
-        return STATUS_SUCCESS;
+        {
+            unsigned int mode;
+
+            if (in_size != sizeof(unsigned int) || *out_size) return STATUS_INVALID_PARAMETER;
+            mode = *(unsigned int *)in_data;
+            if (mode & ENABLE_VIRTUAL_TERMINAL_INPUT)
+                return STATUS_INVALID_PARAMETER;
+            console->mode = mode;
+            TRACE( "set %x mode\n", console->mode );
+            return STATUS_SUCCESS;
+        }
 
     case IOCTL_CONDRV_IS_UNIX:
         return console->is_unix ? STATUS_SUCCESS : STATUS_NOT_SUPPORTED;

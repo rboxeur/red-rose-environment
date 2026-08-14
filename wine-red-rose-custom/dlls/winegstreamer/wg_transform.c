@@ -281,8 +281,13 @@ static GstFlowReturn transform_sink_chain_cb(GstPad *pad, GstObject *parent, Gst
 
 static gboolean transform_src_query_latency(struct wg_transform *transform, GstQuery *query)
 {
+    GstClockTime min, max;
+    gboolean live;
+
     GST_LOG("transform %p, %"GST_PTR_FORMAT, transform, query);
-    gst_query_set_latency(query, transform->attrs.low_latency, 0, 0);
+
+    gst_query_parse_latency(query, &live, &min, &max);
+    gst_query_set_latency(query, live | transform->attrs.low_latency, min, max);
     return true;
 }
 

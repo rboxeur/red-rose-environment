@@ -7591,14 +7591,22 @@ NTSTATUS WINAPI NtQueryVolumeInformationFile( HANDLE handle, IO_STATUS_BLOCK *io
             break;
         }
 
+        info->VolumeCreationTime.QuadPart = 0;
+        info->VolumeSerialNumber = 0;
+        info->VolumeLabelLength = 0;
+        info->SupportsObjects = FALSE;
+        io->Information = offsetof( FILE_FS_VOLUME_INFORMATION, VolumeLabel );
+
         if (get_mountmgr_fs_info( handle, fd, drive, sizeof(data) ))
         {
-            status = STATUS_NOT_IMPLEMENTED;
+            /* Fall back to an empty reply rather than failing: the drive may be
+             * one that mountmgr cannot identify, but callers expect
+             * NtQueryVolumeInformationFile to succeed on any valid handle. */
+            status = STATUS_SUCCESS;
             break;
         }
 
         label = (WCHAR *)((char *)drive + drive->label_offset);
-        info->VolumeCreationTime.QuadPart = 0; /* FIXME */
         info->VolumeSerialNumber = drive->serial;
         info->VolumeLabelLength = min( wcslen( label ) * sizeof(WCHAR),
                                        length - offsetof( FILE_FS_VOLUME_INFORMATION, VolumeLabel ) );

@@ -1281,16 +1281,17 @@ HRESULT CALLBACK IClassFactory_LockServer_Proxy(
     IClassFactory* This,
     BOOL fLock)
 {
-    FIXME(":stub\n");
-    return E_NOTIMPL;
+    TRACE("(%p, %d)\n", This, fLock);
+    /* LockServer is a no-op on the proxy side; it is not forwarded to the object. */
+    return S_OK;
 }
 
 HRESULT __RPC_STUB IClassFactory_LockServer_Stub(
     IClassFactory* This,
     BOOL fLock)
 {
-    FIXME(":stub\n");
-    return E_NOTIMPL;
+    TRACE("(%p, %d)\n", This, fLock);
+    return S_OK;
 }
 
 /* call_as/local stubs for objidl.idl */

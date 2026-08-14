@@ -59,6 +59,7 @@ typedef struct {
     IPersistPropertyBag IPersistPropertyBag_iface;
     IDropTarget IDropTarget_iface;
     ISFHelper ISFHelper_iface;
+    IShellIcon IShellIcon_iface;
     IUnknown *outer_unk;
 
     const CLSID *pclsid;
@@ -102,6 +103,11 @@ static inline IGenericSFImpl *impl_from_ISFHelper(ISFHelper *iface)
     return CONTAINING_RECORD(iface, IGenericSFImpl, ISFHelper_iface);
 }
 
+static inline IGenericSFImpl *impl_from_IShellIcon(IShellIcon *iface)
+{
+    return CONTAINING_RECORD(iface, IGenericSFImpl, IShellIcon_iface);
+}
+
 /**************************************************************************
 * inner IUnknown
 */
@@ -128,6 +134,8 @@ static HRESULT WINAPI IUnknown_fnQueryInterface(IUnknown *iface, REFIID riid, vo
         *ppvObj = &This->IDropTarget_iface;
         if (!cfShellIDList) cfShellIDList = RegisterClipboardFormatW(CFSTR_SHELLIDLISTW);
     }
+    else if (IsEqualIID (riid, &IID_IShellIcon))
+        *ppvObj = &This->IShellIcon_iface;
 
     if (*ppvObj) {
         IUnknown_AddRef((IUnknown *)*ppvObj);
@@ -1862,6 +1870,49 @@ static const IDropTargetVtbl dtvt = {
     ISFDropTarget_Drop
 };
 
+/****************************************************************************
+ * IShellIcon implementation
+ */
+
+static HRESULT WINAPI IShellIcon_fnQueryInterface(IShellIcon *iface, REFIID riid, void **ppvObj)
+{
+    IGenericSFImpl *This = impl_from_IShellIcon(iface);
+
+    return IUnknown_QueryInterface(This->outer_unk, riid, ppvObj);
+}
+
+static ULONG WINAPI IShellIcon_fnAddRef(IShellIcon *iface)
+{
+    IGenericSFImpl *This = impl_from_IShellIcon(iface);
+
+    return IUnknown_AddRef(This->outer_unk);
+}
+
+static ULONG WINAPI IShellIcon_fnRelease(IShellIcon *iface)
+{
+    IGenericSFImpl *This = impl_from_IShellIcon(iface);
+
+    return IUnknown_Release(This->outer_unk);
+}
+
+static HRESULT WINAPI IShellIcon_fnGetIconOf(
+    IShellIcon *iface, PCUITEMID_CHILD pidl_rel, UINT flags, int *icon_index)
+{
+    IGenericSFImpl *This = impl_from_IShellIcon(iface);
+
+    TRACE("(%p)->GetIconOf(%p, %u, %p)\n", This, pidl_rel, flags, icon_index);
+
+    return IShellIcon_GetIconOf_helper(This->pidlRoot, pidl_rel, flags, icon_index);
+}
+
+static const IShellIconVtbl sivt =
+{
+    IShellIcon_fnQueryInterface,
+    IShellIcon_fnAddRef,
+    IShellIcon_fnRelease,
+    IShellIcon_fnGetIconOf,
+};
+
 static HRESULT create_fs( IUnknown *outer_unk, REFIID riid, void **ppv, const CLSID *clsid, const WCHAR *path_target)
 {
     IGenericSFImpl *sf;
@@ -1883,6 +1934,7 @@ static HRESULT create_fs( IUnknown *outer_unk, REFIID riid, void **ppv, const CL
     sf->IPersistPropertyBag_iface.lpVtbl = &ppbvt;
     sf->IDropTarget_iface.lpVtbl = &dtvt;
     sf->ISFHelper_iface.lpVtbl = &shvt;
+    sf->IShellIcon_iface.lpVtbl = &sivt;
     sf->pclsid = clsid;
     sf->outer_unk = outer_unk ? outer_unk : &sf->IUnknown_inner;
     if (path_target)

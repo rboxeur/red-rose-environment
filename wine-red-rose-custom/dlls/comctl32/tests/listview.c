@@ -71,6 +71,8 @@ static BOOL g_block_hover;
 static NMLISTVIEW g_nmlistview;
 /* notification data for LVN_ITEMCHANGING */
 static NMLISTVIEW g_nmlistview_changing;
+/* notification data for NM_CLICK and NM_DBLCLK */
+static NMITEMACTIVATE g_nmitemactivate;
 /* format reported to control:
    -1 falls to defproc, anything else returned */
 static INT notifyFormat;
@@ -682,6 +684,14 @@ static LRESULT WINAPI parent_wnd_proc(HWND hwnd, UINT message, WPARAM wParam, LP
       {
           switch (((NMHDR*)lParam)->code)
           {
+          case NM_CLICK:
+          case NM_DBLCLK:
+          case NM_RCLICK:
+          case NM_RDBLCLK:
+              /* keep the first notification of a simulated click sequence. */
+              if (!g_nmitemactivate.hdr.code)
+                  g_nmitemactivate = *(NMITEMACTIVATE *)lParam;
+              break;
           case LVN_BEGINLABELEDITA:
           {
               HWND edit = NULL;
@@ -4295,6 +4305,77 @@ static void test_hittest(void)
     DestroyWindow(hwnd);
 }
 
+static void test_click_notifications(BOOL is_v6)
+{
+    int expected_subitem = is_v6 ? 0 : 1;
+    RECT item_rect, client_rect;
+    POINT pt, orig_pos;
+    LPARAM point;
+    HWND hwnd;
+    int x, y;
+    LRESULT ret;
+
+    hwnd = create_listview_control(LVS_REPORT);
+    SendMessageA(hwnd, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT);
+    MoveWindow(hwnd, 0, 0, 300, 200, FALSE);
+
+    insert_column(hwnd, 0);
+    insert_column(hwnd, 1);
+    SendMessageA(hwnd, LVM_SETCOLUMNWIDTH, 0, 100);
+    SendMessageA(hwnd, LVM_SETCOLUMNWIDTH, 1, 100);
+    insert_item(hwnd, 0);
+
+    item_rect.left = LVIR_BOUNDS;
+    ret = SendMessageA(hwnd, LVM_GETITEMRECT, 0, (LPARAM)&item_rect);
+    ok(ret, "Failed to get item rectangle.\n");
+    GetClientRect(hwnd, &client_rect);
+
+    x = 150;
+    y = (item_rect.bottom + client_rect.bottom) / 2;
+    point = MAKELPARAM(x, y);
+    test_lvm_subitemhittest(hwnd, x, y, -1, 1, LVHT_NOWHERE, FALSE, FALSE, FALSE);
+
+    pt.x = x;
+    pt.y = y;
+    ClientToScreen(hwnd, &pt);
+    GetCursorPos(&orig_pos);
+    SetCursorPos(pt.x, pt.y);
+    flush_events();
+
+    memset(&g_nmitemactivate, 0, sizeof(g_nmitemactivate));
+    PostMessageA(hwnd, WM_LBUTTONDBLCLK, MK_LBUTTON, point);
+    PostMessageA(hwnd, WM_LBUTTONUP, 0, point);
+    flush_events();
+    ok(g_nmitemactivate.hdr.code == NM_DBLCLK, "Expected NM_DBLCLK, got %d.\n",
+            (int)g_nmitemactivate.hdr.code);
+    ok(g_nmitemactivate.iItem == -1, "Expected item -1, got %d.\n", g_nmitemactivate.iItem);
+    ok(g_nmitemactivate.iSubItem == expected_subitem, "Expected subitem %d, got %d.\n",
+            expected_subitem, g_nmitemactivate.iSubItem);
+
+    memset(&g_nmitemactivate, 0, sizeof(g_nmitemactivate));
+    PostMessageA(hwnd, WM_RBUTTONDOWN, MK_RBUTTON, point);
+    PostMessageA(hwnd, WM_RBUTTONUP, 0, point);
+    flush_events();
+    ok(g_nmitemactivate.hdr.code == NM_RCLICK, "Expected NM_RCLICK, got %d.\n",
+            (int)g_nmitemactivate.hdr.code);
+    ok(g_nmitemactivate.iItem == -1, "Expected item -1, got %d.\n", g_nmitemactivate.iItem);
+    ok(g_nmitemactivate.iSubItem == expected_subitem, "Expected subitem %d, got %d.\n",
+            expected_subitem, g_nmitemactivate.iSubItem);
+
+    memset(&g_nmitemactivate, 0, sizeof(g_nmitemactivate));
+    PostMessageA(hwnd, WM_RBUTTONDBLCLK, MK_RBUTTON, point);
+    PostMessageA(hwnd, WM_RBUTTONUP, 0, point);
+    flush_events();
+    ok(g_nmitemactivate.hdr.code == NM_RDBLCLK, "Expected NM_RDBLCLK, got %d.\n",
+            (int)g_nmitemactivate.hdr.code);
+    ok(g_nmitemactivate.iItem == -1, "Expected item -1, got %d.\n", g_nmitemactivate.iItem);
+    ok(g_nmitemactivate.iSubItem == expected_subitem, "Expected subitem %d, got %d.\n",
+            expected_subitem, g_nmitemactivate.iSubItem);
+
+    SetCursorPos(orig_pos.x, orig_pos.y);
+    DestroyWindow(hwnd);
+}
+
 static void test_getviewrect(void)
 {
     HWND hwnd;
@@ -7492,6 +7573,7 @@ START_TEST(listview)
     test_nosortheader();
     test_setredraw();
     test_hittest();
+    test_click_notifications(FALSE);
     test_getviewrect();
     test_getitemposition();
     test_editbox();
@@ -7536,6 +7618,7 @@ START_TEST(listview)
     test_canceleditlabel();
     test_mapidindex();
     test_scrollnotify();
+    test_click_notifications(TRUE);
     test_LVS_EX_TRANSPARENTBKGND();
     test_LVS_EX_HEADERINALLVIEWS();
     test_deleteitem();

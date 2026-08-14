@@ -3093,6 +3093,135 @@ static void test_proxy_interfaces(void)
     end_host_object(tid, thread);
 }
 
+static int cf2_lock_calls;
+
+static HRESULT WINAPI Test_IClassFactory2_QueryInterface(IClassFactory2 *iface, REFIID riid, void **ppv)
+{
+    if (IsEqualGUID(riid, &IID_IUnknown) ||
+        IsEqualGUID(riid, &IID_IClassFactory) ||
+        IsEqualGUID(riid, &IID_IClassFactory2))
+    {
+        *ppv = iface;
+        IClassFactory2_AddRef(iface);
+        return S_OK;
+    }
+    *ppv = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI Test_IClassFactory2_AddRef(IClassFactory2 *iface)
+{
+    LockModule();
+    return 2;
+}
+
+static ULONG WINAPI Test_IClassFactory2_Release(IClassFactory2 *iface)
+{
+    UnlockModule();
+    return 1;
+}
+
+static HRESULT WINAPI Test_IClassFactory2_CreateInstance(IClassFactory2 *iface,
+    IUnknown *pUnkOuter, REFIID riid, void **ppv)
+{
+    if (pUnkOuter) return CLASS_E_NOAGGREGATION;
+    return Test_IClassFactory2_QueryInterface(iface, riid, ppv);
+}
+
+static HRESULT WINAPI Test_IClassFactory2_LockServer(IClassFactory2 *iface, BOOL fLock)
+{
+    cf2_lock_calls++;
+    return S_OK;
+}
+
+static HRESULT WINAPI Test_IClassFactory2_GetLicInfo(IClassFactory2 *iface, LICINFO *licinfo)
+{
+    licinfo->cbLicInfo = sizeof(*licinfo);
+    licinfo->fRuntimeKeyAvail = TRUE;
+    licinfo->fLicVerified = TRUE;
+    return S_OK;
+}
+
+static HRESULT WINAPI Test_IClassFactory2_RequestLicKey(IClassFactory2 *iface, DWORD reserved, BSTR *key)
+{
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI Test_IClassFactory2_CreateInstanceLic(IClassFactory2 *iface, IUnknown *pUnkOuter,
+    IUnknown *reserved, REFIID riid, BSTR key, void **ppv)
+{
+    return E_NOTIMPL;
+}
+
+static const IClassFactory2Vtbl TestClassFactory2_Vtbl =
+{
+    Test_IClassFactory2_QueryInterface,
+    Test_IClassFactory2_AddRef,
+    Test_IClassFactory2_Release,
+    Test_IClassFactory2_CreateInstance,
+    Test_IClassFactory2_LockServer,
+    Test_IClassFactory2_GetLicInfo,
+    Test_IClassFactory2_RequestLicKey,
+    Test_IClassFactory2_CreateInstanceLic
+};
+
+static IClassFactory2 Test_ClassFactory2 = { &TestClassFactory2_Vtbl };
+
+/* tests marshaling of an interface with a delegated base interface
+ * (IClassFactory2 -> IClassFactory) and the [call_as] wrappers for
+ * IClassFactory::LockServer */
+static void test_marshal_IClassFactory2(void)
+{
+    IClassFactory2 *proxy = NULL;
+    IStream *stream;
+    IUnknown *unk;
+    LICINFO licinfo;
+    HRESULT hr;
+    DWORD tid;
+    HANDLE thread;
+
+    cLocks = 0;
+
+    hr = CreateStreamOnHGlobal(NULL, TRUE, &stream);
+    ok_ole_success(hr, CreateStreamOnHGlobal);
+    tid = start_host_object(stream, &IID_IClassFactory2, (IUnknown *)&Test_ClassFactory2, MSHLFLAGS_NORMAL, &thread);
+
+    ok_more_than_one_lock();
+
+    IStream_Seek(stream, ullZero, STREAM_SEEK_SET, NULL);
+    hr = CoUnmarshalInterface(stream, &IID_IClassFactory2, (void **)&proxy);
+    ok_ole_success(hr, CoUnmarshalInterface);
+    IStream_Release(stream);
+
+    /* direct (non-delegated) method */
+    memset(&licinfo, 0xcc, sizeof(licinfo));
+    licinfo.cbLicInfo = sizeof(licinfo);
+    hr = IClassFactory2_GetLicInfo(proxy, &licinfo);
+    ok_ole_success(hr, IClassFactory2_GetLicInfo);
+    ok(licinfo.fLicVerified == TRUE, "got fLicVerified %d\n", licinfo.fLicVerified);
+
+    /* methods delegated to the IClassFactory base interface */
+    unk = NULL;
+    hr = IClassFactory2_CreateInstance(proxy, NULL, &IID_IUnknown, (void **)&unk);
+    ok_ole_success(hr, IClassFactory2_CreateInstance);
+    ok(unk != NULL, "got NULL object\n");
+    if (unk) IUnknown_Release(unk);
+
+    /* LockServer is handled on the proxy side and not forwarded to the object */
+    cf2_lock_calls = 0;
+    hr = IClassFactory2_LockServer(proxy, TRUE);
+    ok_ole_success(hr, IClassFactory2_LockServer);
+    hr = IClassFactory2_LockServer(proxy, FALSE);
+    ok_ole_success(hr, IClassFactory2_LockServer);
+    ok(cf2_lock_calls == 0, "LockServer should not reach the object, got %d\n", cf2_lock_calls);
+
+    IClassFactory2_Release(proxy);
+
+    ok_no_locks();
+
+    end_host_object(tid, thread);
+}
+
 typedef struct
 {
     IUnknown IUnknown_iface;
@@ -4961,6 +5090,7 @@ START_TEST(marshal)
     test_message_filter();
     test_bad_marshal_stream();
     test_proxy_interfaces();
+    test_marshal_IClassFactory2();
     test_stubbuffer(&IID_IClassFactory);
     test_proxybuffer(&IID_IClassFactory);
     test_message_reentrancy();

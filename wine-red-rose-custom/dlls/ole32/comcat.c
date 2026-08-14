@@ -587,6 +587,11 @@ static HRESULT WINAPI COMCAT_ICatInformation_IsClassOfCategories(
     struct class_categories *categories;
     HKEY key;
 
+    if (cImplemented == (ULONG)-1)
+        cImplemented = 0;
+    if (cRequired == (ULONG)-1)
+        cRequired = 0;
+
     if (TRACE_ON(ole)) {
 	ULONG count;
 	TRACE("CLSID: %s Implemented %lu\n",debugstr_guid(rclsid),cImplemented);

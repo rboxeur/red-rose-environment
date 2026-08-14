@@ -55,6 +55,7 @@ typedef struct {
     IPersistFolder2    IPersistFolder2_iface;
     IShellExecuteHookW IShellExecuteHookW_iface;
     IShellExecuteHookA IShellExecuteHookA_iface;
+    IShellIcon         IShellIcon_iface;
     LONG               ref;
 
     IUnknown *pUnkOuter;	/* used for aggregation */
@@ -70,6 +71,7 @@ static const IShellFolder2Vtbl vt_ShellFolder2;
 static const IPersistFolder2Vtbl vt_PersistFolder2;
 static const IShellExecuteHookWVtbl vt_ShellExecuteHookW;
 static const IShellExecuteHookAVtbl vt_ShellExecuteHookA;
+static const IShellIconVtbl vt_ShellIcon;
 
 static inline ICPanelImpl *impl_from_IShellFolder2(IShellFolder2 *iface)
 {
@@ -89,6 +91,11 @@ static inline ICPanelImpl *impl_from_IShellExecuteHookW(IShellExecuteHookW *ifac
 static inline ICPanelImpl *impl_from_IShellExecuteHookA(IShellExecuteHookA *iface)
 {
     return CONTAINING_RECORD(iface, ICPanelImpl, IShellExecuteHookA_iface);
+}
+
+static inline ICPanelImpl *impl_from_IShellIcon(IShellIcon *iface)
+{
+    return CONTAINING_RECORD(iface, ICPanelImpl, IShellIcon_iface);
 }
 
 
@@ -127,6 +134,7 @@ HRESULT WINAPI IControlPanel_Constructor(IUnknown* pUnkOuter, REFIID riid, LPVOI
     sf->IPersistFolder2_iface.lpVtbl = &vt_PersistFolder2;
     sf->IShellExecuteHookW_iface.lpVtbl = &vt_ShellExecuteHookW;
     sf->IShellExecuteHookA_iface.lpVtbl = &vt_ShellExecuteHookA;
+    sf->IShellIcon_iface.lpVtbl = &vt_ShellIcon;
     sf->pidlRoot = _ILCreateControlPanel();	/* my qualified pidl */
     sf->pUnkOuter = pUnkOuter ? pUnkOuter : (IUnknown *)&sf->IShellFolder2_iface;
 
@@ -165,6 +173,8 @@ static HRESULT WINAPI ISF_ControlPanel_fnQueryInterface(IShellFolder2 *iface, RE
         *ppvObject = &This->IShellExecuteHookW_iface;
     else if (IsEqualIID(riid, &IID_IShellExecuteHookA))
         *ppvObject = &This->IShellExecuteHookA_iface;
+    else if (IsEqualIID(riid, &IID_IShellIcon))
+        *ppvObject = &This->IShellIcon_iface;
 
     if (*ppvObject) {
 	IUnknown_AddRef((IUnknown *)(*ppvObject));
@@ -1119,4 +1129,54 @@ static const IShellExecuteHookAVtbl vt_ShellExecuteHookA =
     IShellExecuteHookA_fnAddRef,
     IShellExecuteHookA_fnRelease,
     IShellExecuteHookA_fnExecute
+};
+
+
+/**************************************************************************
+* IShellIcon Implementation
+*/
+
+static HRESULT WINAPI IShellIcon_fnQueryInterface(IShellIcon* iface, REFIID riid, void** ppvObject)
+{
+    ICPanelImpl *This = impl_from_IShellIcon(iface);
+
+    TRACE("(%p)->(count=%lu)\n", This, This->ref);
+
+    return IUnknown_QueryInterface(This->pUnkOuter, riid, ppvObject);
+}
+
+static ULONG STDMETHODCALLTYPE IShellIcon_fnAddRef(IShellIcon* iface)
+{
+    ICPanelImpl *This = impl_from_IShellIcon(iface);
+
+    TRACE("(%p)->(count=%lu)\n", This, This->ref);
+
+    return IUnknown_AddRef(This->pUnkOuter);
+}
+
+static ULONG STDMETHODCALLTYPE IShellIcon_fnRelease(IShellIcon* iface)
+{
+    ICPanelImpl *This = impl_from_IShellIcon(iface);
+
+    TRACE("(%p)\n", This);
+
+    return IUnknown_Release(This->pUnkOuter);
+}
+
+static HRESULT WINAPI IShellIcon_fnGetIconOf(IShellIcon *iface,
+        PCUITEMID_CHILD pidl_rel, UINT flags, int *icon_index)
+{
+    ICPanelImpl *This = impl_from_IShellIcon(iface);
+
+    TRACE("(%p)->GetIconOf(%p, %u, %p)\n", This, pidl_rel, flags, icon_index);
+
+    return IShellIcon_GetIconOf_helper(This->pidlRoot, pidl_rel, flags, icon_index);
+}
+
+static const IShellIconVtbl vt_ShellIcon =
+{
+    IShellIcon_fnQueryInterface,
+    IShellIcon_fnAddRef,
+    IShellIcon_fnRelease,
+    IShellIcon_fnGetIconOf
 };

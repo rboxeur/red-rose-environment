@@ -1934,6 +1934,7 @@ my @decomp_compat_table = ();
 my @comp_exclusions = ();
 my @idna_decomp_table = ();
 my @idna_disallowed = ();
+my @jscript_identifier_part_table = ();
 my %registry_keys;
 my $default_char;
 my $default_wchar;
@@ -2172,6 +2173,11 @@ sub load_data()
         else
         {
             $initial_joining_table[$src] = $joining_types{"U"};
+        }
+
+        if ($src < 0x10000 && ($cat eq "Mc" || $cat eq "No"))
+        {
+            push(@jscript_identifier_part_table, $src);
         }
 
         if ($lower ne "")
@@ -3101,6 +3107,80 @@ sub dump_scripts($)
     print OUTPUT "#include \"windef.h\"\n\n";
 
     dump_three_level_mapping( "wine_scripts_table", 0, 16, @scripts_table );
+    close OUTPUT;
+    save_file($filename);
+}
+
+################################################################
+# get Unicode code point range pairs in an array
+sub get_ranges
+{
+    my @array = @_;
+    my @ranges;
+    return @ranges unless @array;
+    my $start = $array[0];
+    my $end = $array[0];
+    for (my $i = 1; $i < @array; $i++)
+    {
+        if ($array[$i] == $end + 1)
+        {
+            $end = $array[$i];
+        }
+        else
+        {
+            push(@ranges, $start, $end);
+            $start = $end = $array[$i];
+        }
+    }
+    push(@ranges, $start, $end);
+    return @ranges;
+}
+
+################################################################
+# dump Unicode point ranges
+sub dump_range_struct($@)
+{
+    my ($bit_width, @array) = @_;
+    my $format = sprintf "{0x%%0%ux, 0x%%0%ux}", $bit_width / 4, $bit_width / 4;
+    my $ret = "";
+    for (my $i = 0; $i < @array; $i += 2)
+    {
+        $ret .= "    " if ($i % 8 == 0);
+        $ret .= sprintf($format, $array[$i], $array[$i+1]);
+        if ($i < @array - 2)
+        {
+            if ($i % 8 == 6)
+            {
+                $ret .= ",\n";
+            }
+            else
+            {
+                $ret .= ", ";
+            }
+        }
+    }
+    return $ret;
+}
+
+################################################################
+# dump extra Unicode ranges allowed for jscript IdentifierPart
+sub dump_jscript_identifier_part_table($)
+{
+    my $filename = shift;
+
+    open OUTPUT,">$filename.new" or die "Cannot create $filename";
+    print "Building $filename\n";
+    print OUTPUT "/* Extra Unicode ranges allowed for jscript IdentifierPart */\n";
+    printf OUTPUT "/* Automatically generated; DO NOT EDIT!! */\n\n";
+
+    print OUTPUT "#include \"identifier_part_table.h\"\n\n";
+
+    my @ranges = get_ranges(@jscript_identifier_part_table);
+    printf OUTPUT "const unicode_range_t identifier_part_table[%d] =\n{\n", @ranges / 2;
+    print OUTPUT dump_range_struct( 16, @ranges );
+    print OUTPUT "\n};\n";
+    printf OUTPUT "const int identifier_part_table_size = %d;\n", @ranges / 2;
+
     close OUTPUT;
     save_file($filename);
 }
@@ -6204,6 +6284,7 @@ dump_arabic_shaping( "dlls/dwrite/shapers/arabic_table.c" );
 dump_linebreak( "dlls/gdi32/uniscribe/linebreak.c" );
 dump_linebreak( "dlls/dwrite/linebreak.c" );
 dump_scripts( "dlls/dwrite/scripts" );
+dump_jscript_identifier_part_table( "dlls/jscript/identifier_part_table.c" );
 dump_indic( "dlls/gdi32/uniscribe/indicsyllable.c" );
 dump_vertical( "dlls/win32u/vertical.c", 1 );
 dump_vertical( "dlls/wineps.drv/vertical.c", 0 );

@@ -4747,11 +4747,15 @@ static void test_query_volume_information_file(void)
     NTSTATUS status;
     HANDLE dir;
     WCHAR path[MAX_PATH];
+    WCHAR drives[MAX_PATH];
+    WCHAR *drive;
+    WCHAR sysdrive[4];
     OBJECT_ATTRIBUTES attr;
     IO_STATUS_BLOCK io;
     UNICODE_STRING nameW;
     FILE_FS_VOLUME_INFORMATION *ffvi;
     BYTE buf[sizeof(FILE_FS_VOLUME_INFORMATION) + MAX_PATH * sizeof(WCHAR)];
+    DWORD count;
 
     GetWindowsDirectoryW( path, MAX_PATH );
     pRtlDosPathNameToNtPathName_U( path, &nameW, NULL, NULL );
@@ -4790,6 +4794,57 @@ static void test_query_volume_information_file(void)
     trace("VolumeSerialNumber: %lx VolumeLabelName: %s\n", ffvi->VolumeSerialNumber, wine_dbgstr_w(ffvi->VolumeLabel));
 
     CloseHandle( dir );
+
+    /* NtQueryVolumeInformationFile(FileFsVolumeInformation) used to fail for
+     * any handle opened on a drive whose Unix backing is only a mount point
+     * without a matching block device when the queried file is on a filesystem
+     * other than the one holding dosdevices/z:. */
+    GetSystemDirectoryW( sysdrive, ARRAY_SIZE(sysdrive) );
+    count = GetLogicalDriveStringsW( ARRAY_SIZE(drives), drives );
+    ok( count && count < ARRAY_SIZE(drives), "GetLogicalDriveStringsW returned %lu\n", count );
+
+    for (drive = drives; *drive; drive += lstrlenW(drive) + 1)
+    {
+        UINT type = GetDriveTypeW( drive );
+        HANDLE root;
+
+        if ((drive[0] | 0x20) == (sysdrive[0] | 0x20)) continue;
+        if (type != DRIVE_FIXED && type != DRIVE_REMOTE && type != DRIVE_RAMDISK)
+            continue;
+
+        root = CreateFileW( drive, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL,
+                            OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL );
+        if (root == INVALID_HANDLE_VALUE)
+        {
+            skip( "cannot open %s: %lu\n", wine_dbgstr_w(drive), GetLastError() );
+            continue;
+        }
+
+        ZeroMemory( buf, sizeof(buf) );
+        io.Status = 0xdadadada;
+        io.Information = 0xcacacaca;
+
+        status = pNtQueryVolumeInformationFile( root, &io, buf, sizeof(buf),
+                                                FileFsVolumeInformation );
+        ok( status == STATUS_SUCCESS,
+            "NtQueryVolumeInformationFile(FileFsVolumeInformation) on %s returned %lx\n",
+            wine_dbgstr_w(drive), status );
+        ok( io.Status == STATUS_SUCCESS,
+            "io.Status on %s is %lx\n", wine_dbgstr_w(drive), io.Status );
+        if (status == STATUS_SUCCESS)
+        {
+            ok( io.Information == (FIELD_OFFSET(FILE_FS_VOLUME_INFORMATION, VolumeLabel)
+                                   + ffvi->VolumeLabelLength),
+                "expected %ld, got %Iu on %s\n",
+                (FIELD_OFFSET(FILE_FS_VOLUME_INFORMATION, VolumeLabel) + ffvi->VolumeLabelLength),
+                io.Information, wine_dbgstr_w(drive) );
+            trace( "%s VolumeSerialNumber: %lx VolumeLabelName: %s\n",
+                   wine_dbgstr_w(drive), ffvi->VolumeSerialNumber,
+                   wine_dbgstr_w(ffvi->VolumeLabel) );
+        }
+
+        CloseHandle( root );
+    }
 }
 
 static void test_query_attribute_information_file(void)

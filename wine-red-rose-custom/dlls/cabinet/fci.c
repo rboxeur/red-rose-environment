@@ -654,6 +654,10 @@ static BOOL write_data_blocks( FCI_Int *fci, INT_PTR handle, PFNFCISTATUS status
 
     LIST_FOR_EACH_ENTRY( folder, &fci->folders_list, struct folder, entry )
     {
+        /* a folder that contains only empty files has no data blocks, and thus
+         * no temp file to seek into */
+        if (list_empty( &folder->blocks_list )) continue;
+
         if (fci->seek( folder->data.handle, 0, SEEK_SET, &err, fci->pv ) != 0)
         {
             set_error( fci, FCIERR_CAB_FILE, err );

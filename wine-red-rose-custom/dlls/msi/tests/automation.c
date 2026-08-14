@@ -2645,6 +2645,17 @@ static void test_Installer(void)
         IDispatch_Release(pDatabase);
     }
 
+    /* Installer::OpenDatabase with an integer open mode must be treated as a mode,
+     * not stringized into a path.  A path would make MsiOpenDatabase copy the
+     * database to a file named after the mode number ("0"); put a directory in the
+     * way so that such a copy fails and the whole call fails with it. */
+    CreateDirectoryW(L"0", NULL);
+    hr = Installer_OpenDatabase(szPath, (INT_PTR)MSIDBOPEN_READONLY, &pDatabase);
+    ok(hr == S_OK, "Installer_OpenDatabase(read-only) failed, hresult %#lx\n", hr);
+    if (hr == S_OK)
+        IDispatch_Release(pDatabase);
+    RemoveDirectoryW(L"0");
+
     /* Installer::SummaryInformation */
     hr = Installer_SummaryInformation(szPath, 0, &pSumInfo);
     ok(hr == S_OK, "Installer_SummaryInformation failed, hresult %#lx\n", hr);

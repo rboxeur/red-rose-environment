@@ -375,7 +375,7 @@
 @ stdcall FindNLSStringEx(wstr long wstr long wstr long ptr ptr ptr long)
 @ stdcall FindNextChangeNotification(long)
 @ stdcall FindNextFileA(long ptr)
-# @ stub FindNextFileNameW
+@ stdcall FindNextFileNameW(ptr ptr ptr)
 @ stdcall FindNextFileW(long ptr)
 @ stdcall FindNextStreamW(long ptr)
 @ stdcall FindNextVolumeW(long ptr long)
@@ -1223,7 +1223,7 @@
 # @ stub PsmIsValidKey
 # @ stub PssCaptureSnapshot
 # @ stub PssDuplicateSnapshot
-# @ stub PssFreeSnapshot
+@ stdcall PssFreeSnapshot(ptr ptr)
 @ stdcall PssQuerySnapshot(ptr long ptr long)
 # @ stub PssWalkMarkerCreate
 # @ stub PssWalkMarkerFree

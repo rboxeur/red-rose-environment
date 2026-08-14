@@ -1394,7 +1394,7 @@ static void test_write_file( HANDLE file, int report_id, ULONG report_len )
         .report_id = report_id,
         .report_len = report_len - (report_id ? 0 : 1),
         .report_buf = {report_id ? report_id : 0xcd,0xcd,0xcd,0xcd,0xcd},
-        .ret_length = 3,
+        .ret_length = report_len,
         .ret_status = STATUS_SUCCESS,
     };
 
@@ -1430,16 +1430,8 @@ static void test_write_file( HANDLE file, int report_id, ULONG report_len )
         ret = WriteFile( file, report, report_len, &length, NULL );
     }
 
-    if (report_id)
-    {
-        ok( ret, "WriteFile failed, last error %lu\n", GetLastError() );
-        ok( length == 2, "WriteFile wrote %lu\n", length );
-    }
-    else
-    {
-        ok( ret, "WriteFile failed, last error %lu\n", GetLastError() );
-        ok( length == 3, "WriteFile wrote %lu\n", length );
-    }
+    ok( ret, "WriteFile failed, last error %lu\n", GetLastError() );
+    ok( length == report_len, "WriteFile wrote %lu\n", length );
 
     set_hid_expect( file, NULL, 0 );
 }
@@ -2506,7 +2498,7 @@ static void test_hidp( HANDLE file, HANDLE async_file, int report_id, BOOL polle
 
         ret = GetOverlappedResult( async_file, &overlapped, &value, TRUE );
         ok( ret, "GetOverlappedResult failed, last error %lu\n", GetLastError() );
-        ok( value == report_id ? 2 : caps.InputReportByteLength - 1,
+        ok( value == (report_id ? 2 : caps.InputReportByteLength - 1),
             "got length %lu, expected %u\n", value, report_id ? 2 : caps.InputReportByteLength - 1 );
 
         CloseHandle( overlapped.hEvent );

@@ -464,6 +464,15 @@ resource
 			$$->name->name.s_name = $1;
 		}
 		}
+	| tSTRING usrcvt resource_definition {
+		$$ = $3;
+		if($$)
+		{
+			$$->name = new_name_id();
+			$$->name->type = name_str;
+			$$->name->name.s_name = $1;
+		}
+		}
 	| stringtable {
 		/* Don't do anything, stringtables are converted to
 		 * resource_t structures when we are finished parsing and

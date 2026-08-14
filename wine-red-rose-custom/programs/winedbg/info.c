@@ -107,6 +107,7 @@ void info_help(void)
             "  info share <addr>    Displays internal module state",
             "  info stack [<len>]   Dumps information about top of stack, up to len words",
             "  info symbol <sym>    Displays information about a given symbol",
+			"  info system          Displays brief system information",
             "  info thread          Shows all running threads",
             "  info wnd <handle>    Displays internal window state",
             "",
@@ -1239,31 +1240,33 @@ static const struct
     int platform;
     int major;
     int minor;
+    int build;
     const char *str;
 }
 version_table[] =
 {
-    { 0,                   VER_PLATFORM_WIN32s,        2,  0, "2.0" },
-    { 0,                   VER_PLATFORM_WIN32s,        3,  0, "3.0" },
-    { 0,                   VER_PLATFORM_WIN32s,        3, 10, "3.1" },
-    { 0,                   VER_PLATFORM_WIN32_WINDOWS, 4,  0, "95" },
-    { 0,                   VER_PLATFORM_WIN32_WINDOWS, 4, 10, "98" },
-    { 0,                   VER_PLATFORM_WIN32_WINDOWS, 4, 90, "ME" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      3, 51, "NT 3.51" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      4,  0, "NT 4.0" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      5,  0, "2000" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      5,  1, "XP" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      5,  2, "XP" },
-    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      5,  2, "Server 2003" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      6,  0, "Vista" },
-    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      6,  0, "Server 2008" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      6,  1, "7" },
-    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      6,  1, "Server 2008 R2" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      6,  2, "8" },
-    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      6,  2, "Server 2012" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      6,  3, "8.1" },
-    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      6,  3, "Server 2012 R2" },
-    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,     10,  0, "10" },
+    { 0,                   VER_PLATFORM_WIN32s,        2,  0, 0, "2.0" },
+    { 0,                   VER_PLATFORM_WIN32s,        3,  0, 0, "3.0" },
+    { 0,                   VER_PLATFORM_WIN32s,        3, 10, 0, "3.1" },
+    { 0,                   VER_PLATFORM_WIN32_WINDOWS, 4,  0, 0, "95" },
+    { 0,                   VER_PLATFORM_WIN32_WINDOWS, 4, 10, 0, "98" },
+    { 0,                   VER_PLATFORM_WIN32_WINDOWS, 4, 90, 0, "ME" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      3, 51, 0, "NT 3.51" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      4,  0, 0, "NT 4.0" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      5,  0, 0, "2000" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      5,  1, 0, "XP" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      5,  2, 0, "XP" },
+    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      5,  2, 0, "Server 2003" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      6,  0, 0, "Vista" },
+    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      6,  0, 0, "Server 2008" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      6,  1, 0, "7" },
+    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      6,  1, 0, "Server 2008 R2" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      6,  2, 0, "8" },
+    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      6,  2, 0, "Server 2012" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,      6,  3, 0, "8.1" },
+    { VER_NT_SERVER,       VER_PLATFORM_WIN32_NT,      6,  3, 0, "Server 2012 R2" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,     10,  0, 19045, "10" },
+    { VER_NT_WORKSTATION,  VER_PLATFORM_WIN32_NT,     10,  0, 22000, "11" },
 };
 
 static const char *get_windows_version(void)
@@ -1279,14 +1282,15 @@ static const char *get_windows_version(void)
         if (version_table[i].type == info.wProductType &&
             version_table[i].platform == info.dwPlatformId &&
             version_table[i].major == info.dwMajorVersion &&
-            version_table[i].minor == info.dwMinorVersion)
+            version_table[i].minor == info.dwMinorVersion &&
+            version_table[i].build == info.dwBuildNumber)
         {
             return version_table[i].str;
         }
     }
 
-    snprintf( str, sizeof(str), "%ld.%ld (%d)", info.dwMajorVersion,
-              info.dwMinorVersion, info.wProductType );
+    snprintf( str, sizeof(str), "%ld.%ld.%ld (%d)", info.dwMajorVersion,
+              info.dwMinorVersion, info.dwBuildNumber, info.wProductType );
     return str;
 }
 

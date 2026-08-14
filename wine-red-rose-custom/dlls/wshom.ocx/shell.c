@@ -29,6 +29,24 @@ extern HRESULT WINAPI DoOpenPipeStream(HANDLE pipe, IOMode mode, ITextStream **s
 
 WINE_DEFAULT_DEBUG_CHANNEL(wshom);
 
+DWORD WaitForHandles(DWORD nCount, const HANDLE *pHandles, DWORD dwTimeout)
+{
+    for (;;)
+    {
+        DWORD status = MsgWaitForMultipleObjects(nCount, pHandles, FALSE, dwTimeout, QS_ALLINPUT);
+        if (status == WAIT_OBJECT_0 + nCount)
+        {
+            for (MSG msg; PeekMessageW(&msg, NULL, 0, 0, TRUE);)
+            {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+            continue;
+        }
+        return status;
+    }
+}
+
 typedef struct
 {
     struct provideclassinfo classinfo;
@@ -1403,7 +1421,7 @@ static HRESULT WINAPI WshShell3_Run(IWshShell3 *iface, BSTR cmd, VARIANT *style,
         if (waitforprocess)
         {
             DWORD code;
-            WaitForSingleObject(info.hProcess, INFINITE);
+            WaitForHandles(1, &info.hProcess, INFINITE);
             GetExitCodeProcess(info.hProcess, &code);
             CloseHandle(info.hProcess);
             *exit_code = code;
@@ -1476,11 +1494,11 @@ static HRESULT WINAPI WshShell3_Popup(IWshShell3 *iface, BSTR text, VARIANT *sec
     param.text = text;
     param.button = -1;
     hthread = CreateThread(NULL, 0, popup_thread_proc, &param, 0, &tid);
-    status = MsgWaitForMultipleObjects(1, &hthread, FALSE, V_I4(&timeout) ? V_I4(&timeout) * 1000: INFINITE, 0);
+    status = WaitForHandles(1, &hthread, V_I4(&timeout) ? V_I4(&timeout) * 1000 : INFINITE);
     if (status == WAIT_TIMEOUT)
     {
         PostThreadMessageW(tid, WM_QUIT, 0, 0);
-        MsgWaitForMultipleObjects(1, &hthread, FALSE, INFINITE, 0);
+        WaitForHandles(1, &hthread, INFINITE); /* Wait for thread because it will write to param.button */
         param.button = -1;
     }
     *button = param.button;
@@ -1813,8 +1831,82 @@ static HRESULT WINAPI WshShell3_LogEvent(IWshShell3 *iface, VARIANT *Type, BSTR 
 
 static HRESULT WINAPI WshShell3_AppActivate(IWshShell3 *iface, VARIANT *App, VARIANT *Wait, VARIANT_BOOL *out_Success)
 {
-    FIXME("(%s %s %p): stub\n", debugstr_variant(App), debugstr_variant(Wait), out_Success);
-    return E_NOTIMPL;
+    HRESULT hr = S_FALSE;
+    HWND hWnd = GetWindow(GetDesktopWindow(), GW_CHILD);
+    HWND hWndTarget = NULL;
+    VARIANT vTmp;
+    if (!App)
+        return E_POINTER;
+
+    V_VT(&vTmp) = VT_EMPTY;
+    if (V_VT(App) != VT_BSTR && SUCCEEDED(VariantChangeType(&vTmp, App, 0, VT_I4)) && V_I4(&vTmp))
+    {
+        DWORD pidFind = V_I4(&vTmp), pid;
+        for (; hWnd; hWnd = GetWindow(hWnd, GW_HWNDNEXT))
+        {
+            if (!GetWindowThreadProcessId(hWnd, &pid) || pid != pidFind || !IsWindowVisible(hWnd))
+                continue;
+            if (IsWindowEnabled(hWnd))
+            {
+                hWndTarget = hWnd;
+                break; /* Enabled and visible, we are done */
+            }
+            else if (!hWndTarget)
+            {
+                hWndTarget = hWnd; /* We will accept a disabled window if we have to */
+            }
+        }
+    }
+    else if (SUCCEEDED(VariantChangeType(&vTmp, App, 0, VT_BSTR)))
+    {
+        BSTR bsFind = V_BSTR(&vTmp);
+        UINT lenFind = lstrlenW(bsFind);
+        for (; hWnd && !hWndTarget && lenFind; hWnd = GetWindow(hWnd, GW_HWNDNEXT))
+        {
+            BSTR bsBuf;
+            UINT cch = GetWindowTextLengthW(hWnd);
+            if (!cch)
+                continue;
+            bsBuf = SysAllocStringLen(NULL, ++cch);
+            if (!bsBuf)
+            {
+                hr = E_OUTOFMEMORY;
+                break;
+            }
+            cch = GetWindowTextW(hWnd, bsBuf, cch);
+            if (cch >= lenFind && CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE, bsBuf,
+                                                 lenFind, bsFind, lenFind) == CSTR_EQUAL)
+            {
+                hWndTarget = hWnd;
+            }
+            SysFreeString(bsBuf);
+        }
+        VariantClear(&vTmp);
+    }
+
+    if (hWndTarget)
+    {
+        DWORD mytid = GetCurrentThreadId(), pid;
+        DWORD othertid = GetWindowThreadProcessId(hWnd, &pid);
+        BOOL attached = AttachThreadInput(mytid, othertid, TRUE);
+        SetForegroundWindow(hWndTarget);
+        V_VT(&vTmp) = VT_EMPTY;
+        if (Wait && !is_optional_argument(Wait) &&
+            SUCCEEDED(VariantChangeType(&vTmp, Wait, 0, VT_BOOL)) && V_BOOL(&vTmp))
+        {
+            UINT wait = 2000, interval = 100; /* Arbitrary wait time */
+            for (; wait && GetForegroundWindow() != hWndTarget; wait -= interval)
+                Sleep(interval);
+        }
+        SetLastError(0);
+        hr = (SetFocus(hWndTarget) || !GetLastError()) ? S_OK : S_FALSE;
+        if (attached)
+            AttachThreadInput(mytid, othertid, FALSE);
+    }
+
+    if (out_Success)
+        *out_Success = (hr == S_OK) ? VARIANT_TRUE : VARIANT_FALSE;
+    return hr;
 }
 
 static HRESULT WINAPI WshShell3_SendKeys(IWshShell3 *iface, BSTR Keys, VARIANT *Wait)

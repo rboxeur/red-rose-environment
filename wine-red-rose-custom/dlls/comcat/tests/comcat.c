@@ -112,8 +112,52 @@ static void do_enum(void)
 	OleUninitialize();
 }
 
+static void test_IsClassOfCategories(void)
+{
+    HRESULT hr;
+    ICatInformation *pICat;
+    CLSID test_clsid;
+    CATID implemented_cat;
+    CATID unsupported_cat;
+
+    CLSIDFromString(L"{deadcafe-beed-bead-dead-cafebeaddead}", &test_clsid);
+    CLSIDFromString(L"{deadcafe-0000-0000-0000-000000000000}", &implemented_cat);
+    CLSIDFromString(L"{deadcafe-ffff-ffff-ffff-ffffffffffff}", &unsupported_cat);
+
+    OleInitialize(NULL);
+
+    hr = CoCreateInstance(&CLSID_StdComponentCategoriesMgr, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_ICatInformation, (void **)&pICat);
+    ok_ole_success(hr, "CoCreateInstance");
+
+    if (register_testentry())
+    {
+        hr = ICatInformation_IsClassOfCategories(pICat, &test_clsid, -1, NULL, -1, NULL);
+        ok_ole_success(hr, "ICatInformation_IsClassesOfCategories");
+
+        hr = ICatInformation_IsClassOfCategories(pICat, &test_clsid, 1, &implemented_cat, -1, NULL);
+        ok_ole_success(hr, "ICatInformation_IsClassesOfCategories");
+
+        hr = ICatInformation_IsClassOfCategories(pICat, &test_clsid, 1, &unsupported_cat, -1, NULL);
+        ok(hr == S_FALSE, "Expected S_FALSE, got %#08lx\n", hr);
+
+        hr = ICatInformation_IsClassOfCategories(pICat, &test_clsid, -1, NULL, 1, &unsupported_cat);
+        ok_ole_success(hr, "ICatInformation_IsClassesOfCategories");
+
+        unregister_testentry();
+    }
+    else
+    {
+        skip("Could not register the test category\n");
+    }
+
+    ICatInformation_Release(pICat);
+
+    OleUninitialize();
+}
 
 START_TEST(comcat)
 {
- 	do_enum(); 
+    do_enum();
+    test_IsClassOfCategories();
 }

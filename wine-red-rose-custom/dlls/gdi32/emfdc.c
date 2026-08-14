@@ -121,36 +121,63 @@ static BOOL emfdc_record( struct emf *emf, EMR *emr )
 static void emfdc_update_bounds( struct emf *emf, RECTL *rect )
 {
     RECTL *bounds = &emf->dc_attr->emf_bounds;
-    RECTL vport_rect = *rect;
+    POINT pts[4];
+    LONG dx, dy;
 
-    LPtoDP( dc_attr_handle( emf->dc_attr ), (POINT *)&vport_rect, 2 );
+    /* The caller-provided rectangle is inclusive in logical units. To get an
+     * inclusive device rectangle that covers the full extent of the logical
+     * rectangle, the endpoint corresponding to the inclusive logical edge
+     * needs to be extended by the device width of one logical unit minus
+     * one. The per-unit device width is computed from a (0,0)-(1,1) probe
+     * rather than as LPtoDP(N+1)-LPtoDP(N) so that round-half-up
+     * floating-point asymmetry at .5 boundaries do not cause the bounds
+     * to lose isotropy when the mapping mode is intended to be isotropic. */
+    pts[0].x = rect->left;   pts[0].y = rect->top;
+    pts[1].x = rect->right;  pts[1].y = rect->bottom;
+    pts[2].x = 0;            pts[2].y = 0;
+    pts[3].x = 1;            pts[3].y = 1;
+    LPtoDP( dc_attr_handle( emf->dc_attr ), pts, 4 );
+
+    dx = pts[3].x - pts[2].x;
+    dy = pts[3].y - pts[2].y;
+
+    /* Extend the inclusive logical endpoint to cover the full device width of
+     * one logical unit. The sign of the delta handles mirrored coordinate
+     * systems. */
+    if (dx >= 0) pts[1].x += dx - 1;
+    else         pts[1].x += dx + 1;
+    if (dy >= 0) pts[1].y += dy - 1;
+    else         pts[1].y += dy + 1;
 
     /* The coordinate systems may be mirrored
        (LPtoDP handles points, not rectangles) */
-    if (vport_rect.left > vport_rect.right)
+    if (pts[0].x > pts[1].x)
     {
-        LONG temp = vport_rect.right;
-        vport_rect.right = vport_rect.left;
-        vport_rect.left = temp;
+        LONG temp = pts[0].x;
+        pts[0].x = pts[1].x;
+        pts[1].x = temp;
     }
-    if (vport_rect.top > vport_rect.bottom)
+    if (pts[0].y > pts[1].y)
     {
-        LONG temp = vport_rect.bottom;
-        vport_rect.bottom = vport_rect.top;
-        vport_rect.top = temp;
+        LONG temp = pts[0].y;
+        pts[0].y = pts[1].y;
+        pts[1].y = temp;
     }
 
     if (bounds->left > bounds->right)
     {
         /* first bounding rectangle */
-        *bounds = vport_rect;
+        bounds->left   = pts[0].x;
+        bounds->top    = pts[0].y;
+        bounds->right  = pts[1].x;
+        bounds->bottom = pts[1].y;
     }
     else
     {
-        bounds->left   = min(bounds->left,   vport_rect.left);
-        bounds->top    = min(bounds->top,    vport_rect.top);
-        bounds->right  = max(bounds->right,  vport_rect.right);
-        bounds->bottom = max(bounds->bottom, vport_rect.bottom);
+        bounds->left   = min(bounds->left,   pts[0].x);
+        bounds->top    = min(bounds->top,    pts[0].y);
+        bounds->right  = max(bounds->right,  pts[1].x);
+        bounds->bottom = max(bounds->bottom, pts[1].y);
     }
 }
 
@@ -1510,6 +1537,34 @@ BOOL EMFDC_ExtTextOut( DC_ATTR *dc_attr, INT x, INT y, UINT flags, const RECT *r
     default: /* TA_TOP */
         emr->rclBounds.top    = top;
         emr->rclBounds.bottom = bottom + text_height + 1;
+    }
+
+    /* ETO_OPAQUE extends the bounds to cover the background fill rectangle.
+     * ETO_CLIPPED restricts the bounds since drawing is clipped to rect.
+     * The rectangle is exclusive on the right/bottom, while EMF record
+     * bounds are inclusive, so adjust by one when merging the rectangle. */
+    if (rect && (flags & ETO_OPAQUE))
+    {
+        emr->rclBounds.left   = min( emr->rclBounds.left,   rect->left );
+        emr->rclBounds.top    = min( emr->rclBounds.top,    rect->top );
+        emr->rclBounds.right  = max( emr->rclBounds.right,  rect->right - 1 );
+        emr->rclBounds.bottom = max( emr->rclBounds.bottom, rect->bottom - 1 );
+    }
+    if (rect && (flags & ETO_CLIPPED))
+    {
+        emr->rclBounds.left   = max( emr->rclBounds.left,   rect->left );
+        emr->rclBounds.top    = max( emr->rclBounds.top,    rect->top );
+        emr->rclBounds.right  = min( emr->rclBounds.right,  rect->right - 1 );
+        emr->rclBounds.bottom = min( emr->rclBounds.bottom, rect->bottom - 1 );
+
+        if (emr->rclBounds.left > emr->rclBounds.right ||
+            emr->rclBounds.top  > emr->rclBounds.bottom)
+        {
+            /* Nothing is drawn after clipping, emit an empty bounding rect. */
+            emr->rclBounds.left = emr->rclBounds.top = 0;
+            emr->rclBounds.right = emr->rclBounds.bottom = -1;
+            goto no_bounds;
+        }
     }
     emfdc_update_bounds( emf, &emr->rclBounds );
 

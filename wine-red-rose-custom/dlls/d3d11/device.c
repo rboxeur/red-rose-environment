@@ -4535,8 +4535,17 @@ static HRESULT STDMETHODCALLTYPE d3d11_device_CreateDeferredContext(ID3D11Device
 static HRESULT STDMETHODCALLTYPE d3d11_device_OpenSharedResource(ID3D11Device5 *iface, HANDLE resource, REFIID iid,
         void **out)
 {
-    FIXME("iface %p, resource %p, iid %s, out %p stub!\n", iface, resource, debugstr_guid(iid), out);
+    TRACE("iface %p, resource %p, iid %s, out %p stub!\n", iface, resource, debugstr_guid(iid), out);
 
+    if (IsEqualGUID(iid, &IID_ID3D11Texture2D))
+    {
+	return ID3D11Texture2D_QueryInterface(resource, iid, out);
+    }
+    else if (IsEqualGUID(iid, &IID_IDXGIResource))
+    {
+        return ID3D11ShaderResourceView_QueryInterface(resource, iid, out);
+    }
+    FIXME("%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid(iid));
     return E_NOTIMPL;
 }
 

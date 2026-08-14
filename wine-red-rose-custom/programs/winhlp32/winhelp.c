@@ -293,13 +293,13 @@ HLPFILE_WINDOWINFO*     WINHELP_GetWindowInfo(HLPFILE* hlpfile, LPCSTR name)
  *
  *
  */
-static HLPFILE_WINDOWINFO*     WINHELP_GetPopupWindowInfo(HLPFILE* hlpfile,
+HLPFILE_WINDOWINFO*     WINHELP_GetPopupWindowInfo(HLPFILE* hlpfile,
                                                           WINHELP_WINDOW* parent, LPARAM mouse)
 {
     static      HLPFILE_WINDOWINFO      wi;
 
     RECT parent_rect;
-    
+
     wi.type[0] = wi.name[0] = wi.caption[0] = '\0';
 
     /* Calculate horizontal size and position of a popup window */
@@ -309,14 +309,10 @@ static HLPFILE_WINDOWINFO*     WINHELP_GetPopupWindowInfo(HLPFILE* hlpfile,
 
     wi.origin.x = (short)LOWORD(mouse);
     wi.origin.y = (short)HIWORD(mouse);
-    ClientToScreen(parent->hMainWnd, &wi.origin);
-    wi.origin.x -= wi.size.cx / 2;
-    wi.origin.x  = min(wi.origin.x, GetSystemMetrics(SM_CXSCREEN) - wi.size.cx);
-    wi.origin.x  = max(wi.origin.x, 0);
 
     wi.style = SW_SHOW;
     wi.win_style = WS_POPUP | WS_BORDER;
-    if (parent->page->file->has_popup_color)
+    if (parent->page && parent->page->file->has_popup_color)
         wi.sr_color = parent->page->file->popup_color;
     else
         wi.sr_color = parent->info->sr_color;
@@ -924,9 +920,25 @@ static BOOL WINHELP_HandleTextMouse(WINHELP_WINDOW* win, UINT msg, LPARAM lParam
                 break;
             case hlp_link_popup:
                 if ((hlpfile = WINHELP_LookupHelpFile(link->string)))
+                {
+                    POINT origin;
+                    SIZE size;
+                    RECT rect;
+
+                    origin.x = (short)LOWORD(lParam);
+                    origin.y = (short)HIWORD(lParam);
+                    ClientToScreen(win->hMainWnd, &origin);
+                    GetWindowRect(win->hMainWnd, &rect);
+                    size.cx = (rect.right  - rect.left) / 2;
+                    size.cy = 10; /* need non null value, so borders taken into account while computing */
+                    origin.x -= size.cx / 2;
+                    origin.x  = min(origin.x, GetSystemMetrics(SM_CXSCREEN) - size.cx);
+                    origin.x  = max(origin.x, 0);
+
                     WINHELP_OpenHelpWindow(HLPFILE_PageByHash, hlpfile, link->hash,
-                                           WINHELP_GetPopupWindowInfo(hlpfile, win, lParam),
+                                           WINHELP_GetPopupWindowInfo(hlpfile, win, MAKELPARAM(origin.x, origin.y)),
                                            SW_NORMAL);
+                }
                 break;
             case hlp_link_macro:
                 MACRO_ExecuteMacro(win, link->string);

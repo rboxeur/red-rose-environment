@@ -865,6 +865,15 @@ static inline FT_Fixed get_font_version( FT_Face ft_face )
     return version;
 }
 
+static inline UINT get_sfnt_em_square( FT_Face ft_face )
+{
+    TT_Header *header;
+
+    /* FreeType leaves units_per_EM unset for bitmap-only SFNT fonts. */
+    header = pFT_Get_Sfnt_Table( ft_face, ft_sfnt_head );
+    return header ? header->Units_Per_EM : 0;
+}
+
 static inline DWORD get_ntm_flags( FT_Face ft_face )
 {
     DWORD flags = 0;
@@ -2478,6 +2487,8 @@ static BOOL freetype_load_font( struct gdi_font *font )
 
     data->ft_face = ft_face;
     font->scalable = FT_IS_SCALABLE( ft_face );
+    if (font->scalable) font->otm.otmEMSquare = ft_face->units_per_EM;
+    else if (FT_IS_SFNT( ft_face )) font->otm.otmEMSquare = get_sfnt_em_square( ft_face );
     if (!font->fs.fsCsb[0]) get_fontsig( ft_face, &font->fs );
     if (!font->ntmFlags) font->ntmFlags = get_ntm_flags( ft_face );
     if (!font->aa_flags) font->aa_flags = ADDFONT_AA_FLAGS( default_aa_flags );
@@ -2496,7 +2507,6 @@ static BOOL freetype_load_font( struct gdi_font *font )
         TRACE( "height %d => ppem %d\n", (int)font->lf.lfHeight, font->ppem );
         height = font->ppem;
         font->ttc_item_offset = get_ttc_offset( ft_face, font->face_index );
-        font->otm.otmEMSquare = ft_face->units_per_EM;
     }
     else
     {
@@ -3745,7 +3755,8 @@ static BOOL freetype_set_outline_text_metrics( struct gdi_font *font )
 
     TRACE("font=%p\n", font);
 
-    if (!font->scalable) return FALSE;
+    /* Bitmap-only SFNT fonts still contain the tables used for outline text metrics. */
+    if ((!font->scalable && !FT_IS_SFNT( ft_face )) || !font->otm.otmEMSquare) return FALSE;
     if (font->otm.otmSize) return TRUE;  /* already set */
 
     /* note: we store actual pointers in the names instead of offsets,
@@ -3766,7 +3777,7 @@ static BOOL freetype_set_outline_text_metrics( struct gdi_font *font )
                                   lstrlenW( (WCHAR *)font->otm.otmpFaceName ) + 1 +
                                   lstrlenW( (WCHAR *)font->otm.otmpFullName ) + 1) * sizeof(WCHAR);
 
-    em_scale = (FT_Fixed)pFT_MulDiv(font->ppem, 1 << 16, ft_face->units_per_EM);
+    em_scale = (FT_Fixed)pFT_MulDiv(font->ppem, 1 << 16, font->otm.otmEMSquare);
 
     pOS2 = pFT_Get_Sfnt_Table(ft_face, ft_sfnt_os2);
     if(!pOS2) {
@@ -3815,7 +3826,7 @@ static BOOL freetype_set_outline_text_metrics( struct gdi_font *font )
     } else {
 	TM.tmAscent = SCALE_Y(ascent);
 	TM.tmDescent = SCALE_Y(descent);
-	TM.tmInternalLeading = SCALE_Y(ascent + descent - ft_face->units_per_EM);
+	TM.tmInternalLeading = SCALE_Y(ascent + descent - font->otm.otmEMSquare);
     }
 
     TM.tmHeight = TM.tmAscent + TM.tmDescent;

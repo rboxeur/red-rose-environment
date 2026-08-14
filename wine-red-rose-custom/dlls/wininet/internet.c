@@ -1733,10 +1733,17 @@ BOOL WINAPI InternetCrackUrlW(const WCHAR *lpszUrl, DWORD dwUrlLength, DWORD dwF
             return FALSE;
         }
 
-        buffer = url_tmp;
+        buffer = malloc(len * sizeof(WCHAR));
+        if (!buffer)
+        {
+            SetLastError(ERROR_OUTOFMEMORY);
+            free(url_tmp);
+            return FALSE;
+        }
         ret = InternetCanonicalizeUrlW(url_tmp, buffer, &len, ICU_DECODE | ICU_NO_ENCODE);
         if (!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER)
         {
+            free(buffer);
             buffer = malloc(len * sizeof(WCHAR));
             if (!buffer)
             {
@@ -1950,12 +1957,23 @@ BOOL WINAPI InternetCrackUrlW(const WCHAR *lpszUrl, DWORD dwUrlLength, DWORD dwF
             WCHAR tmppath[MAX_PATH];
             if (*lpszcp == '/')
             {
+                HRESULT hr;
                 len = MAX_PATH;
-                PathCreateFromUrlW(lpszUrl, tmppath, &len, 0);
+                hr = PathCreateFromUrlW(lpszUrl, tmppath, &len, 0);
+                if (FAILED(hr))
+                {
+                    SetLastError(ERROR_INSUFFICIENT_BUFFER);
+                    return FALSE;
+                }
             }
             else
             {
                 WCHAR *iter;
+                if (len >= MAX_PATH)
+                {
+                    SetLastError(ERROR_INSUFFICIENT_BUFFER);
+                    return FALSE;
+                }
                 memcpy(tmppath, lpszcp, len * sizeof(WCHAR));
                 tmppath[len] = '\0';
 
@@ -1967,9 +1985,9 @@ BOOL WINAPI InternetCrackUrlW(const WCHAR *lpszUrl, DWORD dwUrlLength, DWORD dwF
                 }
             }
             /* if ends in \. or \.. append a backslash */
-            if (tmppath[len - 1] == '.' &&
-                    (tmppath[len - 2] == '\\' ||
-                     (tmppath[len - 2] == '.' && tmppath[len - 3] == '\\')))
+            if (len > 0 && tmppath[len - 1] == '.' &&
+                    ((len >= 2 && tmppath[len - 2] == '\\') ||
+                     (len >= 3 && tmppath[len - 2] == '.' && tmppath[len - 3] == '\\')))
             {
                 if (len < MAX_PATH - 1)
                 {

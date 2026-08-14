@@ -4287,6 +4287,75 @@ static void test_FreeConsole(void)
     CloseHandle(unbound_output);
 }
 
+static void test_SetConsoleMode(HANDLE input, HANDLE output)
+{
+    DWORD mode, prev_mode;
+    BOOL ret;
+
+    /* Test output handle - ENABLE_VIRTUAL_TERMINAL_PROCESSING */
+    ret = GetConsoleMode(output, &prev_mode);
+    ok(ret, "GetConsoleMode failed: %lu\n", GetLastError());
+
+    mode = prev_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    ret = SetConsoleMode(output, mode);
+    if (!ret)
+    {
+        ok(GetLastError() == ERROR_INVALID_PARAMETER,
+           "SetConsoleMode(ENABLE_VIRTUAL_TERMINAL_PROCESSING) error: expecting %u got %lu\n",
+           ERROR_INVALID_PARAMETER, GetLastError());
+    }
+    else
+    {
+        DWORD new_mode;
+        ret = GetConsoleMode(output, &new_mode);
+        ok(ret, "GetConsoleMode failed: %lu\n", GetLastError());
+        ok(new_mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING,
+           "ENABLE_VIRTUAL_TERMINAL_PROCESSING not set: %lx\n", new_mode);
+        SetConsoleMode(output, prev_mode);
+    }
+
+    /* Test output handle - DISABLE_NEWLINE_AUTO_RETURN */
+    mode = prev_mode | DISABLE_NEWLINE_AUTO_RETURN;
+    ret = SetConsoleMode(output, mode);
+    if (!ret)
+    {
+        ok(GetLastError() == ERROR_INVALID_PARAMETER,
+           "SetConsoleMode(DISABLE_NEWLINE_AUTO_RETURN) error: expecting %u got %lu\n",
+           ERROR_INVALID_PARAMETER, GetLastError());
+    }
+    else
+    {
+        DWORD new_mode;
+        ret = GetConsoleMode(output, &new_mode);
+        ok(ret, "GetConsoleMode failed: %lu\n", GetLastError());
+        ok(new_mode & DISABLE_NEWLINE_AUTO_RETURN,
+           "DISABLE_NEWLINE_AUTO_RETURN not set: %lx\n", new_mode);
+        SetConsoleMode(output, prev_mode);
+    }
+
+    /* Test input handle - ENABLE_VIRTUAL_TERMINAL_INPUT */
+    ret = GetConsoleMode(input, &prev_mode);
+    ok(ret, "GetConsoleMode failed: %lu\n", GetLastError());
+
+    mode = prev_mode | ENABLE_VIRTUAL_TERMINAL_INPUT;
+    ret = SetConsoleMode(input, mode);
+    if (!ret)
+    {
+        ok(GetLastError() == ERROR_INVALID_PARAMETER,
+           "SetConsoleMode(ENABLE_VIRTUAL_TERMINAL_INPUT) error: expecting %u got %lu\n",
+           ERROR_INVALID_PARAMETER, GetLastError());
+    }
+    else
+    {
+        DWORD new_mode;
+        ret = GetConsoleMode(input, &new_mode);
+        ok(ret, "GetConsoleMode failed: %lu\n", GetLastError());
+        ok(new_mode & ENABLE_VIRTUAL_TERMINAL_INPUT,
+           "ENABLE_VIRTUAL_TERMINAL_INPUT not set: %lx\n", new_mode);
+        SetConsoleMode(input, prev_mode);
+    }
+}
+
 static void test_SetConsoleScreenBufferInfoEx(HANDLE std_output)
 {
     BOOL ret;
@@ -5604,6 +5673,7 @@ START_TEST(console)
     test_CreateFileW();
     test_OpenCON();
     test_VerifyConsoleIoHandle(hConOut);
+    test_SetConsoleMode(hConIn, hConOut);
     test_GetSetStdHandle();
     test_DuplicateConsoleHandle();
     test_GetNumberOfConsoleInputEvents(hConIn);

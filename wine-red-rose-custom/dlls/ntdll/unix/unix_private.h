@@ -47,6 +47,10 @@ static const BOOL is_win64 = (sizeof(void *) > sizeof(int));
 static const ULONG_PTR limit_2g = (ULONG_PTR)1 << 31;
 static const ULONG_PTR limit_4g = (ULONG_PTR)((ULONGLONG)1 << 32);
 
+/* range used on Windows for executables with high-entropy ASLR */
+static const ULONG_PTR high_entropy_low  = (ULONG_PTR)((ULONGLONG)0x7ff6 << 32);
+static const ULONG_PTR high_entropy_high = (ULONG_PTR)((ULONGLONG)0x7ff8 << 32);
+
 static inline BOOL is_machine_64bit( WORD machine )
 {
     return (machine == IMAGE_FILE_MACHINE_AMD64 || machine == IMAGE_FILE_MACHINE_ARM64);

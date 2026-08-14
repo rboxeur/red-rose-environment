@@ -630,7 +630,10 @@ static void test_CreateDispTypeInfo(void)
     TYPEATTR *pTypeAttr;
     HREFTYPE href;
     FUNCDESC *pFuncDesc;
+    UINT argerr = 0;
     MEMBERID memid;
+    DISPPARAMS dp;
+    VARIANT res;
 
     static WCHAR func1[] = {'f','u','n','c','1',0};
     static const WCHAR func2[] = {'f','u','n','c','2',0};
@@ -767,6 +770,10 @@ static void test_CreateDispTypeInfo(void)
     ok(hr == S_OK, "hr 0x%08lx\n", hr);
     ok(memid == 0x123, "memid 0x%08lx\n", memid);
 
+    hr = ITypeInfo_GetIDsOfNames(pTypeInfo, &methdata[1].szName, 1, &memid);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(memid == 0x124, "Unexpected id %#lx.\n", memid);
+
     ITypeInfo_Release(pTI2);
     ITypeInfo_Release(pTypeInfo);
 
@@ -777,6 +784,35 @@ static void test_CreateDispTypeInfo(void)
     SysFreeString(methdata[1].szName);
     SysFreeString(methdata[2].szName);
     SysFreeString(methdata[3].szName);
+
+    /* Invoke test */
+    memset(methdata, 0, sizeof(methdata));
+    methdata[0].szName = SysAllocString(L"get_test");
+    methdata[0].dispid = DISPID_VALUE;
+    methdata[0].iMeth = 7;
+    methdata[0].cc = CC_STDCALL;
+    methdata[0].wFlags = DISPATCH_PROPERTYGET;
+    methdata[0].vtReturn = VT_I4;
+
+    ifdata.pmethdata = methdata;
+    ifdata.cMembers = 1;
+
+    hr = CreateDispTypeInfo(&ifdata, LOCALE_NEUTRAL, &pTypeInfo);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ITypeInfo_GetIDsOfNames(pTypeInfo, &methdata[0].szName, 1, &memid);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(memid == DISPID_VALUE, "Unexpected id %#lx.\n", memid);
+
+    memset(&dp, 0, sizeof(dp));
+    memset(&res, 0, sizeof(res));
+    hr = ITypeInfo_Invoke(pTypeInfo, &invoketest, DISPID_VALUE, DISPATCH_PROPERTYGET, &dp, &res, NULL, &argerr);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(V_VT(&res) == VT_I4, "Unexpected return type %d.\n", V_VT(&res));
+    ok(V_I4(&res) == 1, "Unexpected value %ld.\n", V_I4(&res));
+
+    SysFreeString(methdata[0].szName);
+    ITypeInfo_Release(pTypeInfo);
 }
 
 static void write_typelib(int res_no, const WCHAR *filename)

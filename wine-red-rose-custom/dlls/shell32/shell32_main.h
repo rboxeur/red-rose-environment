@@ -120,6 +120,8 @@ HRESULT IShellLink_ConstructFromFile(IUnknown * pUnkOuter, REFIID riid, LPCITEMI
 LPEXTRACTICONA	IExtractIconA_Constructor(LPCITEMIDLIST);
 LPEXTRACTICONW	IExtractIconW_Constructor(LPCITEMIDLIST);
 
+HRESULT IShellIcon_GetIconOf_helper(LPCITEMIDLIST root_pidl, PCUITEMID_CHILD pidl_rel, UINT flags, int *icon_index);
+
 HRESULT WINAPI CustomDestinationList_Constructor(IUnknown *outer, REFIID riid, void **obj);
 
 /* initialisation for FORMATETC */

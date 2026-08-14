@@ -671,6 +671,23 @@ static void InternetCrackUrl_test(void)
   ok(ret, "InternetCrackUrlA failed with error %ld\n", GetLastError());
   ok(urlComponents.dwUrlPathLength == 0,
     "Expected dwUrlPathLength of 0, got %ld\n", urlComponents.dwUrlPathLength);
+
+  /* file:// URLs with empty path and fragment/query immediately after //
+   * These previously caused a crash (STATUS_STACK_OVERFLOW) due to tmppath[-1]
+   * array underflow in InternetCrackUrlW when path length was 0. */
+  copy_compsA(&urlSrc, &urlComponents, 32, 1024, 1024, 1024, 1024, 1024);
+  SetLastError(0xdeadbeef);
+  ret = InternetCrackUrlA("file://#:] ", 10, ICU_DECODE, &urlComponents);
+  ok(ret, "InternetCrackUrlA failed with error %ld\n", GetLastError());
+  ok(urlComponents.nScheme == INTERNET_SCHEME_FILE,
+     "Expected INTERNET_SCHEME_FILE, got %d\n", urlComponents.nScheme);
+
+  copy_compsA(&urlSrc, &urlComponents, 32, 1024, 1024, 1024, 1024, 1024);
+  SetLastError(0xdeadbeef);
+  ret = InternetCrackUrlA("file://#fragment", 0, 0, &urlComponents);
+  ok(ret, "InternetCrackUrlA failed with error %ld\n", GetLastError());
+  ok(urlComponents.nScheme == INTERNET_SCHEME_FILE,
+     "Expected INTERNET_SCHEME_FILE, got %d\n", urlComponents.nScheme);
 }
 
 static void InternetCrackUrlW_test(void)
@@ -878,6 +895,40 @@ static void InternetCrackUrlW_test(void)
     ok(r, "InternetCrackUrlW failed with error %ld\n", GetLastError());
     ok(comp.dwUrlPathLength == 0,
         "Expected dwUrlPathLength of 0, got %ld\n", comp.dwUrlPathLength);
+
+    /* file:// URLs with empty path and fragment/query immediately after //
+     * These previously caused a crash (STATUS_STACK_OVERFLOW) due to tmppath[-1]
+     * array underflow in InternetCrackUrlW when path length was 0. */
+    {
+        static const WCHAR file_hash[] = {'f','i','l','e',':','/','/','#',':',']',0};
+        static const WCHAR file_frag[] = {'f','i','l','e',':','/','/','#','f','r','a','g',0};
+
+        host[0] = 0;
+        urlpart[0] = 0;
+        memset(&comp, 0, sizeof(comp));
+        comp.dwStructSize = sizeof(comp);
+        comp.lpszHostName = host;
+        comp.dwHostNameLength = ARRAY_SIZE(host);
+        comp.lpszUrlPath = urlpart;
+        comp.dwUrlPathLength = ARRAY_SIZE(urlpart);
+        r = InternetCrackUrlW(file_hash, 10, ICU_DECODE, &comp);
+        ok(r, "InternetCrackUrlW(file_hash) failed with error %ld\n", GetLastError());
+        ok(comp.nScheme == INTERNET_SCHEME_FILE,
+           "Expected INTERNET_SCHEME_FILE, got %d\n", comp.nScheme);
+
+        host[0] = 0;
+        urlpart[0] = 0;
+        memset(&comp, 0, sizeof(comp));
+        comp.dwStructSize = sizeof(comp);
+        comp.lpszHostName = host;
+        comp.dwHostNameLength = ARRAY_SIZE(host);
+        comp.lpszUrlPath = urlpart;
+        comp.dwUrlPathLength = ARRAY_SIZE(urlpart);
+        r = InternetCrackUrlW(file_frag, 0, 0, &comp);
+        ok(r, "InternetCrackUrlW(file_frag) failed with error %ld\n", GetLastError());
+        ok(comp.nScheme == INTERNET_SCHEME_FILE,
+           "Expected INTERNET_SCHEME_FILE, got %d\n", comp.nScheme);
+    }
 }
 
 static void fill_url_components(URL_COMPONENTSA *lpUrlComponents)

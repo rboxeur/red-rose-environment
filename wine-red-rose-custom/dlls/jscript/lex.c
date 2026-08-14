@@ -27,6 +27,7 @@
 #include "parser.h"
 
 #include "parser.tab.h"
+#include "identifier_part_table.h"
 
 #include "wine/debug.h"
 
@@ -80,14 +81,51 @@ static int lex_error(parser_ctx_t *ctx, HRESULT hres)
 }
 
 /* ECMA-262 3rd Edition    7.6 */
-BOOL is_identifier_char(WCHAR c)
-{
-    return iswalnum(c) || c == '$' || c == '_' || c == '\\';
-}
-
 static BOOL is_identifier_first_char(WCHAR c)
 {
     return iswalpha(c) || c == '$' || c == '_' || c == '\\';
+}
+
+static BOOL search_ranges(WCHAR c, const unicode_range_t *ranges, int count)
+{
+    int left = 0, right = count - 1;
+
+    while(left <= right) {
+        int middle = left + (right - left) / 2;
+
+        if(c >= ranges[middle].start && c <= ranges[middle].end)
+            return TRUE;
+
+        if(c < ranges[middle].start)
+            right = middle - 1;
+        else
+            left = middle + 1;
+    }
+
+    return FALSE;
+}
+
+/* More Unicode categories are allowed in IdentifierPart than those specified in ECMA-262 3rd
+ * edition according to tests */
+BOOL is_identifier_char(WCHAR c)
+{
+    WORD c1_type = 0, c3_type = 0;
+
+    if(iswalnum(c) || c == '$' || c == '_' || c == '\\')
+        return TRUE;
+
+    if(c <= 0x7f)
+        return FALSE;
+
+    GetStringTypeW(CT_CTYPE1, &c, 1, &c1_type);
+    if(c1_type & C1_PUNCT)
+        return TRUE;
+
+    GetStringTypeW(CT_CTYPE3, &c, 1, &c3_type);
+    if(c3_type & C3_NONSPACING || c3_type & C3_SYMBOL)
+        return TRUE;
+
+    return search_ranges(c, identifier_part_table, identifier_part_table_size);
 }
 
 static int check_keyword(parser_ctx_t *ctx, const WCHAR *word, const WCHAR **lval)
@@ -131,19 +169,20 @@ int hex_to_int(WCHAR c)
     return -1;
 }
 
-static int check_keywords(parser_ctx_t *ctx, const WCHAR **lval)
+static int check_keywords(parser_ctx_t *ctx, const WCHAR *identifier, const WCHAR **lval)
 {
     int min = 0, max = ARRAY_SIZE(keywords)-1, r, i;
 
     while(min <= max) {
         i = (min+max)/2;
 
-        r = check_keyword(ctx, keywords[i].word, lval);
+        r = wcscmp(identifier, keywords[i].word);
         if(!r) {
+            if(lval)
+                *lval = keywords[i].word;
             if(ctx->script->version < keywords[i].min_version) {
                 TRACE("ignoring keyword %s in incompatible mode\n",
                       debugstr_w(keywords[i].word));
-                ctx->ptr -= lstrlenW(keywords[i].word);
                 return 0;
             }
             ctx->implicit_nl_semicolon = keywords[i].no_nl;
@@ -318,22 +357,94 @@ BOOL unescape(WCHAR *str, size_t *len)
     return TRUE;
 }
 
+static BOOL unescape_identifier(WCHAR *str, size_t *len)
+{
+    WCHAR *pd, *p, c, *end = str + *len;
+    int i;
+
+    pd = p = str;
+    while(p < end) {
+        if(*p != '\\') {
+            *pd++ = *p++;
+            continue;
+        }
+
+        if(++p == end)
+            return FALSE;
+
+        if(*p != 'u' || p + 4 >= end)
+            return FALSE;
+
+        i = hex_to_int(*++p);
+        if(i == -1)
+            return FALSE;
+        c = i << 12;
+
+        i = hex_to_int(*++p);
+        if(i == -1)
+            return FALSE;
+        c += i << 8;
+
+        i = hex_to_int(*++p);
+        if(i == -1)
+            return FALSE;
+        c += i << 4;
+
+        i = hex_to_int(*++p);
+        if(i == -1)
+            return FALSE;
+        c += i;
+
+        if(pd == str && !is_identifier_first_char(c))
+            return FALSE;
+        else if(!is_identifier_char(c))
+            return FALSE;
+
+        *pd++ = c;
+        p++;
+    }
+
+    *len = pd - str;
+    return TRUE;
+}
+
 static int parse_identifier(parser_ctx_t *ctx, const WCHAR **ret)
 {
     const WCHAR *ptr = ctx->ptr++;
-    WCHAR *wstr;
-    int len;
+    BOOL needs_unescape = FALSE;
+    WCHAR *wstr, *unescape_str;
+    size_t len;
 
-    while(ctx->ptr < ctx->end && is_identifier_char(*ctx->ptr))
+    if(*ptr== '\\')
+        needs_unescape = TRUE;
+
+    while(ctx->ptr < ctx->end && is_identifier_char(*ctx->ptr)) {
+        if(*ctx->ptr == '\\')
+            needs_unescape = TRUE;
+
         ctx->ptr++;
+    }
 
     len = ctx->ptr-ptr;
+
+    if(needs_unescape) {
+        unescape_str = parser_alloc(ctx, len*sizeof(WCHAR));
+        if(!unescape_str)
+            return lex_error(ctx, E_OUTOFMEMORY);
+
+        memcpy(unescape_str, ptr, len*sizeof(WCHAR));
+        if(!unescape_identifier(unescape_str, &len)) {
+            WARN("unescape identifier failed\n");
+            return lex_error(ctx, E_FAIL);
+        }
+
+        ptr = unescape_str;
+    }
 
     *ret = wstr = parser_alloc(ctx, (len+1)*sizeof(WCHAR));
     memcpy(wstr, ptr, len*sizeof(WCHAR));
     wstr[len] = 0;
 
-    /* FIXME: unescape */
     return tIdentifier;
 }
 
@@ -559,12 +670,15 @@ static int next_token(parser_ctx_t *ctx, unsigned *loc, void *lval)
         ctx->implicit_nl_semicolon = FALSE;
     }
 
-    if(iswalpha(*ctx->ptr)) {
-        int ret = check_keywords(ctx, lval);
-        if(ret)
-            return ret;
+    if(is_identifier_first_char(*ctx->ptr)) {
+        int ret = parse_identifier(ctx, lval);
+        if(ret == tIdentifier) {
+            int token = check_keywords(ctx, *(WCHAR **)lval, lval);
+            if(token)
+                return token;
+        }
 
-        return parse_identifier(ctx, lval);
+        return ret;
     }
 
     if(is_digit(*ctx->ptr)) {
@@ -795,10 +909,6 @@ static int next_token(parser_ctx_t *ctx, unsigned *loc, void *lval)
     case '\'':
         return parse_string_literal(ctx, lval, *ctx->ptr);
 
-    case '_':
-    case '$':
-        return parse_identifier(ctx, lval);
-
     case '@':
         return '@';
     }
@@ -893,6 +1003,7 @@ static BOOL parse_cc_identifier(parser_ctx_t *ctx, const WCHAR **ret, unsigned *
         return FALSE;
     }
 
+    /* FIXME: Unicode escape sequences are not allowed */
     if(!is_identifier_first_char(*++ctx->ptr)) {
         lex_error(ctx, JS_E_EXPECTED_IDENTIFIER);
         return FALSE;

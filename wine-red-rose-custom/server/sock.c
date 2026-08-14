@@ -2,6 +2,7 @@
  * Server-side socket management
  *
  * Copyright (C) 1999 Marcus Meissner, Ove Kåven
+ * Copyright (C) 2026 Martyn Forryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -3750,7 +3751,23 @@ static void poll_socket( struct sock *poll_sock, struct async *async, int exclus
         pollfd.fd = get_unix_fd( sock->fd );
         pollfd.events = poll_flags_from_afd( sock, mask );
         if (pollfd.events >= 0 && poll( &pollfd, 1, 0 ) >= 0)
+        {
+#ifdef TIOCOUTQ
+            int outq = 0, sndbuf = 0;
+            socklen_t len = sizeof(sndbuf);
+
+            /* Linux withholds POLLOUT until the send queue has drained well below
+             * SO_SNDBUF, while Windows reports a stream socket writable whenever
+             * send() can still accept data. If there is any send-buffer space
+             * left, report writability here to match Windows semantics. */
+            if ((mask & AFD_POLL_WRITE) && !(pollfd.revents & (POLLOUT | POLLERR | POLLHUP)) &&
+                sock->type == WS_SOCK_STREAM && sock->state == SOCK_CONNECTED && !sock->wr_shutdown &&
+                !ioctl( pollfd.fd, TIOCOUTQ, &outq ) &&
+                !getsockopt( pollfd.fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, &len ) && outq < sndbuf)
+                pollfd.revents |= POLLOUT;
+#endif
             sock_poll_event( sock->fd, pollfd.revents );
+        }
 
         /* FIXME: do other error conditions deserve a similar treatment? */
         if (sock->state != SOCK_CONNECTING && sock->errors[AFD_POLL_BIT_CONNECT_ERR] && (mask & AFD_POLL_CONNECT_ERR))

@@ -8820,6 +8820,141 @@ static void test_emf_ExtTextOut_on_path(void)
     DestroyWindow(hwnd);
 }
 
+static void test_emf_ExtTextOut_bounds(void)
+{
+    static const struct
+    {
+        DWORD flags;
+        RECT rect;
+        INT x, y;
+        const WCHAR *text;
+    } tests[] =
+    {
+        /* ETO_CLIPPED: drawing is clipped to the rectangle, so the record
+         * bounds must lie inside it even though the text origin and glyph
+         * extents reach far beyond. */
+        { ETO_CLIPPED, {  10,  10,  50,  30 },  15,  15, L"Test" },
+        /* ETO_OPAQUE: the rectangle is unconditionally filled, so the record
+         * bounds must cover it even when it is offset from the text origin. */
+        { ETO_OPAQUE,  { 200, 200, 300, 250 }, 200, 240, L"X" },
+        /* ETO_CLIPPED | ETO_OPAQUE: the bounds must equal the rectangle
+         * after the union from ETO_OPAQUE and the intersection from
+         * ETO_CLIPPED. */
+        { ETO_CLIPPED | ETO_OPAQUE, { 400, 400, 450, 420 }, 410, 410, L"Y" },
+    };
+
+    LOGFONTW lf = { 0 };
+    ENHMETAHEADER header;
+    HDC display_dc, emf_dc;
+    HENHMETAFILE emf;
+    HFONT font, old_font;
+    UINT i, n, size, offset;
+    BYTE *bits;
+    BOOL ret;
+
+    display_dc = GetDC(NULL);
+    ok(display_dc != NULL, "GetDC failed\n");
+
+    emf_dc = CreateEnhMetaFileW(display_dc, NULL, NULL, NULL);
+    ok(emf_dc != NULL, "CreateEnhMetaFileW failed, error %ld\n", GetLastError());
+
+    /* A tall font ensures the natural glyph extent overflows the rectangles. */
+    lf.lfHeight = 200;
+    lf.lfWeight = FW_NORMAL;
+    lstrcpyW(lf.lfFaceName, L"Arial");
+    font = CreateFontIndirectW(&lf);
+    ok(font != NULL, "CreateFontIndirectW failed, error %ld\n", GetLastError());
+    old_font = SelectObject(emf_dc, font);
+
+    for (i = 0; i < ARRAY_SIZE(tests); ++i)
+    {
+        ret = ExtTextOutW(emf_dc, tests[i].x, tests[i].y, tests[i].flags,
+                          &tests[i].rect, tests[i].text, lstrlenW(tests[i].text), NULL);
+        ok(ret, "%u: ExtTextOutW failed, error %ld\n", i, GetLastError());
+    }
+
+    SelectObject(emf_dc, old_font);
+    DeleteObject(font);
+    emf = CloseEnhMetaFile(emf_dc);
+    ok(emf != NULL, "CloseEnhMetaFile failed, error %ld\n", GetLastError());
+
+    size = GetEnhMetaFileBits(emf, 0, NULL);
+    ok(size > 0, "GetEnhMetaFileBits failed\n");
+    bits = HeapAlloc(GetProcessHeap(), 0, size);
+    ok(bits != NULL, "HeapAlloc failed\n");
+    GetEnhMetaFileBits(emf, size, bits);
+
+    memcpy(&header, bits, sizeof(header));
+    ok(header.iType == EMR_HEADER, "expected EMR_HEADER, got %lu\n", header.iType);
+
+    /* The aggregated header bounds must contain every rectangle that was actually drawn into. */
+    ok(header.rclBounds.left   <= tests[0].rect.left + 10,
+       "header.rclBounds.left = %ld\n",   header.rclBounds.left);
+    ok(header.rclBounds.top    <= tests[0].rect.top + 10,
+       "header.rclBounds.top = %ld\n",    header.rclBounds.top);
+    ok(header.rclBounds.right  >= tests[2].rect.right - 1,
+       "header.rclBounds.right = %ld\n",  header.rclBounds.right);
+    ok(header.rclBounds.bottom >= tests[1].rect.bottom - 1,
+       "header.rclBounds.bottom = %ld\n", header.rclBounds.bottom);
+
+    n = 0;
+    offset = header.nSize;
+    while (offset < header.nBytes)
+    {
+        const ENHMETARECORD *emr = (const ENHMETARECORD *)(bits + offset);
+
+        if (emr->iType == EMR_EXTTEXTOUTW && n < ARRAY_SIZE(tests))
+        {
+            const EMREXTTEXTOUTW *eto = (const EMREXTTEXTOUTW *)emr;
+            const RECT *rc = &tests[n].rect;
+
+            winetest_push_context("test %u (flags %#lx)", n, tests[n].flags);
+
+            if (tests[n].flags & ETO_CLIPPED)
+            {
+                ok(eto->rclBounds.left   >= rc->left,
+                   "rclBounds.left = %ld, expected >= %ld\n",
+                   eto->rclBounds.left, rc->left);
+                ok(eto->rclBounds.top    >= rc->top,
+                   "rclBounds.top = %ld, expected >= %ld\n",
+                   eto->rclBounds.top, rc->top);
+                ok(eto->rclBounds.right  <  rc->right,
+                   "rclBounds.right = %ld, expected < %ld\n",
+                   eto->rclBounds.right, rc->right);
+                ok(eto->rclBounds.bottom <  rc->bottom,
+                   "rclBounds.bottom = %ld, expected < %ld\n",
+                   eto->rclBounds.bottom, rc->bottom);
+            }
+
+            if (tests[n].flags & ETO_OPAQUE)
+            {
+                ok(eto->rclBounds.left   <= rc->left,
+                   "rclBounds.left = %ld, expected <= %ld\n",
+                   eto->rclBounds.left, rc->left);
+                ok(eto->rclBounds.top    <= rc->top,
+                   "rclBounds.top = %ld, expected <= %ld\n",
+                   eto->rclBounds.top, rc->top);
+                ok(eto->rclBounds.right  >= rc->right - 1,
+                   "rclBounds.right = %ld, expected >= %ld\n",
+                   eto->rclBounds.right, rc->right - 1);
+                ok(eto->rclBounds.bottom >= rc->bottom - 1,
+                   "rclBounds.bottom = %ld, expected >= %ld\n",
+                   eto->rclBounds.bottom, rc->bottom - 1);
+            }
+
+            winetest_pop_context();
+            n++;
+        }
+        offset += emr->nSize;
+    }
+    ok(n == ARRAY_SIZE(tests), "found %u EMR_EXTTEXTOUTW records, expected %Iu\n",
+       n, ARRAY_SIZE(tests));
+
+    HeapFree(GetProcessHeap(), 0, bits);
+    DeleteEnhMetaFile(emf);
+    ReleaseDC(NULL, display_dc);
+}
+
 static const unsigned char EMF_CLIPPING[] =
 {
     0x01, 0x00, 0x00, 0x00, 0x6c, 0x00, 0x00, 0x00,
@@ -9553,24 +9688,18 @@ static void test_SetWinMetaFileBits(void)
   diffy = rclBoundsAnisotropic.bottom - GetDeviceCaps(dc, VERTRES) / 2;
   if (diffx < 0) diffx = -diffx;
   if (diffy < 0) diffy = -diffy;
-  todo_wine
-  {
   ok(diffx <= 1 && diffy <= 1,
      "SetWinMetaFileBits (MM_ANISOTROPIC): Reference bounds: The whole device surface must be used (%dx%d), but got (%ldx%ld)\n",
      GetDeviceCaps(dc, HORZRES) / 2, GetDeviceCaps(dc, VERTRES) / 2, rclBoundsAnisotropic.right, rclBoundsAnisotropic.bottom);
-  }
 
   /* Allow 1 mm difference (rounding errors) */
   diffx = rclFrameAnisotropic.right / 100 - GetDeviceCaps(dc, HORZSIZE) / 2;
   diffy = rclFrameAnisotropic.bottom / 100 - GetDeviceCaps(dc, VERTSIZE) / 2;
   if (diffx < 0) diffx = -diffx;
   if (diffy < 0) diffy = -diffy;
-  todo_wine
-  {
   ok(diffx <= 1 && diffy <= 1,
      "SetWinMetaFileBits (MM_ANISOTROPIC): Reference frame: The whole device surface must be used (%dx%d), but got (%ldx%ld)\n",
      GetDeviceCaps(dc, HORZSIZE) / 2, GetDeviceCaps(dc, VERTSIZE) / 2, rclFrameAnisotropic.right / 100, rclFrameAnisotropic.bottom / 100);
-  }
   DeleteDC(dc);
 
   /* If the METAFILEPICT pointer is NULL, the MM_ANISOTROPIC mapping mode and the whole device surface are used */
@@ -11418,6 +11547,7 @@ START_TEST(metafile)
     test_emf_BitBlt();
     test_emf_DCBrush();
     test_emf_ExtTextOut_on_path();
+    test_emf_ExtTextOut_bounds();
     test_emf_clipping();
     test_emf_polybezier();
     test_emf_paths();

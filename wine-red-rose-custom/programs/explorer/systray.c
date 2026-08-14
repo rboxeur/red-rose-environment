@@ -123,6 +123,13 @@ static POINT balloon_pos;
 
 #define WM_POPUPSYSTEMMENU  0x0313
 
+#define HOTKEY_START_MENU1  1
+#define HOTKEY_START_MENU2  2
+#define HOTKEY_START_MENU3  3
+#define HOTKEY_RUN          4
+#define HOTKEY_TASKMGR1     5
+#define HOTKEY_TASKMGR2     6
+
 static LRESULT WINAPI shell_traywnd_proc( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam );
 static LRESULT WINAPI tray_icon_wndproc( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam );
 
@@ -1081,7 +1088,14 @@ static LRESULT WINAPI shell_traywnd_proc( HWND hwnd, UINT msg, WPARAM wparam, LP
         return 0;
 
     case WM_DRAWITEM:
+        if (((MEASUREITEMSTRUCT*)lparam)->CtlType == ODT_MENU)
+            return menu_wndproc(hwnd, msg, wparam, lparam);
         paint_taskbar_button( (const DRAWITEMSTRUCT *)lparam );
+        break;
+
+    case WM_MEASUREITEM:
+        if (((MEASUREITEMSTRUCT*)lparam)->CtlType == ODT_MENU)
+            return menu_wndproc(hwnd, msg, wparam, lparam);
         break;
 
     case WM_COMMAND:
@@ -1124,6 +1138,24 @@ static LRESULT WINAPI shell_traywnd_proc( HWND hwnd, UINT msg, WPARAM wparam, LP
 
         return 0;
     }
+
+    case WM_HOTKEY:
+        if (HOTKEY_START_MENU1 <= wparam && wparam <= HOTKEY_START_MENU3)
+        {
+            /* Without giving focus to the tray window, subsequent keystrokes
+             * to select menu items don't go to the Start Menu */
+            SetForegroundWindow( tray_window );
+            do_startmenu( tray_window );
+        }
+        else if (wparam == HOTKEY_RUN)
+        {
+            run_dialog();
+        }
+        else if (wparam == HOTKEY_TASKMGR1 || wparam == HOTKEY_TASKMGR2)
+        {
+            ShellExecuteW( NULL, NULL, L"taskmgr", NULL, NULL, SW_SHOWNORMAL );
+        }
+        return 0;
 
     default:
         return DefWindowProcW( hwnd, msg, wparam, lparam );
@@ -1188,6 +1220,13 @@ void initialize_systray( BOOL using_root, BOOL arg_enable_shell )
         tray_window = CreateWindowExW( WS_EX_NOACTIVATE, shell_traywnd_class.lpszClassName, NULL, WS_POPUP,
                                        taskbar_rect.left, taskbar_rect.top, taskbar_rect.right - taskbar_rect.left,
                                        taskbar_rect.bottom - taskbar_rect.top, 0, 0, 0, 0 );
+
+        RegisterHotKey(tray_window, HOTKEY_START_MENU1, 0, VK_LWIN);
+        RegisterHotKey(tray_window, HOTKEY_START_MENU2, 0, VK_RWIN);
+        RegisterHotKey(tray_window, HOTKEY_START_MENU3, MOD_CONTROL, VK_ESCAPE);
+        RegisterHotKey(tray_window, HOTKEY_RUN, MOD_WIN, 'R');
+        RegisterHotKey(tray_window, HOTKEY_TASKMGR1, MOD_CONTROL | MOD_SHIFT, VK_ESCAPE);
+        RegisterHotKey(tray_window, HOTKEY_TASKMGR2, MOD_CONTROL | MOD_ALT, VK_DELETE);
     }
     else
     {

@@ -1070,7 +1070,7 @@ static void test_HeapCreate(void)
     ok( entries[0].cbData <= 0x1000 /* sizeof(*heap) */, "got cbData %#lx\n", entries[0].cbData );
     ok( entries[0].cbOverhead == 0, "got cbOverhead %#x\n", entries[0].cbOverhead );
     ok( entries[0].iRegionIndex == 0, "got iRegionIndex %d\n", entries[0].iRegionIndex );
-    ok( entries[1].wFlags == 0 || entries[1].wFlags == PROCESS_HEAP_ENTRY_BUSY /* win7 */, "got wFlags %#x\n", entries[1].wFlags );
+    ok( entries[1].wFlags == 0 || entries[1].wFlags == PROCESS_HEAP_REGION /* win7 */, "got wFlags %#x\n", entries[1].wFlags );
 
     for (i = 1; i < count - 2; i++)
     {
@@ -1282,6 +1282,155 @@ struct mem_entry
 static struct mem_entry *mem_entry_from_HANDLE( HLOCAL handle )
 {
     return CONTAINING_RECORD( handle, struct mem_entry, ptr );
+}
+
+static DWORD count_busy_entries( HANDLE heap, SIZE_T *busy_bytes )
+{
+    PROCESS_HEAP_ENTRY entry;
+    DWORD busy_count = 0;
+    *busy_bytes = 0;
+
+    memset( &entry, 0, sizeof(entry) );
+    HeapLock( heap );
+    while (HeapWalk( heap, &entry ))
+    {
+        if (entry.wFlags & PROCESS_HEAP_ENTRY_BUSY)
+        {
+            busy_count++;
+            *busy_bytes += entry.cbData;
+        }
+    }
+    HeapUnlock( heap );
+    return busy_count;
+}
+
+static void test_HeapWalk_LFH(void)
+{
+    HANDLE heap;
+    ULONG compat_info;
+    void **blocks;
+    SIZE_T busy_bytes, alloc_count = 10000;
+    DWORD busy_count;
+    SIZE_T i;
+    BOOL ret;
+
+    /* Wine bug 59938: HeapWalk reports cached LFH group containers as
+     * PROCESS_HEAP_ENTRY_BUSY after every application block has been freed.
+     *
+     * In heap_walk_blocks() (dlls/ntdll/heap.c), the only check is:
+     *     if (block_get_flags(block) & BLOCK_FLAG_FREE) -> FREE
+     *     else -> BUSY
+     * An LFH group container has BLOCK_FLAG_LFH but NOT BLOCK_FLAG_FREE
+     * while the bin keeps it cached, so it is incorrectly reported as BUSY.
+     *
+     * On Windows, HeapWalk reports 0 BUSY entries after all blocks are freed
+     * on a private LFH heap. On Wine, cached group containers cause a
+     * non-zero count. */
+
+    blocks = HeapAlloc( GetProcessHeap(), 0, alloc_count * sizeof(*blocks) );
+    ok( !!blocks, "HeapAlloc failed\n" );
+
+    /* Test 1: LFH heap, allocate then free all blocks. */
+
+    heap = HeapCreate( 0, 0, 0 );
+    ok( !!heap, "HeapCreate failed, error %lu\n", GetLastError() );
+
+    compat_info = 2; /* enable LFH */
+    ret = pHeapSetInformation( heap, HeapCompatibilityInformation, &compat_info, sizeof(compat_info) );
+    ok( ret, "HeapSetInformation failed, error %lu\n", GetLastError() );
+
+    for (i = 0; i < alloc_count; i++)
+    {
+        blocks[i] = HeapAlloc( heap, 0, 16 + (i % 8) * 16 );
+        ok( !!blocks[i], "HeapAlloc %Iu failed, error %lu\n", i, GetLastError() );
+    }
+
+    for (i = 0; i < alloc_count; i++)
+    {
+        ret = HeapFree( heap, 0, blocks[i] );
+        ok( ret, "HeapFree %Iu failed, error %lu\n", i, GetLastError() );
+    }
+
+    busy_count = count_busy_entries( heap, &busy_bytes );
+    ok( busy_count == 0, "expected 0 BUSY entries after freeing all blocks, got %lu (%Iu bytes)\n",
+        busy_count, busy_bytes );
+
+    ret = HeapDestroy( heap );
+    ok( ret, "HeapDestroy failed, error %lu\n", GetLastError() );
+
+
+    /* Test 2: LFH heap with ReAlloc, then free all blocks.
+     * HeapReAlloc to grow blocks forces relocation out of LFH slots,
+     * leaving behind cached group containers that are never reclaimed. */
+
+    heap = HeapCreate( 0, 0, 0 );
+    ok( !!heap, "HeapCreate failed, error %lu\n", GetLastError() );
+
+    compat_info = 2;
+    ret = pHeapSetInformation( heap, HeapCompatibilityInformation, &compat_info, sizeof(compat_info) );
+    ok( ret, "HeapSetInformation failed, error %lu\n", GetLastError() );
+
+    for (i = 0; i < alloc_count; i++)
+    {
+        blocks[i] = HeapAlloc( heap, 0, 16 + (i % 8) * 16 );
+        ok( !!blocks[i], "HeapAlloc %Iu failed, error %lu\n", i, GetLastError() );
+    }
+
+    for (i = 0; i < alloc_count; i++)
+    {
+        void *p = HeapReAlloc( heap, 0, blocks[i], 256 + (i % 16) * 32 );
+        ok( !!p, "HeapReAlloc %Iu failed, error %lu\n", i, GetLastError() );
+        if (p) blocks[i] = p;
+    }
+
+    for (i = 0; i < alloc_count; i++)
+    {
+        ret = HeapFree( heap, 0, blocks[i] );
+        ok( ret, "HeapFree %Iu failed, error %lu\n", i, GetLastError() );
+    }
+
+    busy_count = count_busy_entries( heap, &busy_bytes );
+    ok( busy_count == 0, "expected 0 BUSY entries after freeing all blocks, got %lu (%Iu bytes)\n",
+        busy_count, busy_bytes );
+
+    ret = HeapDestroy( heap );
+    ok( ret, "HeapDestroy failed, error %lu\n", GetLastError() );
+
+
+    /* Test 3: BUSY count before vs after free on LFH heap.
+     * While blocks are allocated, BUSY count should be non-zero.
+     * After freeing all, BUSY count should be 0. */
+
+    heap = HeapCreate( 0, 0, 0 );
+    ok( !!heap, "HeapCreate failed, error %lu\n", GetLastError() );
+
+    compat_info = 2;
+    ret = pHeapSetInformation( heap, HeapCompatibilityInformation, &compat_info, sizeof(compat_info) );
+    ok( ret, "HeapSetInformation failed, error %lu\n", GetLastError() );
+
+    for (i = 0; i < alloc_count; i++)
+    {
+        blocks[i] = HeapAlloc( heap, 0, 32 ); /* uniform size -> single LFH bin */
+        ok( !!blocks[i], "HeapAlloc %Iu failed, error %lu\n", i, GetLastError() );
+    }
+
+    busy_count = count_busy_entries( heap, &busy_bytes );
+    ok( busy_count > 0, "expected some BUSY entries while blocks are allocated, got %lu\n", busy_count );
+
+    for (i = 0; i < alloc_count; i++)
+    {
+        ret = HeapFree( heap, 0, blocks[i] );
+        ok( ret, "HeapFree %Iu failed, error %lu\n", i, GetLastError() );
+    }
+
+    busy_count = count_busy_entries( heap, &busy_bytes );
+    ok( busy_count == 0, "expected 0 BUSY entries after freeing all blocks, got %lu (%Iu bytes)\n",
+        busy_count, busy_bytes );
+
+    ret = HeapDestroy( heap );
+    ok( ret, "HeapDestroy failed, error %lu\n", GetLastError() );
+
+    HeapFree( GetProcessHeap(), 0, blocks );
 }
 
 static BOOL is_mem_entry( HLOCAL handle )
@@ -3805,6 +3954,7 @@ START_TEST(heap)
     }
 
     test_HeapCreate();
+    test_HeapWalk_LFH();
     test_GlobalAlloc();
     test_LocalAlloc();
 

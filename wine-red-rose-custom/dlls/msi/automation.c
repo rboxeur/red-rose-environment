@@ -1801,13 +1801,13 @@ static HRESULT InstallerImpl_OpenDatabase(WORD wFlags,
         return hr;
 
     VariantInit(&varg1);
-    hr = DispGetParam(pDispParams, 1, VT_BSTR, &varg1, puArgErr);
+    hr = DispGetParam(pDispParams, 1, VT_I4, &varg1, puArgErr);
     if (FAILED(hr))
         goto done;
 
     V_VT(pVarResult) = VT_DISPATCH;
 
-    ret = MsiOpenDatabaseW(V_BSTR(&varg0), V_BSTR(&varg1), &hdb);
+    ret = MsiOpenDatabaseW(V_BSTR(&varg0), (LPCWSTR)(INT_PTR)V_I4(&varg1), &hdb);
     if (ret != ERROR_SUCCESS)
     {
         hr = DISP_E_EXCEPTION;

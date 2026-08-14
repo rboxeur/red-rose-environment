@@ -2949,6 +2949,10 @@ static NTSTATUS map_pe_header( void *ptr, size_t size, int fd, BOOL *removable )
  */
 static void *get_host_addr_space_limit(void)
 {
+#ifdef __APPLE__
+    /* See MACH_VM_MAX_ADDRESS_RAW in xnu osfmk/mach/arm/vm_param.h */
+    return (void *)0x7ffffe000000;
+#else
     unsigned int flags = MAP_PRIVATE | MAP_ANON;
     UINT_PTR addr = (UINT_PTR)1 << 63;
 
@@ -2968,6 +2972,7 @@ static void *get_host_addr_space_limit(void)
         addr >>= 1;
     }
     return (void *)((addr << 1) - (granularity_mask + 1));
+#endif
 }
 
 #endif /* _WIN64 */
@@ -3501,7 +3506,26 @@ static NTSTATUS map_image_view( struct file_view **view_ret, pe_image_info_t *im
                     (image_info->image_flags & IMAGE_FLAGS_ImageDynamicallyRelocated);
 
     limit_low = max( limit_low, (ULONG_PTR)address_space_start );  /* make sure the DOS area remains free */
-    if (!limit_high) limit_high = (ULONG_PTR)user_space_limit;
+    if (!limit_high)
+    {
+        if (is_wow64()) limit_high = get_wow_user_space_limit();
+        else limit_high = (ULONG_PTR)user_space_limit;
+    }
+
+    /* executables that opt into high-entropy ASLR are mapped high, like on Windows */
+
+    if (is_win64 && !(image_info->image_charact & IMAGE_FILE_DLL) &&
+        (image_info->image_flags & IMAGE_FLAGS_ImageDynamicallyRelocated) &&
+        (image_info->dll_charact & IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA))
+    {
+        start = max( limit_low, high_entropy_low );
+        end = min( limit_high, high_entropy_high );
+        if (start < end)
+        {
+            status = map_view( view_ret, NULL, size, 0, vprot, start, end, 0 );
+            if (!status) return status;
+        }
+    }
 
     /* first try the specified base */
 

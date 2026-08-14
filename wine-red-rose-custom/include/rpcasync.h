@@ -26,6 +26,10 @@
 # include <pshpack8.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct tagRPC_ERROR_ENUM_HANDLE
 {
     ULONG Signature;
@@ -163,10 +167,6 @@ typedef struct _RPC_ASYNC_STATE
 
 #ifdef __RPC_WIN64__
 # include <poppack.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 RPCRTAPI RPC_STATUS RPC_ENTRY RpcAsyncInitializeHandle(PRPC_ASYNC_STATE,unsigned int);

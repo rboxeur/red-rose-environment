@@ -27,3 +27,9 @@ test_cmdline.cmd TESTCMD "test_cmdline.cmd"
 
 /* @makedep: test_cmdline.cmd.exp */
 test_cmdline.cmd.exp TESTOUT "test_cmdline.cmd.exp"
+
+/* @makedep: test_shortpath.cmd */
+test_shortpath.cmd TESTCMD "test_shortpath.cmd"
+
+/* @makedep: test_shortpath.cmd.exp */
+test_shortpath.cmd.exp TESTOUT "test_shortpath.cmd.exp"

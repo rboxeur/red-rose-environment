@@ -349,6 +349,62 @@ static void test_install_file(void)
     ok (rc == 0x10000 && tmpname[0]==0," expected return 0x10000 and no tempname, got %08lx/\'%s\'\n",rc,tmpname);
 }
 
+static void test_install_file_short_name(void)
+{
+    CHAR dir[MAX_PATH], longname[MAX_PATH], tmpbuf[MAX_PATH], srcname[MAX_PATH], outbuf[MAX_PATH];
+    static const char oldc[] = "OLD";
+    static const char newc[] = "NEW-DATA";
+    UINT size;
+    DWORD rc, written;
+    HANDLE h;
+    char *sb;
+
+    GetTempPathA(MAX_PATH, dir);
+    sprintf(tmpbuf, "%svlts_%lu", dir, GetTickCount());
+    if (!CreateDirectoryA(tmpbuf, NULL))
+    {
+        skip("CreateDirectory(%s) failed %lu\n", tmpbuf, GetLastError());
+        return;
+    }
+    strcpy(dir, tmpbuf);
+
+    sprintf(longname, "%s\\LongFileNameForVerInstall.dll", dir);
+    sprintf(srcname,  "%s\\thesrc.tmp", dir);
+
+    h = CreateFileA(longname, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    ok(h != INVALID_HANDLE_VALUE, "create %s failed err %lu\n", longname, GetLastError());
+    if (h == INVALID_HANDLE_VALUE) { RemoveDirectoryA(dir); return; }
+    WriteFile(h, oldc, sizeof(oldc) - 1, &written, NULL);
+    CloseHandle(h);
+
+    h = CreateFileA(srcname, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    ok(h != INVALID_HANDLE_VALUE, "create %s failed err %lu\n", srcname, GetLastError());
+    if (h == INVALID_HANDLE_VALUE) { DeleteFileA(longname); RemoveDirectoryA(dir); return; }
+    WriteFile(h, newc, sizeof(newc) - 1, &written, NULL);
+    CloseHandle(h);
+
+    if (!GetShortPathNameA(longname, tmpbuf, MAX_PATH))
+    {
+        skip("GetShortPathNameA failed (%lu), no 8.3 support\n", GetLastError());
+        DeleteFileA(longname); DeleteFileA(srcname); RemoveDirectoryA(dir); return;
+    }
+    sb = strrchr(tmpbuf, '\\');
+    sb = sb ? sb + 1 : tmpbuf;
+    trace("longname=%s shortname=%s\n", longname, sb);
+
+    memset(outbuf, 0, sizeof(outbuf));
+    size = MAX_PATH;
+    rc = VerInstallFileA(0, "thesrc.tmp", sb, dir, dir, dir, outbuf, &size);
+    ok(!rc, "expected success, got 0x%lx\n", rc);
+
+    ok(GetFileAttributesA(longname) != INVALID_FILE_ATTRIBUTES,
+                 "long-named file %s was lost\n", longname);
+
+    DeleteFileA(longname);
+    DeleteFileA(srcname);
+    RemoveDirectoryA(dir);
+}
+
 START_TEST(install)
 {
 #ifndef _WIN64
@@ -360,4 +416,5 @@ START_TEST(install)
 
     test_find_file();
     test_install_file();
+    test_install_file_short_name();
 }

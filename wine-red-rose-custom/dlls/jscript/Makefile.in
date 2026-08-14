@@ -16,6 +16,7 @@ SOURCES = \
 	error.c \
 	function.c \
 	global.c \
+	identifier_part_table.c \
 	jscript.c \
 	jscript.rc \
 	jscript_classes.idl \

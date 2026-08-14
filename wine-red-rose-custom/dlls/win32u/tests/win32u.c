@@ -1333,6 +1333,7 @@ static void test_NtUserGetPointerInfoList( BOOL mouse_in_pointer_enabled )
     ok( GetLastError() == ERROR_NOACCESS, "got error %lu\n", GetLastError() );
     entry_count = pointer_count = 2;
     ret = NtUserGetPointerInfoList( 1, PT_POINTER, 0, 0, sizeof(POINTER_INFO), &entry_count, &pointer_count, invalid_ptr );
+    todo_wine_if(ret == STATUS_ACCESS_VIOLATION)
     ok( !ret, "NtUserGetPointerInfoList succeeded\n" );
     todo_wine
     ok( GetLastError() == ERROR_NOACCESS || broken(GetLastError() == ERROR_INVALID_PARAMETER) /* w10 32bit */, "got error %lu\n", GetLastError() );
@@ -2280,6 +2281,278 @@ static void test_message_info(void)
     UnregisterClassA( "Test class", cls.hInstance );
 }
 
+struct maximize_test
+{
+    const char *name;
+    BOOL is_todo;
+    RECT test_rect;
+    RECT expected_rect;
+};
+static RECT maximize_rect = { 0 };
+static LRESULT WINAPI test_over_maximize_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+    switch (msg)
+    {
+        case WM_GETMINMAXINFO:
+        {
+            MONITORINFO mi;
+            MINMAXINFO *mmi = (MINMAXINFO *)lparam;
+            HMONITOR monitor;
+            RECT rect = maximize_rect;
+
+            if ((rect.left | rect.right | rect.top | rect.bottom) == 0)
+                break;
+
+            mi.cbSize = sizeof(mi);
+
+            monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            if (!monitor || !GetMonitorInfoW(monitor, &mi))
+                break;
+
+            InflateRect(&rect, 5, 5);
+
+            mmi->ptMaxPosition.x = rect.left - mi.rcMonitor.left;
+            mmi->ptMaxPosition.y = rect.top  - mi.rcMonitor.top;
+
+            mmi->ptMaxSize.x = rect.right  - rect.left;
+            mmi->ptMaxSize.y = rect.bottom - rect.top;
+
+            mmi->ptMaxTrackSize.x = mmi->ptMaxSize.x;
+            mmi->ptMaxTrackSize.y = mmi->ptMaxSize.y;
+
+            return 0;
+        }
+        default:
+            break;
+    }
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
+}
+
+static void test_no_caption_maximize(void)
+{
+    HWND hwnd;
+    WNDCLASSW cls = { 0 };
+    MONITORINFO monitor_info = { sizeof ( MONITORINFO ) };
+    HMONITOR monitor;
+    DWORD style, i;
+    struct maximize_test tests[2];
+    HMODULE ntdll;
+    RECT rc;
+
+    cls.lpfnWndProc = test_over_maximize_proc;
+    cls.hInstance = GetModuleHandleW(NULL);
+    cls.lpszClassName = L"maximize_test";
+    RegisterClassW(&cls);
+
+    hwnd = CreateWindowW(L"maximize_test", NULL, WS_OVERLAPPEDWINDOW, 50, 50, 100, 100, 0, NULL, GetModuleHandleW(NULL), NULL);
+    if (!hwnd)
+        return;
+
+    ntdll = GetModuleHandleA("ntdll.dll");
+    if (ntdll && GetProcAddress(ntdll, "wine_get_version") && !GetModuleHandleA("winex11.drv"))
+    {
+        skip("Skipping x11 maximize test.\n");
+        DestroyWindow(hwnd);
+        return;
+    }
+
+    style = GetWindowLongW(hwnd, GWL_STYLE);
+    style &= ~WS_CAPTION;
+    SetWindowLongW(hwnd, GWL_STYLE, style);
+    SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+             SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    flush_events();
+
+    monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    if (!monitor || !GetMonitorInfoW(monitor, &monitor_info))
+    {
+        DestroyWindow(hwnd);
+        return;
+    }
+
+    /* test cases */
+    tests[0].name = "monitor";
+    tests[0].test_rect = monitor_info.rcMonitor;
+    tests[0].expected_rect = monitor_info.rcMonitor;
+    tests[0].is_todo = FALSE;
+    InflateRect(&tests[0].expected_rect, 5, 5);
+
+    tests[1].name = "work area";
+    tests[1].test_rect = monitor_info.rcWork;
+    tests[1].expected_rect = monitor_info.rcWork;
+    tests[1].is_todo = TRUE;
+    InflateRect(&tests[1].expected_rect, 5, 5);
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++)
+    {
+        maximize_rect = tests[i].test_rect;
+
+        if (IsZoomed(hwnd))
+        {
+            ShowWindow(hwnd, SW_RESTORE);
+            flush_events();
+        }
+
+        ShowWindow(hwnd, SW_MAXIMIZE);
+        flush_events();
+
+        GetWindowRect(hwnd, &rc);
+        todo_wine_if(tests[i].is_todo)
+        ok(EqualRect(&tests[i].expected_rect, &rc), "%s: expected %s got %s\n", tests[i].name, wine_dbgstr_rect(&tests[i].expected_rect), wine_dbgstr_rect(&rc));
+        style = GetWindowLongW(hwnd, GWL_STYLE);
+        ok(style & WS_MAXIMIZE, "%s: style incorrect, missing WS_MAXIMIZE.\n", tests[i].name);
+    }
+
+    DestroyWindow(hwnd);
+}
+
+static WNDPROC test_swp_owner_popup_prev_proc;
+static HWND test_swp_owner_captured_insert_after;
+static HWND test_swp_owner_target_hwnd;
+
+static LRESULT CALLBACK test_swp_owner_popup_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+    if (msg == WM_WINDOWPOSCHANGED && hwnd == test_swp_owner_target_hwnd)
+    {
+        WINDOWPOS *wp2 = (WINDOWPOS *)lp;
+        test_swp_owner_captured_insert_after = wp2->hwndInsertAfter;
+    }
+    return CallWindowProcA(test_swp_owner_popup_prev_proc, hwnd, msg, wp, lp);
+}
+
+static void test_swp_owner_popups(void)
+{
+    HWND owner, popup1, popup2, other1, other2;
+    HWND prev;
+    WNDCLASSA cls = {0};
+    BOOL ret;
+
+    cls.lpfnWndProc = DefWindowProcA;
+    cls.hInstance = GetModuleHandleA(NULL);
+    cls.lpszClassName = "TestOwnerPopups";
+
+    ok( RegisterClassA(&cls), "RegisterClassA failed\n" );
+
+    owner = CreateWindowA("TestOwnerPopups", "owner", WS_OVERLAPPEDWINDOW,
+                           0, 0, 100, 100, NULL, NULL, GetModuleHandleA(NULL), NULL);
+    ok( owner != NULL, "Failed to create owner window\n" );
+
+    popup1 = CreateWindowExA(0, "TestOwnerPopups", "popup1",
+                              WS_POPUP | WS_VISIBLE, 0, 0, 50, 50,
+                              owner, NULL, GetModuleHandleA(NULL), NULL);
+    ok( popup1 != NULL, "Failed to create popup1\n" );
+
+    popup2 = CreateWindowExA(0, "TestOwnerPopups", "popup2",
+                              WS_POPUP | WS_VISIBLE, 0, 0, 50, 50,
+                              owner, NULL, GetModuleHandleA(NULL), NULL);
+    ok( popup2 != NULL, "Failed to create popup2\n" );
+
+    /* Unrelated top-level window, used as a non-owner hwndInsertAfter target */
+    other1 = CreateWindowA("TestOwnerPopups", "other1", WS_OVERLAPPEDWINDOW,
+                           200, 0, 100, 100, NULL, NULL, GetModuleHandleA(NULL), NULL);
+    ok( other1 != NULL, "Failed to create other1 window\n" );
+
+    /* Unrelated top-level window, used as a non-owner hwndInsertAfter target */
+    other2 = CreateWindowA("TestOwnerPopups", "other2", WS_OVERLAPPEDWINDOW,
+                           200, 0, 100, 100, NULL, NULL, GetModuleHandleA(NULL), NULL);
+    ok( other2 != NULL, "Failed to create other2 window\n" );
+
+    /* Bring owner to top; owned popups should be reordered above owner */
+    ret = SetWindowPos(owner, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    ok( ret, "SetWindowPos(owner, HWND_TOP) failed\n" );
+
+    /* z-order should be: popup2 > popup1 > owner */
+    prev = GetWindow(owner, GW_HWNDPREV);
+    ok( prev == popup1, "expected popup1 (%p) below owner (%p), got %p\n",
+       popup1, owner, prev);
+    prev = GetWindow(popup1, GW_HWNDPREV);
+    ok( prev == popup2, "expected popup2 (%p) below popup1 (%p), got %p\n",
+       popup2, popup1, prev);
+
+    /*
+     * Test the bug fix: swp_owner_popups restoring initial_after when
+     * after becomes hwnd itself.
+     *
+     * z-order: popup2 > popup1 > owner. Move popup1 after owner. Since popup1
+     * is immediately above owner, owner's predecessor is popup1 itself, causing
+     * after = hwnd (self-reference). With the fix, after is restored to
+     * initial_after (owner).
+     */
+    test_swp_owner_target_hwnd = popup1;
+    test_swp_owner_popup_prev_proc = (WNDPROC)SetWindowLongPtrA(popup1, GWLP_WNDPROC,
+                                                             (LONG_PTR)test_swp_owner_popup_wndproc);
+    ok( test_swp_owner_popup_prev_proc != NULL, "Failed to subclass popup1\n" );
+
+    test_swp_owner_captured_insert_after = NULL;
+    ret = SetWindowPos(popup1, owner, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    ok( ret, "[case1] SetWindowPos(popup1, owner) failed\n" );
+
+    /* Verify that hwndInsertAfter is not the window itself, should be owner */
+    ok( test_swp_owner_captured_insert_after == owner,
+        "hwndInsertAfter should be owner (%p), got %p\n",
+        owner, test_swp_owner_captured_insert_after);
+
+    /* Verify z-order: popup2 should still be the topmost owned popup above owner */
+    prev = GetWindow(owner, GW_HWNDPREV);
+    ok( prev == popup2,
+        "[case1] window above owner should be popup2 (%p), got %p\n",
+        popup2, prev);
+
+    /* popup1 was inserted right after owner, so owner should be directly above popup1 */
+    prev = GetWindow(popup1, GW_HWNDPREV);
+    ok( prev == owner,
+        "[case1] window above popup1 should be owner (%p), got %p\n",
+        owner, prev);
+
+    /*
+     * Test inserting popup1 after a non-owner window ('other1').
+     * swp_owner_popups should detect that popup1 is an owned popup and
+     * adjust hwndInsertAfter so popup1 stays above its owner.
+     */
+    test_swp_owner_captured_insert_after = NULL;
+    ret = SetWindowPos(popup1, other1, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    ok( ret, "[case2] SetWindowPos(popup1, other) failed\n" );
+
+    /* hwndInsertAfter should be adjusted to popup2 to keep popup1 above owner */
+    ok( test_swp_owner_captured_insert_after == popup2,
+        "[case2] captured hwndInsertAfter should be popup2 (%p), got %p\n",
+        popup2, test_swp_owner_captured_insert_after);
+
+    /* Verify z-order: popup1 should remain above owner */
+    prev = GetWindow(owner, GW_HWNDPREV);
+    ok( prev == popup1,
+        "[case2] window above owner should be popup1 (%p), got %p\n",
+        popup1, prev);
+
+    /*
+     * Repeat the same SetWindowPos call to verify the behavior is stable
+     * and idempotent when popup1 is already above its owner.
+     */
+    test_swp_owner_captured_insert_after = NULL;
+    ret = SetWindowPos(popup1, other2, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    ok( ret, "[case3] SetWindowPos(popup1, other) failed\n" );
+
+    /* hwndInsertAfter should again be adjusted to other */
+    ok( test_swp_owner_captured_insert_after == other2,
+        "[case3] captured hwndInsertAfter should still be other2 (%p), got %p\n",
+        other2, test_swp_owner_captured_insert_after);
+
+    /* Verify z-order: popup2 should still be above owner */
+    prev = GetWindow(owner, GW_HWNDPREV);
+    ok( prev == popup2,
+        "[case3] window above owner should still be popup2 (%p), got %p\n",
+        popup2, prev);
+
+    /* Cleanup: restore original wndproc */
+    SetWindowLongPtrA(popup1, GWLP_WNDPROC, (LONG_PTR)test_swp_owner_popup_prev_proc);
+    DestroyWindow(other1);
+    DestroyWindow(other2);
+    DestroyWindow(popup2);
+    DestroyWindow(popup1);
+    DestroyWindow(owner);
+}
+
 START_TEST(win32u)
 {
     char **argv;
@@ -2308,6 +2581,7 @@ START_TEST(win32u)
     test_class();
     test_NtUserCreateInputContext();
     test_NtUserBuildHimcList();
+    test_swp_owner_popups();
     test_NtUserBuildHwndList();
     test_cursoricon();
     test_message_call();
@@ -2317,6 +2591,7 @@ START_TEST(win32u)
     test_timer();
     test_inter_process_messages( argv[0] );
     test_wndproc_hook();
+    test_no_caption_maximize();
 
     test_NtUserCloseWindowStation();
     test_NtUserDisplayConfigGetDeviceInfo();

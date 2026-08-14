@@ -751,6 +751,43 @@ static BOOL create_test_association(const char* extension)
     return create_test_class(class, FALSE);
 }
 
+static BOOL create_test_user_protocol(const char *protocol, const char *cmdtail)
+{
+    HKEY hkey, hkey_cmd;
+    char key[MAX_PATH];
+    char url_name[MAX_PATH];
+    char *cmd;
+    LONG rc;
+
+    sprintf(key, "Software\\Classes\\%s", protocol);
+    rc = RegCreateKeyExA(HKEY_CURRENT_USER, key, 0, NULL, 0, KEY_CREATE_SUB_KEY | KEY_SET_VALUE,
+                         NULL, &hkey, NULL);
+    ok(rc == ERROR_SUCCESS, "could not create user protocol %s (rc=%ld)\n", protocol, rc);
+    if (rc != ERROR_SUCCESS)
+        return FALSE;
+
+    sprintf(url_name, "URL:%s", protocol);
+    rc = RegSetValueExA(hkey, NULL, 0, REG_SZ, (LPBYTE)url_name, strlen(url_name) + 1);
+    ok(rc == ERROR_SUCCESS, "RegSetValueEx '%s' failed, expected ERROR_SUCCESS, got %ld\n", protocol, rc);
+    rc = RegSetValueExA(hkey, "URL Protocol", 0, REG_SZ, (LPBYTE)"", 1);
+    ok(rc == ERROR_SUCCESS, "RegSetValueEx '%s' failed, expected ERROR_SUCCESS, got %ld\n", protocol, rc);
+    CloseHandle(hkey);
+
+    sprintf(key, "Software\\Classes\\%s\\shell\\open\\command", protocol);
+    rc = RegCreateKeyExA(HKEY_CURRENT_USER, key, 0, NULL, 0, KEY_SET_VALUE, NULL, &hkey_cmd, NULL);
+    ok(rc == ERROR_SUCCESS, "'command' key creation failed with %ld\n", rc);
+    if (rc != ERROR_SUCCESS)
+        return FALSE;
+
+    cmd = malloc(strlen(argv0) + 10 + strlen(child_file) + 2 + strlen(cmdtail) + 1);
+    sprintf(cmd, "%s shlexec \"%s\" %s", argv0, child_file, cmdtail);
+    rc = RegSetValueExA(hkey_cmd, NULL, 0, REG_SZ, (LPBYTE)cmd, strlen(cmd) + 1);
+    ok(rc == ERROR_SUCCESS, "setting command failed with %ld\n", rc);
+    free(cmd);
+    CloseHandle(hkey_cmd);
+    return TRUE;
+}
+
 /* Based on RegDeleteTreeW from dlls/advapi32/registry.c */
 static LSTATUS myRegDeleteTreeA(HKEY hKey, LPCSTR lpszSubKey)
 {
@@ -1953,6 +1990,15 @@ static void test_urls(void)
     okChildString("argvA3", "URL");
     okChildString("argvA4", "shlproto://foo/bar");
 
+    if (create_test_user_protocol("shluserproto", "UserURL \"%1\""))
+    {
+        rc = shell_execute(NULL, "shluserproto://foo/bar", NULL, NULL);
+        ok(rc > 32, "%s failed: rc=%Iu\n", shell_call, rc);
+        okChildInt("argcA", 5);
+        okChildString("argvA3", "UserURL");
+        okChildString("argvA4", "shluserproto://foo/bar");
+    }
+
     /* Check default verb detection */
     rc = shell_execute(NULL, "shlpaverb://foo/bar", NULL, NULL);
     todo_wine ok(rc > 32 || /* XP+IE7 - Win10 */
@@ -2949,6 +2995,7 @@ static void cleanup_test(void)
     delete_test_association(".shlexec");
     delete_test_association(".sha");
     delete_test_class("shlproto");
+    myRegDeleteTreeA(HKEY_CURRENT_USER, "Software\\Classes\\shluserproto");
 
     CloseHandle(hEvent);
 

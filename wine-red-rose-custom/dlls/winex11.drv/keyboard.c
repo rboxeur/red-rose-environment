@@ -2215,9 +2215,6 @@ INT X11DRV_GetKeyNameText( LONG lParam, LPWSTR lpBuffer, INT nSize )
   if (!(lParam & 0x02000000)) {
     switch (vkey) {
          case VK_RSHIFT:
-                          /* R-Shift is "special" - it is an extended key with separate scan code */
-                          scanCode |= 0x100;
-                          /* fall through */
          case VK_LSHIFT:
                           vkey = VK_SHIFT;
                           break;
@@ -2641,7 +2638,10 @@ INT X11DRV_ToUnicodeEx( UINT virtKey, UINT scanCode, const BYTE *lpKeyState,
         {
             if (((keysym>=33) && (keysym < '@')) ||
                 (keysym == '`') ||
-                (keysym == XK_Tab))
+                (keysym == XK_Tab) ||
+                (keysym == XK_KP_Add) ||
+                (keysym == XK_KP_Subtract) ||
+                (keysym == XK_KP_Multiply))
             {
                 lpChar[0] = 0;
                 ret = 0;

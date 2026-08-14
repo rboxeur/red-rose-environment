@@ -728,7 +728,7 @@ static void test_PathCombineA(void)
     ok(str == NULL, "Expected str == NULL, got %p\n", str);
     ok(!dest[0] || broken(!lstrcmpA(dest, "control")), /* Win95 and some W2K */
        "Expected 0 length, got %i\n", lstrlenA(dest));
-    todo_wine ok(GetLastError() == 0xdeadbeef, "Expected 0xdeadbeef, got %ld\n", GetLastError());
+    ok(GetLastError() == 0xdeadbeef, "Expected 0xdeadbeef, got %ld\n", GetLastError());
 
     /* try a directory longer than MAX_PATH */
     SetLastError(0xdeadbeef);
@@ -737,7 +737,7 @@ static void test_PathCombineA(void)
     ok(str == NULL, "Expected str == NULL, got %p\n", str);
     ok(!dest[0] || broken(!lstrcmpA(dest, "control")), /* Win95 and some W2K */
        "Expected 0 length, got %i\n", lstrlenA(dest));
-    todo_wine ok(GetLastError() == 0xdeadbeef, "Expected 0xdeadbeef, got %ld\n", GetLastError());
+    ok(GetLastError() == 0xdeadbeef, "Expected 0xdeadbeef, got %ld\n", GetLastError());
 
     memset(one, 'b', HALF_LEN);
     memset(two, 'c', HALF_LEN);
@@ -915,7 +915,7 @@ static void test_PathAppendA(void)
     SetLastError(0xdeadbeef);
     res = PathAppendA(too_long, "two\\three");
     ok(!res, "Expected failure\n");
-    todo_wine ok(GetLastError() == 0xdeadbeef, "Expected 0xdeadbeef, got %ld\n", GetLastError());
+    ok(GetLastError() == 0xdeadbeef, "Expected 0xdeadbeef, got %ld\n", GetLastError());
     ok(!too_long[0] || broken(lstrlenA(too_long) == (LONG_LEN - 1)), /* Win95 and some W2K */
        "Expected length of too_long to be zero, got %i\n", lstrlenA(too_long));
 
@@ -926,7 +926,7 @@ static void test_PathAppendA(void)
     SetLastError(0xdeadbeef);
     res = PathAppendA(path, too_long);
     ok(!res, "Expected failure\n");
-    todo_wine ok(GetLastError() == 0xdeadbeef, "Expected 0xdeadbeef, got %ld\n", GetLastError());
+    ok(GetLastError() == 0xdeadbeef, "Expected 0xdeadbeef, got %ld\n", GetLastError());
     ok(!path[0] || broken(!lstrcmpA(path, "C:\\one")), /* Win95 and some W2K */
        "Expected length of path to be zero, got %i\n", lstrlenA(path));
 

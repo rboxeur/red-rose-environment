@@ -496,28 +496,24 @@ UINT CDECL __wine_msi_call_dll_function(DWORD client_pid, const GUID *guid)
     HANDLE hModule;
     INT type;
     UINT r;
+    WCHAR endpoint[12];
 
     TRACE("%s\n", debugstr_guid( guid ));
 
-    if (!rpc_handle)
+    swprintf(endpoint, ARRAY_SIZE(endpoint), L"msi%x", client_pid);
+    status = RpcStringBindingComposeW(NULL, (WCHAR *)L"ncalrpc", NULL, endpoint, NULL, &binding_str);
+    if (status != RPC_S_OK)
     {
-        WCHAR endpoint[12];
-
-        swprintf(endpoint, ARRAY_SIZE(endpoint), L"msi%x", client_pid);
-        status = RpcStringBindingComposeW(NULL, (WCHAR *)L"ncalrpc", NULL, endpoint, NULL, &binding_str);
-        if (status != RPC_S_OK)
-        {
-            ERR("RpcStringBindingCompose failed: %#lx\n", status);
-            return status;
-        }
-        status = RpcBindingFromStringBindingW(binding_str, &rpc_handle);
-        if (status != RPC_S_OK)
-        {
-            ERR("RpcBindingFromStringBinding failed: %#lx\n", status);
-            return status;
-        }
-        RpcStringFreeW(&binding_str);
+        ERR("RpcStringBindingCompose failed: %#lx\n", status);
+        return status;
     }
+    status = RpcBindingFromStringBindingW(binding_str, &rpc_handle);
+    if (status != RPC_S_OK)
+    {
+        ERR("RpcBindingFromStringBinding failed: %#lx\n", status);
+        return status;
+    }
+    RpcStringFreeW(&binding_str);
 
     r = remote_GetActionInfo(guid, &action, &type, &dll, &proc, &remote_package);
     if (r != ERROR_SUCCESS)
@@ -570,6 +566,8 @@ UINT CDECL __wine_msi_call_dll_function(DWORD client_pid, const GUID *guid)
     midl_user_free(proc);
 
     MsiCloseAllHandles();
+    RpcBindingFree(&rpc_handle);
+
     return r;
 }
 

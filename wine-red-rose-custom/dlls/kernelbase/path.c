@@ -1406,6 +1406,7 @@ WCHAR * WINAPI PathCombineW(WCHAR *dst, const WCHAR *dir, const WCHAR *file)
 
 LPSTR WINAPI PathCombineA(char *dst, const char *dir, const char *file)
 {
+    DWORD saved_err = GetLastError();
     WCHAR dstW[MAX_PATH], dirW[MAX_PATH], fileW[MAX_PATH];
 
     TRACE("%p, %s, %s\n", dst, wine_dbgstr_a(dir), wine_dbgstr_a(file));
@@ -1428,6 +1429,7 @@ LPSTR WINAPI PathCombineA(char *dst, const char *dir, const char *file)
             return dst;
 fail:
     dst[0] = 0;
+    SetLastError( saved_err );
     return NULL;
 }
 

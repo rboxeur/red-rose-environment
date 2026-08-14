@@ -772,12 +772,42 @@ HKLM,SOFTWARE\Microsoft\Active Setup\Installed Components\{6BF52A52-394A-11d3-B1
 HKLM,SOFTWARE\Microsoft\Active Setup\Installed Components\{6BF52A52-394A-11d3-B153-00C04F79FAA6},"Version",2,"12,0,7601,18840"
 
 ; VC Runtime
-HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64,"Bld",0x10003,0x00008686
-HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64,"Installed",0x10003,0x00000001
-HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64,"Major",0x10003,0x0000000e
-HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64,"Minor",0x10003,0x0000002a
-HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64,"Rbld",0x10003,0x00000000
-HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64,"Version",2,"v14.42.34438.00"
+;----------------------------------------
+;; VC Runtime 64 Bits
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64,"Bld",0x10003,0x00008d97
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64,"Installed",0x10003,0x00000001
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64,"Major",0x10003,0x0000000e
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64,"Minor",0x10003,0x00000033
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64,"Rbld",0x10003,0x00000000
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64,"Version",2,"v14.51.36247.00"
+;; VC Runtime 32 Bits
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Bld",0x10003,0x00008d97
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Installed",0x10003,0x00000001
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Major",0x10003,0x0000000e
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Minor",0x10003,0x00000033
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Rbld",0x10003,0x00000000
+HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Version",2,"v14.51.36247.00"
+
+;; VC Runtime Additional Entries
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeAdditional,"Install",0x10003,0x00000001
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeAdditional,"InstallerType",2,"MSI"
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeAdditional,"SP",0x10003,0x00000000
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeAdditional,"SPIndex",0x10003,0x00000000
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeAdditional,"SPName","2","RTM"
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeAdditional,"UpdateVersion","2","14.51.36247"
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeAdditional,"Version","2","14.51.36247"
+
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeMinimum,"Install",0x10003,,0x00000001
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeMinimum,"InstallerType","2","MSI"
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeMinimum,"SP",0x10003,0x00000000
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeMinimum,"SPIndex",0x10003,0x00000000
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeMinimum,"SPName","2","RTM"
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeMinimum,"UpdateVersion","2","14.51.36247"
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0\RuntimeMinimum,"Version","2","14.51.36247"
+
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0,"SP",0x10003,0x00000000
+HKLM,Software\Microsoft\DevDiv\VC\Servicing\14.0,"SPIndex",0x10003,0x00000000
+;-----------------------------------------
 
 ; URL Associations
 HKCU,Software\Microsoft\Windows\Shell\Associations\UrlAssociations\ftp\UserChoice,"ProgId",,"ftp"

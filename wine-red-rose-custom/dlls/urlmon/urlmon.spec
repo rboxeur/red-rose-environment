@@ -79,12 +79,12 @@
 @ stdcall RevokeFormatEnumerator(ptr ptr)
 @ stub SetSoftwareUpdateAdvertisementState
 @ stdcall ShouldShowIntranetWarningSecband(long)
-@ stub URLDownloadA
+@ stdcall URLDownloadA(ptr str ptr ptr long)
 @ stdcall URLDownloadToCacheFileA(ptr str str long long ptr)
 @ stdcall URLDownloadToCacheFileW(ptr wstr wstr long long ptr)
 @ stdcall URLDownloadToFileA(ptr str str long ptr)
 @ stdcall URLDownloadToFileW(ptr wstr wstr long ptr)
-@ stub URLDownloadW
+@ stdcall URLDownloadW(ptr wstr ptr ptr long)
 @ stdcall URLOpenBlockingStreamA(ptr str ptr long ptr)
 @ stdcall URLOpenBlockingStreamW(ptr wstr ptr long ptr)
 @ stub URLOpenPullStreamA

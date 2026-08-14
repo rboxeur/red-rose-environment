@@ -32,9 +32,14 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(shell);
 
-/* Default IQueryAssociations::Init() flags */
-#define SHLWAPI_DEF_ASSOCF (ASSOCF_INIT_BYEXENAME|ASSOCF_INIT_DEFAULTTOSTAR| \
-                            ASSOCF_INIT_DEFAULTTOFOLDER)
+#define assocf_init_ignoreunknown 0x00000400
+#define assocf_init_fixed_progid  0x00000800
+#define assocf_init_for_file      0x00002000
+
+#define SHLWAPI_ASSOCF_INITMASK (ASSOCF_INIT_DEFAULTTOSTAR|ASSOCF_INIT_DEFAULTTOFOLDER| \
+                                 ASSOCF_INIT_BYEXENAME|ASSOCF_INIT_NOREMAPCLSID| \
+                                 assocf_init_fixed_progid|assocf_init_for_file| \
+                                 assocf_init_ignoreunknown)
 
 /*************************************************************************
  * SHLWAPI_ParamAToW
@@ -366,8 +371,8 @@ HRESULT WINAPI AssocQueryKeyW(ASSOCF cfFlags, ASSOCKEY assockey, LPCWSTR pszAsso
   hRet = AssocCreate( CLSID_QueryAssociations, &IID_IQueryAssociations, (void **)&lpAssoc );
   if (FAILED(hRet)) return hRet;
 
-  cfFlags &= SHLWAPI_DEF_ASSOCF;
-  hRet = IQueryAssociations_Init(lpAssoc, cfFlags, pszAssoc, NULL, NULL);
+  hRet = IQueryAssociations_Init(lpAssoc, (UINT)cfFlags & SHLWAPI_ASSOCF_INITMASK,
+                                 pszAssoc, NULL, NULL);
 
   if (SUCCEEDED(hRet))
     hRet = IQueryAssociations_GetKey(lpAssoc, cfFlags, assockey, pszExtra, phkeyOut);
@@ -437,7 +442,7 @@ HRESULT WINAPI AssocQueryStringW(ASSOCF cfFlags, ASSOCSTR str, LPCWSTR pszAssoc,
   hRet = AssocCreate( CLSID_QueryAssociations, &IID_IQueryAssociations, (void **)&lpAssoc );
   if (FAILED(hRet)) return hRet;
 
-  hRet = IQueryAssociations_Init(lpAssoc, cfFlags & SHLWAPI_DEF_ASSOCF,
+  hRet = IQueryAssociations_Init(lpAssoc, (UINT)cfFlags & SHLWAPI_ASSOCF_INITMASK,
                                  pszAssoc, NULL, NULL);
 
   if (SUCCEEDED(hRet))
@@ -530,8 +535,8 @@ HRESULT WINAPI AssocQueryStringByKeyW(ASSOCF cfFlags, ASSOCSTR str, HKEY hkAssoc
   hRet = AssocCreate( CLSID_QueryAssociations, &IID_IQueryAssociations, (void **)&lpAssoc );
   if (FAILED(hRet)) return hRet;
 
-  cfFlags &= SHLWAPI_DEF_ASSOCF;
-  hRet = IQueryAssociations_Init(lpAssoc, cfFlags, 0, hkAssoc, NULL);
+  hRet = IQueryAssociations_Init(lpAssoc, (UINT)cfFlags & SHLWAPI_ASSOCF_INITMASK,
+                                 0, hkAssoc, NULL);
 
   if (SUCCEEDED(hRet))
     hRet = IQueryAssociations_GetString(lpAssoc, cfFlags, str, pszExtra,

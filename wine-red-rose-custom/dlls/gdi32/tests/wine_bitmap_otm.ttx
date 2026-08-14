@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A bitmap-only SFNT font with the metrics and naming tables used by GetOutlineTextMetrics. -->
+<ttFont sfntVersion="\x00\x01\x00\x00" ttLibVersion="4.63">
+
+  <GlyphOrder>
+    <GlyphID id="0" name=".notdef"/>
+    <GlyphID id="1" name="A"/>
+  </GlyphOrder>
+
+  <head>
+    <tableVersion value="1.0"/>
+    <fontRevision value="1.0"/>
+    <checkSumAdjustment value="0x0"/>
+    <magicNumber value="0x5f0f3cf5"/>
+    <flags value="00000000 00001011"/>
+    <unitsPerEm value="2048"/>
+    <created value="Thu Jan  1 00:00:00 1970"/>
+    <modified value="Thu Jan  1 00:00:00 1970"/>
+    <xMin value="0"/>
+    <yMin value="-410"/>
+    <xMax value="1092"/>
+    <yMax value="1638"/>
+    <macStyle value="00000000 00000000"/>
+    <lowestRecPPEM value="15"/>
+    <fontDirectionHint value="2"/>
+    <indexToLocFormat value="0"/>
+    <glyphDataFormat value="0"/>
+  </head>
+
+  <hhea>
+    <tableVersion value="0x00010000"/>
+    <ascent value="1638"/>
+    <descent value="-410"/>
+    <lineGap value="0"/>
+    <advanceWidthMax value="1092"/>
+    <minLeftSideBearing value="0"/>
+    <minRightSideBearing value="0"/>
+    <xMaxExtent value="1092"/>
+    <caretSlopeRise value="1"/>
+    <caretSlopeRun value="0"/>
+    <caretOffset value="0"/>
+    <reserved0 value="0"/>
+    <reserved1 value="0"/>
+    <reserved2 value="0"/>
+    <reserved3 value="0"/>
+    <metricDataFormat value="0"/>
+    <numberOfHMetrics value="2"/>
+  </hhea>
+
+  <maxp>
+    <tableVersion value="0x10000"/>
+    <numGlyphs value="2"/>
+    <maxPoints value="0"/>
+    <maxContours value="0"/>
+    <maxCompositePoints value="0"/>
+    <maxCompositeContours value="0"/>
+    <maxZones value="1"/>
+    <maxTwilightPoints value="0"/>
+    <maxStorage value="0"/>
+    <maxFunctionDefs value="0"/>
+    <maxInstructionDefs value="0"/>
+    <maxStackElements value="0"/>
+    <maxSizeOfInstructions value="0"/>
+    <maxComponentElements value="0"/>
+    <maxComponentDepth value="0"/>
+  </maxp>
+
+  <OS_2>
+    <version value="1"/>
+    <xAvgCharWidth value="1092"/>
+    <usWeightClass value="400"/>
+    <usWidthClass value="5"/>
+    <fsType value="00000000 00000000"/>
+    <ySubscriptXSize value="1331"/>
+    <ySubscriptYSize value="1433"/>
+    <ySubscriptXOffset value="0"/>
+    <ySubscriptYOffset value="286"/>
+    <ySuperscriptXSize value="1331"/>
+    <ySuperscriptYSize value="1433"/>
+    <ySuperscriptXOffset value="0"/>
+    <ySuperscriptYOffset value="983"/>
+    <yStrikeoutSize value="102"/>
+    <yStrikeoutPosition value="530"/>
+    <sFamilyClass value="0"/>
+    <panose>
+      <bFamilyType value="2"/>
+      <bSerifStyle value="11"/>
+      <bWeight value="6"/>
+      <bProportion value="9"/>
+      <bContrast value="0"/>
+      <bStrokeVariation value="0"/>
+      <bArmStyle value="0"/>
+      <bLetterForm value="0"/>
+      <bMidline value="0"/>
+      <bXHeight value="0"/>
+    </panose>
+    <ulUnicodeRange1 value="00000000 00000000 00000000 00000001"/>
+    <ulUnicodeRange2 value="00000000 00000000 00000000 00000000"/>
+    <ulUnicodeRange3 value="00000000 00000000 00000000 00000000"/>
+    <ulUnicodeRange4 value="00000000 00000000 00000000 00000000"/>
+    <achVendID value="TEST"/>
+    <fsSelection value="00000000 01000000"/>
+    <usFirstCharIndex value="65"/>
+    <usLastCharIndex value="65"/>
+    <sTypoAscender value="1638"/>
+    <sTypoDescender value="-410"/>
+    <sTypoLineGap value="0"/>
+    <usWinAscent value="1638"/>
+    <usWinDescent value="410"/>
+    <ulCodePageRange1 value="00000000 00000000 00000000 00000001"/>
+    <ulCodePageRange2 value="00000000 00000000 00000000 00000000"/>
+  </OS_2>
+
+  <hmtx>
+    <mtx name=".notdef" width="1092" lsb="0"/>
+    <mtx name="A" width="1092" lsb="0"/>
+  </hmtx>
+
+  <cmap>
+    <tableVersion version="0"/>
+    <cmap_format_4 platformID="3" platEncID="1" language="0">
+      <map code="0x41" name="A"/>
+    </cmap_format_4>
+  </cmap>
+
+  <loca>
+    <!-- The 'loca' table will be calculated by the compiler -->
+  </loca>
+
+  <glyf>
+    <TTGlyph name=".notdef" xMin="68" yMin="0" xMax="612" yMax="1365">
+      <contour>
+        <pt x="68" y="0" on="1"/>
+        <pt x="68" y="1365" on="1"/>
+        <pt x="612" y="1365" on="1"/>
+        <pt x="612" y="0" on="1"/>
+      </contour>
+      <instructions>
+        <assembly></assembly>
+      </instructions>
+    </TTGlyph>
+    <TTGlyph name="A"/>
+  </glyf>
+
+  <name>
+    <namerecord nameID="0" platformID="3" platEncID="1" langID="0x409">Wine test font</namerecord>
+    <namerecord nameID="1" platformID="3" platEncID="1" langID="0x409">wine_bitmap_otm</namerecord>
+    <namerecord nameID="2" platformID="3" platEncID="1" langID="0x409">Regular</namerecord>
+    <namerecord nameID="3" platformID="3" platEncID="1" langID="0x409">wine_bitmap_otm Regular</namerecord>
+    <namerecord nameID="4" platformID="3" platEncID="1" langID="0x409">wine_bitmap_otm</namerecord>
+    <namerecord nameID="5" platformID="3" platEncID="1" langID="0x409">Version 1.0</namerecord>
+    <namerecord nameID="6" platformID="3" platEncID="1" langID="0x409">wine_bitmap_otm</namerecord>
+  </name>
+
+  <post>
+    <formatType value="3.0"/>
+    <italicAngle value="0.0"/>
+    <underlinePosition value="-205"/>
+    <underlineThickness value="102"/>
+    <isFixedPitch value="1"/>
+    <minMemType42 value="0"/>
+    <maxMemType42 value="0"/>
+    <minMemType1 value="0"/>
+    <maxMemType1 value="0"/>
+  </post>
+
+  <EBDT>
+    <header version="2.0"/>
+    <strikedata index="0">
+      <ebdt_bitmap_format_2 name=".notdef">
+        <SmallGlyphMetrics>
+          <height value="10"/>
+          <width value="7"/>
+          <BearingX value="1"/>
+          <BearingY value="10"/>
+          <Advance value="8"/>
+        </SmallGlyphMetrics>
+        <rawimagedata>ff060c18 3060c183 fc</rawimagedata>
+      </ebdt_bitmap_format_2>
+      <ebdt_bitmap_format_2 name="A">
+        <SmallGlyphMetrics>
+          <height value="15"/>
+          <width value="8"/>
+          <BearingX value="0"/>
+          <BearingY value="12"/>
+          <Advance value="8"/>
+        </SmallGlyphMetrics>
+        <rawimagedata>00000018 183c6666 667e6666 000000</rawimagedata>
+      </ebdt_bitmap_format_2>
+    </strikedata>
+  </EBDT>
+
+  <EBLC>
+    <header version="2.0"/>
+    <strike index="0">
+      <bitmapSizeTable>
+        <sbitLineMetrics direction="hori">
+          <ascender value="12"/>
+          <descender value="-3"/>
+          <widthMax value="8"/>
+          <caretSlopeNumerator value="1"/>
+          <caretSlopeDenominator value="0"/>
+          <caretOffset value="0"/>
+          <minOriginSB value="0"/>
+          <minAdvanceSB value="0"/>
+          <maxBeforeBL value="12"/>
+          <minAfterBL value="-3"/>
+          <pad1 value="0"/>
+          <pad2 value="0"/>
+        </sbitLineMetrics>
+        <sbitLineMetrics direction="vert">
+          <ascender value="7"/>
+          <descender value="-7"/>
+          <widthMax value="15"/>
+          <caretSlopeNumerator value="1"/>
+          <caretSlopeDenominator value="0"/>
+          <caretOffset value="0"/>
+          <minOriginSB value="0"/>
+          <minAdvanceSB value="0"/>
+          <maxBeforeBL value="0"/>
+          <minAfterBL value="0"/>
+          <pad1 value="0"/>
+          <pad2 value="0"/>
+        </sbitLineMetrics>
+        <colorRef value="0"/>
+        <startGlyphIndex value="0"/>
+        <endGlyphIndex value="1"/>
+        <ppemX value="15"/>
+        <ppemY value="15"/>
+        <bitDepth value="1"/>
+        <flags value="1"/>
+      </bitmapSizeTable>
+      <eblc_index_sub_table_1 imageFormat="2" firstGlyphIndex="0" lastGlyphIndex="1">
+        <glyphLoc id="0" name=".notdef"/>
+        <glyphLoc id="1" name="A"/>
+      </eblc_index_sub_table_1>
+    </strike>
+  </EBLC>
+
+</ttFont>

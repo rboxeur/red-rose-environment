@@ -2147,3 +2147,462 @@ function test_es5_keywords() {
     ok(tmp === true, "Expected exception for 'const c1 = 1;'");
 }
 test_es5_keywords();
+
+function test_identifers() {
+    var \u0061 = 1;
+    ok(\u0061 == 1, "\u0061 != 1");
+    ok(a == 1, "a != 1");
+
+    var b = 1;
+    ok(b == 1, "b != 1");
+    ok(\u0062 == 1, "\u0062 != 1");
+
+    var m\u0079 = 1;
+    ok(m\u0079  == 1, "m\u0079 != 1");
+    ok(my == 1, "my != 1");
+
+    var $ = 1;
+    ok($ == 1, "$ != 1");
+
+    var _ = 1;
+    ok(_ == 1, "_ != 1");
+
+    var a$ = 1;
+    ok(a$ == 1, "$ != 1");
+
+    var a_ = 1;
+    ok(a_ == 1, "a_ != 1");
+
+    tmp = false
+    try {
+        eval('var v\\u0061r = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var v\u0061r = 1;'");
+
+    // Unicode categories
+    // Lu: Letter, Uppercase
+    var A = 1;
+    ok(A == 1, "A != 1");
+
+    var _A = 1;
+    ok(_A == 1, "_A != 1");
+
+    // Ll: Letter, Lowercase
+    var a = 1;
+    ok(a == 1, "a != 1");
+
+    var _a = 1;
+    ok(_a == 1, "_a != 1");
+
+    // Lt: Letter, Titlecase
+    var \u01c5 = 1;
+    ok(\u01c5 == 1, "\u01c5 != 1");
+
+    var _\u01c5 = 1;
+    ok(_\u01c5 == 1, "_\u01c5 != 1");
+
+    // Mn: Mark, Non-Spacing
+    tmp = false
+    try {
+        eval('var \\u0300 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u0300 = 1;'");
+
+    var _\u0300 = 1;
+    ok(_\u0300 == 1, "_\u0300 != 1");
+
+    // Mc: Mark, Spacing Combining
+    tmp = false
+    try {
+        eval('var \\u093e = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u093e = 1;'");
+
+    var _\u093e = 1;
+    ok(_\u093e == 1, "_\u093e != 1");
+
+    // Me: Mark, Enclosing
+    tmp = false
+    try {
+        eval('var \\u20dd = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u20dd = 1;'");
+
+    var _\u20dd = 1;
+    ok(_\u20dd == 1, "_\u20dd != 1");
+
+    // Nd: Number, Decimal Digit
+    tmp = false
+    try {
+        eval('var 1 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var 1 = 1;'");
+
+    var _1 = 1;
+    ok(_1 == 1, "_1 != 1");
+
+    // Nl: Number, Letter
+    var \u2160 = 1;
+    ok(\u2160 == 1, "\u2160 != 1");
+
+    var _\u2160 = 1;
+    ok(_\u2160 == 1, "_\u2160 != 1");
+
+    // No: Number, Other
+    tmp = false
+    try {
+        eval('var \\u00b2 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u00b2 = 1;'");
+
+    var _\u00b2 = 1;
+    ok(_\u00b2 == 1, "_\u00b2 != 1");
+
+    tmp = false
+    try {
+        eval('var \\u2460 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u2460 = 1;'");
+
+    var _\u2460 = 1;
+    ok(_\u2460 == 1, "_\u2460 != 1");
+
+    // Cc: Other, Control
+    tmp = false
+    try {
+        eval('var \\u009f = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u009f = 1;'");
+
+    tmp = false
+    try {
+        eval('var _\\u009f = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var _\u009f = 1;'");
+
+    // Cf: Other, Format
+    tmp = false
+    try {
+        eval('var \\u200c = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u200c = 1;'");
+
+    tmp = false
+    try {
+        eval('var _\\u200c = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var _\u200c = 1;'");
+
+    // Cs: Other, Surrogate
+    tmp = false
+    try {
+        eval('var \\ud800 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \ud800 = 1;'");
+
+    tmp = false
+    try {
+        eval('var _\\ud800 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var _\ud800 = 1;'");
+
+    // Co: Other, Private Use
+    tmp = false
+    try {
+        eval('var \\ue000 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \ue000 = 1;'");
+
+    tmp = false
+    try {
+        eval('var _\\ue000 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var _\ue000 = 1;'");
+
+    // Lm: Letter, Modifier
+    var \u02b0 = 1;
+    ok(\u02b0 == 1, "\u02b0 != 1");
+
+    var _\u02b0 = 1;
+    ok(_\u02b0 == 1, "_\u02b0 != 1");
+
+    // Lo: Letter, Other
+    var \u04c0 = 1;
+    ok(\u04c0 == 1, "\u04c0 != 1");
+
+    var _\u04c0 = 1;
+    ok(_\u04c0 == 1, "_\u04c0 != 1");
+
+    // Pc: Punctuation, Connector
+    tmp = false
+    try {
+        eval('var \\u203f = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u203f = 1;'");
+
+    var _\u203f = 1;
+    ok(_\u203f == 1, "_\u203f != 1");
+
+    // Pd: Punctuation, Dash
+    tmp = false
+    try {
+        eval('var \\u301c = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u301c = 1;'");
+
+    var _\u301c = 1;
+    ok(_\u301c == 1, "_\u301c != 1");
+
+    // Ps: Punctuation, Open
+    tmp = false
+    try {
+        eval('var \\u0f3a = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u0f3a = 1;'");
+
+    var _\u0f3a = 1;
+    ok(_\u0f3a == 1, "_\u0f3a != 1");
+
+    // Pe: Punctuation, Close
+    tmp = false
+    try {
+        eval('var \\u0f3b = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u0f3b = 1;'");
+
+    var _\u0f3b = 1;
+    ok(_\u0f3b == 1, "_\u0f3b != 1");
+
+    // Pi: Punctuation, Initial quote
+    tmp = false
+    try {
+        eval('var \\u00ab = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u00ab = 1;'");
+
+    var _\u00ab = 1;
+    ok(_\u00ab == 1, "_\u00ab != 1");
+
+    tmp = false
+    try {
+        eval('var \\u2e02 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u2e02 = 1;'");
+
+    var _\u2e02 = 1;
+    ok(_\u2e02 == 1, "_\u2e02 != 1");
+
+    // Pf: Punctuation, Final quote
+    tmp = false
+    try {
+        eval('var \\u00bb = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u00bb = 1;'");
+
+    var _\u00bb = 1;
+    ok(_\u00bb == 1, "_\u00bb != 1");
+
+    tmp = false
+    try {
+        eval('var \\u2e0a = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u2e0a = 1;'");
+
+    var _\u2e0a = 1;
+    ok(_\u2e0a == 1, "_\u2e0a != 1");
+
+    // Po: Punctuation, Other
+    tmp = false
+    try {
+        eval('var \\u00a1 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u00a1 = 1;'");
+
+    var _\u00a1 = 1;
+    ok(_\u00a1 == 1, "_\u00a1 != 1");
+
+    tmp = false
+    try {
+        eval('var \\u3001 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u3001 = 1;'");
+
+    var _\u3001 = 1;
+    ok(_\u3001 == 1, "_\u3001 != 1");
+
+    // Sm: Symbol, Math
+    tmp = false
+    try {
+        eval('var \\u00ac = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u00ac = 1;'");
+
+    var _\u00ac = 1;
+    ok(_\u00ac == 1, "_\u00ac != 1");
+
+    tmp = false
+    try {
+        eval('var \\u2044 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u2044 = 1;'");
+
+    var _\u2044 = 1;
+    ok(_\u2044 == 1, "_\u2044 != 1");
+
+    // Sc: Symbol, Currency
+    tmp = false
+    try {
+        eval('var \\u00a2 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u00a2 = 1;'");
+
+    var _\u00a2 = 1;
+    ok(_\u00a2 == 1, "_\u00a2 != 1");
+
+    tmp = false
+    try {
+        eval('var \\u20a0 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u20a0 = 1;'");
+
+    var _\u20a0 = 1;
+    ok(_\u20a0 == 1, "_\u20a0 != 1");
+
+    // Sk: Symbol, Modifier
+    tmp = false
+    try {
+        eval('var \\u00a8 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u00a8 = 1;'");
+
+    var _\u00a8 = 1;
+    ok(_\u00a8 == 1, "_\u00a8 != 1");
+
+    tmp = false
+    try {
+        eval('var \\u02c2 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u02c2 = 1;'");
+
+    var _\u02c2 = 1;
+    ok(_\u02c2 == 1, "_\u02c2 != 1");
+
+    // So: Symbol, Other
+    tmp = false
+    try {
+        eval('var \\u00a6 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u00a6 = 1;'");
+
+    var _\u00a6 = 1;
+    ok(_\u00a6 == 1, "_\u00a6 != 1");
+
+    tmp = false
+    try {
+        eval('var \\u0482 = 1;');
+    }
+    catch(e) {
+        tmp = true
+    }
+    ok(tmp === true, "Expected exception for 'var \u0482 = 1;'");
+
+    var _\u0482 = 1;
+    ok(_\u0482 == 1, "_\u0482 != 1");
+}
+test_identifers();

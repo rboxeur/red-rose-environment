@@ -4287,7 +4287,7 @@ static BOOL WINSPOOL_GetDriverInfoFromReg(
     WCHAR  driverdir[MAX_PATH];
     DWORD  dirlen;
     LPBYTE strPtr = pDriverStrings;
-    LPDRIVER_INFO_8W di = (LPDRIVER_INFO_8W) ptr;
+    LPDRIVER_INFO_8W di = (cbBuf >= di_sizeof[Level]) ? (LPDRIVER_INFO_8W) ptr : NULL;
 
     TRACE("(%p, %s, %p, %ld, %p, %p, %ld)\n", hkeyDrivers,
           debugstr_w(DriverName), env,

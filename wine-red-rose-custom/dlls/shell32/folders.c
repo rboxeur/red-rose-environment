@@ -126,28 +126,28 @@ static ULONG WINAPI IExtractIconW_fnRelease(IExtractIconW * iface)
 	return refCount;
 }
 
-static HRESULT getIconLocationForFolder(IExtractIconWImpl *This, UINT uFlags, LPWSTR szIconFile,
+static HRESULT getIconLocationForFolder(LPITEMIDLIST pidl, UINT uFlags, LPWSTR szIconFile,
         UINT cchMax, int *piIndex, UINT *pwFlags)
 {
     int icon_idx;
     WCHAR wszPath[MAX_PATH];
     WCHAR wszCLSIDValue[CHARS_IN_GUID];
 
-    if (SHELL32_GetCustomFolderAttribute(This->pidl, L".ShellClassInfo", L"IconFile",
+    if (SHELL32_GetCustomFolderAttribute(pidl, L".ShellClassInfo", L"IconFile",
         wszPath, MAX_PATH))
     {
         WCHAR wszIconIndex[10];
-        SHELL32_GetCustomFolderAttribute(This->pidl, L".ShellClassInfo", L"IconIndex",
+        SHELL32_GetCustomFolderAttribute(pidl, L".ShellClassInfo", L"IconIndex",
             wszIconIndex, 10);
         *piIndex = wcstol(wszIconIndex, NULL, 10);
     }
-    else if (SHELL32_GetCustomFolderAttribute(This->pidl, L".ShellClassInfo", L"CLSID",
+    else if (SHELL32_GetCustomFolderAttribute(pidl, L".ShellClassInfo", L"CLSID",
         wszCLSIDValue, CHARS_IN_GUID) &&
         HCR_GetDefaultIconW(wszCLSIDValue, szIconFile, cchMax, &icon_idx))
     {
        *piIndex = icon_idx;
     }
-    else if (SHELL32_GetCustomFolderAttribute(This->pidl, L".ShellClassInfo", L"CLSID2",
+    else if (SHELL32_GetCustomFolderAttribute(pidl, L".ShellClassInfo", L"CLSID2",
         wszCLSIDValue, CHARS_IN_GUID) &&
         HCR_GetDefaultIconW(wszCLSIDValue, szIconFile, cchMax, &icon_idx))
     {
@@ -184,7 +184,14 @@ static HRESULT WINAPI IExtractIconW_fnGetIconLocation(IExtractIconW * iface, UIN
 	char	sTemp[MAX_PATH];
 	int		icon_idx;
 	GUID const * riid;
-	LPITEMIDLIST	pSimplePidl = ILFindLastID(This->pidl);
+	LPITEMIDLIST	pidl = This->pidl;
+	LPITEMIDLIST	pSimplePidl;
+	IShellLinkW* deferred_release_psl = NULL;
+	IShellFolder* deferred_release_dsf = NULL;
+
+retry:
+
+	pSimplePidl = ILFindLastID(pidl);
 
 	TRACE("(%p) (flags=%u, %p, %u, %p, %p)\n", This, uFlags, szIconFile,
                 cchMax, piIndex, pwFlags);
@@ -264,7 +271,7 @@ static HRESULT WINAPI IExtractIconW_fnGetIconLocation(IExtractIconW * iface, UIN
 	}
 	else if (_ILIsFolder (pSimplePidl))
 	{
-            getIconLocationForFolder(This, uFlags, szIconFile, cchMax, piIndex, pwFlags);
+            getIconLocationForFolder(pidl, uFlags, szIconFile, cchMax, piIndex, pwFlags);
 	}
 	else
 	{
@@ -282,7 +289,7 @@ static HRESULT WINAPI IExtractIconW_fnGetIconLocation(IExtractIconW * iface, UIN
 	    {
 	      if (!lstrcmpA("%1", sTemp))		/* icon is in the file */
 	      {
-		SHGetPathFromIDListW(This->pidl, szIconFile);
+		SHGetPathFromIDListW(pidl, szIconFile);
 		*piIndex = 0;
 	      }
 	      else
@@ -301,7 +308,7 @@ static HRESULT WINAPI IExtractIconW_fnGetIconLocation(IExtractIconW * iface, UIN
 
 	      if (SUCCEEDED(SHGetDesktopFolder(&dsf)))
 	      {
-		HRESULT hr = IShellFolder_GetUIObjectOf(dsf, NULL, 1, (LPCITEMIDLIST*)&This->pidl, &IID_IShellLinkW, NULL, (LPVOID*)&psl);
+		HRESULT hr = IShellFolder_GetUIObjectOf(dsf, NULL, 1, (LPCITEMIDLIST*)&pidl, &IID_IShellLinkW, NULL, (LPVOID*)&psl);
 
 		if (SUCCEEDED(hr))
 		{
@@ -309,6 +316,16 @@ static HRESULT WINAPI IExtractIconW_fnGetIconLocation(IExtractIconW * iface, UIN
 
 		  if (SUCCEEDED(hr) && *szIconFile)
 		    found = TRUE;
+		  /* try to get icon from shortcut target */
+		  else if (!deferred_release_psl && /* avoid infinite loop */
+		           SUCCEEDED(IShellLinkW_GetIDList(psl, &pidl)) &&
+		           pidl)
+		  {
+		    TRACE("file is shortcut with no explicit icon, repeating icon lookup for the target pidl\n");
+		    deferred_release_dsf = dsf;
+		    deferred_release_psl = psl;
+		    goto retry;
+		  }
 
 		  IShellLinkW_Release(psl);
 		}
@@ -323,6 +340,15 @@ static HRESULT WINAPI IExtractIconW_fnGetIconLocation(IExtractIconW * iface, UIN
 	    lstrcpynW(szIconFile, swShell32Name, cchMax);
 	    *piIndex = 0;
 	  }
+	}
+
+	if (deferred_release_psl)
+	{
+	  IShellLinkW_Release(deferred_release_psl);
+	}
+	if (deferred_release_dsf)
+	{
+	  IShellFolder_Release(deferred_release_dsf);
 	}
 
 	TRACE("-- %s %x\n", debugstr_w(szIconFile), *piIndex);
@@ -513,7 +539,7 @@ static const IPersistFileVtbl pfvt =
 	(void *) 0xdeadbeef /* IEIPersistFile_fnGetCurFile */
 };
 
-static IExtractIconWImpl *extracticon_create(LPCITEMIDLIST pidl)
+static IExtractIconWImpl *extracticon_create(LPCITEMIDLIST pidl, BOOL clone)
 {
     IExtractIconWImpl *ei;
 
@@ -524,7 +550,10 @@ static IExtractIconWImpl *extracticon_create(LPCITEMIDLIST pidl)
     ei->IExtractIconW_iface.lpVtbl = &eivt;
     ei->IExtractIconA_iface.lpVtbl = &eiavt;
     ei->IPersistFile_iface.lpVtbl = &pfvt;
-    ei->pidl=ILClone(pidl);
+    if (clone)
+      ei->pidl=ILClone(pidl);
+    else
+      ei->pidl=(LPITEMIDLIST)pidl;
 
     pdump(pidl);
 
@@ -534,14 +563,35 @@ static IExtractIconWImpl *extracticon_create(LPCITEMIDLIST pidl)
 
 IExtractIconW *IExtractIconW_Constructor(LPCITEMIDLIST pidl)
 {
-    IExtractIconWImpl *ei = extracticon_create(pidl);
+    IExtractIconWImpl *ei = extracticon_create(pidl, TRUE);
 
     return &ei->IExtractIconW_iface;
 }
 
 IExtractIconA *IExtractIconA_Constructor(LPCITEMIDLIST pidl)
 {
-    IExtractIconWImpl *ei = extracticon_create(pidl);
+    IExtractIconWImpl *ei = extracticon_create(pidl, TRUE);
 
     return &ei->IExtractIconA_iface;
+}
+
+/* Helper for implementing IShellIcon::GetIconOf(). */
+HRESULT IShellIcon_GetIconOf_helper(LPCITEMIDLIST root_pidl, PCUITEMID_CHILD pidl_rel, UINT flags, int *icon_index)
+{
+    IExtractIconW *ei = &extracticon_create(ILCombine(root_pidl, pidl_rel), FALSE)->IExtractIconW_iface;
+    WCHAR source_file[MAX_PATH];
+    int source_index;
+    UINT iei_out_flags;
+
+    if (!SUCCEEDED(IExtractIconW_GetIconLocation(ei, flags,
+                                                 source_file, ARRAY_SIZE(source_file),
+                                                 &source_index, &iei_out_flags)))
+    {
+      IExtractIconW_Release(ei);
+      return S_FALSE;
+    }
+
+    *icon_index = SIC_GetIconIndex(source_file, source_index, flags);
+    IExtractIconW_Release(ei);
+    return S_OK;
 }

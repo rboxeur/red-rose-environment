@@ -567,6 +567,40 @@ static void test_system_menu(void)
     DestroyWindow( hwnd );
 }
 
+/* windows only creates the system menu on the first GetSystemMenu call.
+ * Some applications (seems to be mostly MDI) to rely on this to insert by position */
+static void test_system_menu_lazy(void)
+{
+    HMENU menu;
+    HWND hwnd;
+
+    hwnd = CreateWindowExA(0, (LPCSTR)MAKEINTATOM(atomMenuCheckClass), NULL,
+                           WS_POPUP /* & ~WS_SYSMENU */, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
+    ok(hwnd != NULL, "CreateWindowEx failed, error %ld\n", GetLastError());
+    menu = GetSystemMenu(hwnd, FALSE);
+    ok(menu == NULL, "system menu without WS_SYSMENU %p\n", menu);
+    DestroyWindow(hwnd);
+
+    hwnd = CreateWindowExA(0, (LPCSTR)MAKEINTATOM(atomMenuCheckClass), NULL,
+                           WS_POPUP | WS_SYSMENU, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
+    ok(hwnd != NULL, "CreateWindowEx failed, error %ld\n", GetLastError());
+    SetWindowLongA(hwnd, GWL_STYLE, GetWindowLongA(hwnd, GWL_STYLE) & ~WS_SYSMENU);
+    menu = GetSystemMenu(hwnd, FALSE);
+
+    ok(menu == NULL, "system menu when WS_SYSMENU removed before GetSystemMenu %p\n", menu);
+    DestroyWindow(hwnd);
+
+    hwnd = CreateWindowExA(0, (LPCSTR)MAKEINTATOM(atomMenuCheckClass), NULL,
+                           WS_POPUP | WS_SYSMENU, 0, 0, 100, 100, NULL, NULL, NULL, NULL);
+    ok(hwnd != NULL, "CreateWindowEx failed with %ld\n", GetLastError());
+    menu = GetSystemMenu(hwnd, FALSE);
+    ok(menu != NULL, "no system menu with WS_SYSMENU\n");
+    SetWindowLongA(hwnd, GWL_STYLE, GetWindowLongA(hwnd, GWL_STYLE) & ~WS_SYSMENU);
+    menu = GetSystemMenu(hwnd, FALSE);
+    ok(menu != NULL, "cached system menu to persists after clearing WS_SYSMENU\n");
+    DestroyWindow(hwnd);
+}
+
 /* demonstrates that windows locks the menu object so that it is still valid
  * even after a client calls DestroyMenu on it */
 static void test_menu_locked_by_window(void)
@@ -4242,6 +4276,7 @@ START_TEST(menu)
     test_InsertMenu();
     test_menualign();
     test_system_menu();
+    test_system_menu_lazy();
 
     test_menu_locked_by_window();
     test_subpopup_locked_by_menu();

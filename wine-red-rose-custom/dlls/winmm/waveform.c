@@ -1736,8 +1736,7 @@ static void WOD_PushData(WINMM_Device *device)
                     device->loop_counter = queue->dwLoops;
                 }
                 if(queue->dwFlags & WHDR_ENDLOOP){
-                    --device->loop_counter;
-                    if(device->loop_counter)
+                    if(device->loop_counter && --device->loop_counter)
                         device->playing = device->loop_start;
                     else
                         device->loop_start = device->playing = queue->lpNext;

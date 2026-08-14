@@ -2997,6 +2997,31 @@ static BOOL d2d_geometry_get_next_bezier_segment_idx(struct d2d_geometry *geomet
     return d2d_geometry_get_bezier_segment_idx(geometry, idx, TRUE);
 }
 
+/* A quadratic Bezier whose control point is (nearly) collinear with its endpoints is, to
+ * the fidelity D2D renders at, just the straight segment p0->p1: it encloses no area and
+ * cannot meaningfully overlap another curve.  This needs a tolerance rather than an
+ * exact-zero test, because subdividing an overlapping pair drives the control point ever
+ * closer to collinear without ever reaching it exactly, so an exact test lets the overlap
+ * check below keep returning TRUE and subdivide the curve without bound.
+ *
+ * The curve's greatest distance from its chord is |cross| / (2 * |p1 - p0|), where
+ * cross = (c - p0) x (p1 - p0).  Treat it as the chord once that is within the same
+ * flattening tolerance the rest of the geometry code uses to approximate curves by line
+ * segments; rearranged to avoid the square root and division that is
+ *     |cross| / (2 * |e1|) <= tolerance  <=>  cross^2 <= (2 * tolerance)^2 * |e1|^2.
+ * Evaluated in double so it stays overflow-free across the whole float coordinate range
+ * (|e1|^2 alone would overflow a float for coordinates beyond ~1e19). */
+static BOOL d2d_bezier_control_degenerate(const D2D1_POINT_2F *p0,
+        const D2D1_POINT_2F *c, const D2D1_POINT_2F *p1)
+{
+    double e0x = (double)c->x - p0->x, e0y = (double)c->y - p0->y;
+    double e1x = (double)p1->x - p0->x, e1y = (double)p1->y - p0->y;
+    double cross = e0x * e1y - e0y * e1x;
+    double limit = 2.0 * D2D1_DEFAULT_FLATTENING_TOLERANCE;
+
+    return cross * cross <= limit * limit * (e1x * e1x + e1y * e1y);
+}
+
 static BOOL d2d_geometry_check_bezier_overlap(struct d2d_geometry *geometry,
         const struct d2d_segment_idx *idx_p, const struct d2d_segment_idx *idx_q)
 {
@@ -3016,7 +3041,7 @@ static BOOL d2d_geometry_check_bezier_overlap(struct d2d_geometry *geometry,
     b[1] = &figure->bezier_controls[idx_q->control_idx];
     b[2] = &figure->vertices[idx_q->vertex_idx + 1];
 
-    if (d2d_point_ccw(a[0], a[1], a[2]) == 0.0f || d2d_point_ccw(b[0], b[1], b[2]) == 0.0f)
+    if (d2d_bezier_control_degenerate(a[0], a[1], a[2]) || d2d_bezier_control_degenerate(b[0], b[1], b[2]))
         return FALSE;
 
     d2d_point_subtract(&v_q[0], b[1], b[0]);

@@ -43,7 +43,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(http);
 DECLARE_CRITICAL_SECTION(http_cs);
 
 static HANDLE request_thread, request_event;
-static BOOL thread_stop;
 
 static HTTP_REQUEST_ID req_id_counter;
 
@@ -1196,7 +1195,6 @@ static void WINAPI unload(DRIVER_OBJECT *driver)
     struct request_queue *queue, *queue_next;
     struct connection *conn, *conn_next;
 
-    thread_stop = TRUE;
     SetEvent(request_event);
     WaitForSingleObject(request_thread, INFINITE);
     CloseHandle(request_thread);

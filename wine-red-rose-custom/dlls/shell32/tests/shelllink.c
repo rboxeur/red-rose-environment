@@ -1487,6 +1487,112 @@ static void test_SHGetImageList(void)
     }
 }
 
+static void get_icon_location_for_path(IShellFolder *desktop, LPWSTR path, LPWSTR out_path, UINT out_path_max, int* out_index, UINT *out_flags)
+{
+    HRESULT r;
+    IShellFolder *parent;
+    LPITEMIDLIST pidl_from_desktop;
+    PCUITEMID_CHILD pidl_from_parent;
+    IExtractIconW *ei;
+
+    r = IShellFolder_ParseDisplayName( desktop, NULL, NULL, path, NULL, &pidl_from_desktop, NULL );
+    ok( r == S_OK, "ParseDisplayName failed (0x%08lx)\n", r );
+
+    r = SHBindToParent( pidl_from_desktop, &IID_IShellFolder, (LPVOID*)&parent, &pidl_from_parent );
+    ok( r == S_OK, "SHBindToParent failed (0x%08lx)\n", r );
+
+    r = IShellFolder_GetUIObjectOf( parent, NULL, 1, &pidl_from_parent, &IID_IExtractIconW, NULL, (LPVOID*)&ei );
+    ok( r == S_OK, "GetUIObjectOf failed (0x%08lx)\n", r );
+
+    r = IExtractIconW_GetIconLocation( ei, 0, out_path, out_path_max, out_index, out_flags );
+    ok( r == S_OK, "GetIconLocation failed (0x%08lx)\n", r );
+
+    IExtractIconW_Release( ei );
+    IShellFolder_Release( parent );
+    CoTaskMemFree( pidl_from_desktop );
+}
+
+static void test_IExtractIconW_GetIconLocation(void)
+{
+    HRESULT r;
+    IShellFolder *desktop;
+    WCHAR notepad_exe_path[MAX_PATH];
+    WCHAR shortcut_path[MAX_PATH];
+    WCHAR notepad_exe_icon_path[MAX_PATH];
+    int notepad_exe_icon_index;
+    UINT notepad_exe_icon_flags;
+    WCHAR shortcut_icon_path[MAX_PATH];
+    int shortcut_icon_index;
+    UINT shortcut_icon_flags;
+
+    r = SHGetDesktopFolder( &desktop );
+    ok( r == S_OK, "SHGetDesktopFolder failed (0x%08lx)\n", r );
+
+    GetWindowsDirectoryW( notepad_exe_path, ARRAY_SIZE( notepad_exe_path ) );
+    wcscat( notepad_exe_path, L"\\notepad.exe" );
+
+    /* 1) Look up icon for notepad.exe */
+
+    get_icon_location_for_path( desktop,
+                                notepad_exe_path,
+                                notepad_exe_icon_path,
+                                ARRAY_SIZE( notepad_exe_icon_path ),
+                                &notepad_exe_icon_index,
+                                &notepad_exe_icon_flags );
+
+    /* 2) Create shortcut to notepad.exe */
+
+    {
+        IShellLinkW *sl;
+        IPersistFile *pf;
+
+        r = CoCreateInstance( &CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, &IID_IShellLinkW, (LPVOID*)&sl );
+        ok( r == S_OK, "CoCreateInstance failed (0x%08lx)\n", r );
+
+        IShellLinkW_SetPath( sl, notepad_exe_path );
+        ok( r == S_OK, "SetPath failed (0x%08lx)\n", r );
+
+        r = IShellLinkW_QueryInterface( sl, &IID_IPersistFile, (LPVOID*)&pf );
+        ok( r == S_OK, "QueryInterface failed (0x%08lx)\n", r );
+
+        GetTempPathW( ARRAY_SIZE( shortcut_path ), shortcut_path );
+        /* There's no preceding \\ here because GetTempPathW's output already
+         * has one, and apparently IShellLink_ParseDisplayName only wants
+         * perfectly canonical paths.
+         */
+        wcscat( shortcut_path, L"test_IExtractIconW_GetIconLocation.lnk" );
+
+        r = IPersistFile_Save( pf, shortcut_path, TRUE );
+        ok( r == S_OK, "Save failed (0x%08lx)\n", r );
+
+        IPersistFile_Release( pf );
+        IShellLinkW_Release( sl );
+    }
+
+    /* 3) Look up icon for shortcut */
+
+    get_icon_location_for_path( desktop,
+                                shortcut_path,
+                                shortcut_icon_path,
+                                ARRAY_SIZE( shortcut_icon_path ),
+                                &shortcut_icon_index,
+                                &shortcut_icon_flags );
+
+    /* 4) Compare the icon locations: they should match, because the icon for
+     *    a shortcut with no explicitly specified icon is the same as the
+     *    shortcut's target (the overlay is handled elsewhere).
+     *    Note that there can be several ways to refer to the same icon, in
+     *    particular if one is GIL_NOTFILENAME and the other is not.
+     *    This is unaccounted for here, as it doesn't affect this case.
+     */
+
+    ok ( !wcscmp( notepad_exe_icon_path, shortcut_icon_path ) &&
+         notepad_exe_icon_index == shortcut_icon_index,
+         "Got different icon locations for shortcut versus its target: (%s, %d) != (%s, %d)\n",
+         wine_dbgstr_w( shortcut_icon_path ), shortcut_icon_index,
+         wine_dbgstr_w( notepad_exe_icon_path ), notepad_exe_icon_index );
+}
+
 START_TEST(shelllink)
 {
     HRESULT r;
@@ -1515,6 +1621,7 @@ START_TEST(shelllink)
     test_ExtractIcon();
     test_ExtractAssociatedIcon();
     test_SHGetImageList();
+    test_IExtractIconW_GetIconLocation();
 
     CoUninitialize();
 }

@@ -2368,6 +2368,76 @@ static void test_GetOutlineTextMetrics(void)
     ReleaseDC(0, hdc);
 }
 
+static void test_bitmap_sfnt_outline_metrics(void)
+{
+    static const WCHAR face_name[] = L"wine_bitmap_otm";
+    OUTLINETEXTMETRICW *otm;
+    WCHAR selected_name[LF_FACESIZE];
+    HFONT font, old_font;
+    char ttf_name[MAX_PATH];
+    DWORD count, size, ret;
+    ULONG_PTR offset;
+    HDC hdc;
+
+    if (!write_ttf_file( "wine_bitmap_otm.ttf", ttf_name ))
+    {
+        skip( "Failed to extract bitmap SFNT font.\n" );
+        return;
+    }
+
+    count = AddFontResourceExA( ttf_name, FR_PRIVATE, NULL );
+    ok( count == 1, "Expected one font, got %lu, error %lu.\n", count, GetLastError() );
+    if (!count) goto done;
+
+    hdc = CreateCompatibleDC( NULL );
+    ok( !!hdc, "Failed to create a DC.\n" );
+    if (!hdc) goto remove_font;
+    font = CreateFontW( -15, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH,
+                        face_name );
+    ok( !!font, "Failed to create a font.\n" );
+    if (!font)
+    {
+        DeleteDC( hdc );
+        goto remove_font;
+    }
+    old_font = SelectObject( hdc, font );
+
+    ret = GetTextFaceW( hdc, ARRAY_SIZE( selected_name ), selected_name );
+    ok( ret && !wcscmp( selected_name, face_name ), "Selected %s.\n", debugstr_w( selected_name ) );
+    if (ret && !wcscmp( selected_name, face_name ))
+    {
+        size = GetOutlineTextMetricsW( hdc, 0, NULL );
+        ok( size > sizeof(*otm), "Got metrics size %lu.\n", size );
+        if (size > sizeof(*otm))
+        {
+            otm = calloc( 1, size );
+            otm->otmSize = sizeof(*otm);
+            ret = GetOutlineTextMetricsW( hdc, size, otm );
+            ok( ret == size, "Expected %lu, got %lu, error %lu.\n", size, ret, GetLastError() );
+            ok( otm->otmEMSquare == 2048, "Got em square %u.\n", otm->otmEMSquare );
+
+            offset = (ULONG_PTR)otm->otmpFamilyName;
+            ok( offset >= sizeof(*otm) && offset < size, "Got family name offset %Iu.\n", offset );
+            if (offset >= sizeof(*otm) && offset < size)
+                ok( !wcscmp( (WCHAR *)((BYTE *)otm + offset), face_name ), "Got family name %s.\n",
+                    debugstr_w( (WCHAR *)((BYTE *)otm + offset) ) );
+            free( otm );
+        }
+    }
+
+    SelectObject( hdc, old_font );
+    DeleteObject( font );
+    DeleteDC( hdc );
+
+remove_font:
+    ret = RemoveFontResourceExA( ttf_name, FR_PRIVATE, NULL );
+    ok( ret, "Failed to remove font, error %lu.\n", GetLastError() );
+
+done:
+    DeleteFileA( ttf_name );
+}
+
 static void testJustification(const char *context, HDC hdc, PCSTR str, RECT *clientArea)
 {
     INT         y,
@@ -8214,6 +8284,7 @@ START_TEST(font)
     test_GetGlyphIndices_surrogate_pairs();
     test_GetKerningPairs();
     test_GetOutlineTextMetrics();
+    test_bitmap_sfnt_outline_metrics();
     test_GetOutlineTextMetrics_subst();
     test_SetTextJustification();
     test_TranslateCharsetInfo();

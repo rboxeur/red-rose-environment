@@ -318,7 +318,16 @@ static DWORD SOFTPUB_VerifyImageHash(CRYPT_PROVIDER_DATA *data, HANDLE file)
     if (((ULONG_PTR)indirect->Data.pszObjId >> 16) == 0 ||
         strcmp(indirect->Data.pszObjId, SPC_PE_IMAGE_DATA_OBJID))
     {
-        FIXME("Cannot verify hash for pszObjId=%s\n", debugstr_a(indirect->Data.pszObjId));
+        if (data->pPDSip->pSip && data->pPDSip->pSip->pfVerify &&
+            data->pPDSip->psSipSubjectInfo)
+        {
+            BOOL sip_ret = data->pPDSip->pSip->pfVerify(
+                data->pPDSip->psSipSubjectInfo,
+                (SIP_INDIRECT_DATA *)indirect);
+            return sip_ret ? ERROR_SUCCESS : TRUST_E_BAD_DIGEST;
+        }
+        FIXME("Cannot verify hash for pszObjId=%s (no SIP verify available)\n",
+         debugstr_a(indirect->Data.pszObjId));
         return ERROR_SUCCESS;
     }
 

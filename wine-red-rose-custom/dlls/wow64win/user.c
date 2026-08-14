@@ -345,6 +345,48 @@ struct client_menu_name32
     ULONG nameUS;
 };
 
+typedef struct
+{
+    DWORD pointerType;
+    UINT32 pointerId;
+    UINT32 frameId;
+    UINT32 pointerFlags;
+    ULONG sourceDevice;
+    ULONG hwndTarget;
+    POINT ptPixelLocation;
+    POINT ptHimetricLocation;
+    POINT ptPixelLocationRaw;
+    POINT ptHimetricLocationRaw;
+    DWORD dwTime;
+    UINT32 historyCount;
+    INT32 InputData;
+    DWORD dwKeyStates;
+    UINT64 PerformanceCount;
+    INT32 ButtonChangeType;
+} POINTER_INFO32;
+
+typedef struct
+{
+    POINTER_INFO32 pointerInfo;
+    PEN_FLAGS penFlags;
+    PEN_MASK penMask;
+    UINT32 pressure;
+    UINT32 rotation;
+    INT32 tiltX;
+    INT32 tiltY;
+} POINTER_PEN_INFO32;
+
+typedef struct
+{
+    POINTER_INFO32 pointerInfo;
+    TOUCH_FLAGS touchFlags;
+    TOUCH_MASK touchMask;
+    RECT rcContact;
+    RECT rcContactRaw;
+    UINT32 orientation;
+    UINT32 pressure;
+} POINTER_TOUCH_INFO32;
+
 struct win_proc_params32
 {
     ULONG func;
@@ -2729,8 +2771,60 @@ NTSTATUS WINAPI wow64_NtUserGetOpenClipboardWindow( UINT *args )
     return HandleToUlong( NtUserGetOpenClipboardWindow() );
 }
 
+static void pointer_info_32to64( POINTER_INFO32 *out, const POINTER_INFO *in )
+{
+    POINTER_INFO32 info;
+
+    info.pointerType = in->pointerType;
+    info.pointerId = in->pointerId;
+    info.frameId = in->frameId;
+    info.pointerFlags = in->pointerFlags;
+    info.sourceDevice = HandleToUlong(in->sourceDevice);
+    info.hwndTarget = HandleToUlong(in->hwndTarget);
+    info.ptPixelLocation = in->ptPixelLocation;
+    info.ptHimetricLocation = in->ptHimetricLocation;
+    info.ptPixelLocationRaw = in->ptPixelLocationRaw;
+    info.ptHimetricLocationRaw = in->ptHimetricLocationRaw;
+    info.dwTime = in->dwTime;
+    info.historyCount = in->historyCount;
+    info.InputData = in->InputData;
+    info.dwKeyStates = in->dwKeyStates;
+    info.PerformanceCount = in->PerformanceCount;
+    info.ButtonChangeType = in->ButtonChangeType;
+    memcpy( out, &info, sizeof(info) );
+}
+
+static void pointer_pen_info_32to64( POINTER_PEN_INFO32 *out, const POINTER_PEN_INFO *in )
+{
+    POINTER_PEN_INFO32 info;
+
+    pointer_info_32to64( &info.pointerInfo, &in->pointerInfo );
+    info.penFlags = in->penFlags;
+    info.penMask = in->penMask;
+    info.pressure = in->pressure;
+    info.rotation = in->rotation;
+    info.tiltX = in->tiltX;
+    info.tiltY = in->tiltY;
+    memcpy( out, &info, sizeof(info) );
+}
+
+static void pointer_touch_info_32to64( POINTER_TOUCH_INFO32 *out, const POINTER_TOUCH_INFO *in )
+{
+    POINTER_TOUCH_INFO32 info;
+
+    pointer_info_32to64( &info.pointerInfo, &in->pointerInfo );
+    info.touchFlags = in->touchFlags;
+    info.touchMask = in->touchMask;
+    info.rcContact = in->rcContact;
+    info.rcContactRaw = in->rcContactRaw;
+    info.orientation = in->orientation;
+    info.pressure = in->pressure;
+    memcpy( out, &info, sizeof(info) );
+}
+
 NTSTATUS WINAPI wow64_NtUserGetPointerInfoList( UINT *args )
 {
+    NTSTATUS ret;
     UINT id = get_ulong( &args );
     UINT type = get_ulong( &args );
     UINT unk0 = get_ulong( &args );
@@ -2739,6 +2833,28 @@ NTSTATUS WINAPI wow64_NtUserGetPointerInfoList( UINT *args )
     void *entry_count = get_ptr( &args );
     void *pointer_count = get_ptr( &args );
     void *pointer_info = get_ptr( &args );
+
+    if (type == PT_POINTER && size == sizeof(POINTER_INFO32))
+    {
+        POINTER_INFO pointer_info64;
+        ret = NtUserGetPointerInfoList( id, type, unk0, unk1, sizeof(pointer_info64), entry_count, pointer_count, &pointer_info64 );
+        pointer_info_32to64( pointer_info, &pointer_info64 );
+        return ret;
+    }
+    else if (type == PT_PEN && size == sizeof(POINTER_PEN_INFO32))
+    {
+        POINTER_PEN_INFO pointer_pen_info64;
+        ret = NtUserGetPointerInfoList( id, type, unk0, unk1, sizeof(pointer_pen_info64), entry_count, pointer_count, &pointer_pen_info64 );
+        pointer_pen_info_32to64( pointer_info, &pointer_pen_info64 );
+        return ret;
+    }
+    else if (type == PT_TOUCH && size == sizeof(POINTER_TOUCH_INFO32))
+    {
+        POINTER_TOUCH_INFO pointer_touch_info64;
+        ret = NtUserGetPointerInfoList( id, type, unk0, unk1, sizeof(pointer_touch_info64), entry_count, pointer_count, &pointer_touch_info64 );
+        pointer_touch_info_32to64( pointer_info, &pointer_touch_info64 );
+        return ret;
+    }
 
     return NtUserGetPointerInfoList( id, type, unk0, unk1, size, entry_count, pointer_count, pointer_info );
 }

@@ -2541,6 +2541,20 @@ HANDLE WINAPI PsGetProcessId(PEPROCESS process)
 }
 
 /*********************************************************************
+ *           PsGetProcessImageFileName    (NTOSKRNL.@)
+ */
+CHAR * WINAPI PsGetProcessImageFileName(PEPROCESS Process)
+{
+    UNICODE_STRING *image_path_name = &Process->info.PebBaseAddress->ProcessParameters->ImagePathName;
+    
+    STRING str;
+    if (!NT_SUCCESS(RtlUnicodeStringToAnsiString(&str, image_path_name, TRUE)))
+        return NULL;
+
+    return str.Buffer;
+}
+
+/*********************************************************************
  *           PsGetProcessInheritedFromUniqueProcessId  (NTOSKRNL.@)
  */
 HANDLE WINAPI PsGetProcessInheritedFromUniqueProcessId( PEPROCESS process )
@@ -4426,6 +4440,15 @@ PEPROCESS WINAPI IoGetRequestorProcess(IRP *irp)
     return irp->Tail.Overlay.Thread->kthread.process;
 }
 
+/***********************************************************************
+ *           IoGetRequestorProcessId   (NTOSKRNL.EXE.@)
+ */
+ULONG WINAPI IoGetRequestorProcessId(IRP *irp)
+{
+    TRACE("irp %p.\n", irp);
+    return irp->Tail.Overlay.Thread->kthread.process->info.UniqueProcessId;
+}
+
 #ifdef _WIN64
 /***********************************************************************
  *           IoIs32bitProcess   (NTOSKRNL.EXE.@)
@@ -4684,6 +4707,12 @@ void WINAPI KeLowerIrql(KIRQL new)
     FIXME("new %u: stub.\n", new);
 }
 
+KIRQL WINAPI KeGetCurrentIrql(void)
+{
+    FIXME("stub.\n");
+    return 0;
+}
+
 #endif
 
 typedef void (WINAPI *PETW_CLASSIC_CALLBACK)(
@@ -4703,6 +4732,12 @@ NTSTATUS WINAPI EtwUnregister(REGHANDLE handle)
 {
     FIXME("handle %I64x\n", handle);
     return STATUS_SUCCESS;
+}
+
+PEPROCESS WINAPI IoThreadToProcess(PETHREAD thread)
+{
+    TRACE("thread %p\n", thread);
+    return thread->kthread.process;
 }
 
 /*****************************************************

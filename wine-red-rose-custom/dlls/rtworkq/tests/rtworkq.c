@@ -502,9 +502,59 @@ static void test_queue_shutdown(void)
     IRtwqAsyncCallback_Release(&test_callback2->IRtwqAsyncCallback_iface);
 }
 
+static void test_serial_queue_shutdown(void)
+{
+    IRtwqAsyncResult *callback_result;
+    IRtwqAsyncResult *results[8];
+    struct test_callback *callbacks[8];
+    unsigned int i, j;
+    DWORD res, queue;
+    HRESULT hr;
+
+    hr = RtwqStartup();
+    ok(hr == S_OK, "Failed to start up, hr %#lx.\n", hr);
+
+    /* Destroy serial queues while their finalization callbacks may still be in flight.
+     * Without proper synchronization in the queue shutdown path this crashes when the
+     * finalization callback enters the deleted queue critical section. Pending items
+     * keep the finalization callbacks chaining through the queue, to widen the window. */
+    for (i = 0; i < 50; ++i)
+    {
+        hr = RtwqAllocateSerialWorkQueue(RTWQ_CALLBACK_QUEUE_STANDARD, &queue);
+        ok(hr == S_OK, "Failed to allocate queue, hr %#lx.\n", hr);
+
+        for (j = 0; j < ARRAY_SIZE(results); ++j)
+        {
+            callbacks[j] = create_test_callback();
+            hr = RtwqCreateAsyncResult(NULL, &callbacks[j]->IRtwqAsyncCallback_iface, NULL, &results[j]);
+            ok(hr == S_OK, "Failed to create result, hr %#lx.\n", hr);
+            hr = RtwqPutWorkItem(queue, 0, results[j]);
+            ok(hr == S_OK, "got %#lx\n", hr);
+        }
+
+        /* The first callback was invoked, the finalization callbacks for the remaining
+         * items may still be running. */
+        res = wait_async_callback_result(&callbacks[0]->IRtwqAsyncCallback_iface, 1000, &callback_result);
+        ok(res == 0, "got %#lx\n", res);
+
+        hr = RtwqUnlockWorkQueue(queue);
+        ok(hr == S_OK, "Failed to unlock queue, hr %#lx.\n", hr);
+
+        for (j = 0; j < ARRAY_SIZE(results); ++j)
+        {
+            IRtwqAsyncResult_Release(results[j]);
+            IRtwqAsyncCallback_Release(&callbacks[j]->IRtwqAsyncCallback_iface);
+        }
+    }
+
+    hr = RtwqShutdown();
+    ok(hr == S_OK, "Failed to shut down, hr %#lx.\n", hr);
+}
+
 START_TEST(rtworkq)
 {
     test_platform_init();
     test_work_queue();
     test_queue_shutdown();
+    test_serial_queue_shutdown();
 }

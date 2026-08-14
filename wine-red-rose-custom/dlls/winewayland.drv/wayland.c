@@ -103,6 +103,8 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
     {
         struct wayland_output *output;
 
+        if (version < 2) return;
+
         process_wayland.zxdg_output_manager_v1 =
             wl_registry_bind(registry, id, &zxdg_output_manager_v1_interface,
                              version < 3 ? version : 3);
@@ -248,6 +250,9 @@ BOOL wayland_process_init(void)
     wl_display_roundtrip_queue(process_wayland.wl_display, process_wayland.wl_event_queue);
     wl_display_roundtrip_queue(process_wayland.wl_display, process_wayland.wl_event_queue);
 
+    /* A third roundtrip to help avoid race conditions for zxdg output and color management extensions. */
+    wl_display_roundtrip_queue(process_wayland.wl_display, process_wayland.wl_event_queue);
+
     /* Check for required protocol globals. */
     if (!process_wayland.wl_compositor)
     {
@@ -267,6 +272,11 @@ BOOL wayland_process_init(void)
     if (!process_wayland.wl_subcompositor)
     {
         ERR("Wayland compositor doesn't support wl_subcompositor\n");
+        return FALSE;
+    }
+    if (!process_wayland.zxdg_output_manager_v1)
+    {
+        ERR("Wayland compositor doesn't support zxdg_output_manager_v1!\n");
         return FALSE;
     }
 

@@ -497,3 +497,47 @@ HRESULT WINAPI URLDownloadToFileA(LPUNKNOWN pCaller, LPCSTR szURL, LPCSTR szFile
 
     return hres;
 }
+
+/***********************************************************************
+ *           URLDownloadW (URLMON.@)
+ */
+HRESULT WINAPI URLDownloadW(void *Unknown1, LPCWSTR szURL, void *Unknown3,
+        LPBINDSTATUSCALLBACK lpfnCB, DWORD dwReserved)
+{
+    IBindCtx *bindctx;
+    IMoniker *mon;
+    HRESULT hr;
+
+    TRACE("(%p %s %p %p %ld)\n", Unknown1, debugstr_w(szURL), Unknown3, lpfnCB, dwReserved);
+
+    hr = CreateAsyncBindCtx(0, lpfnCB, NULL, &bindctx);
+    if (FAILED(hr))
+        return hr;
+    hr = CreateURLMoniker(NULL, szURL, &mon);
+    if (SUCCEEDED(hr))
+    {
+        IUnknown *unk = NULL;
+        hr = IMoniker_BindToStorage(mon, bindctx, NULL, &IID_IStream, (void**)&unk);
+        if (unk)
+            IUnknown_Release(unk);
+        IUnknown_Release(mon);
+    }
+    IUnknown_Release(bindctx);
+    return hr;
+}
+
+/***********************************************************************
+ *           URLDownloadA (URLMON.@)
+ */
+HRESULT WINAPI URLDownloadA(void *Unknown1, LPCSTR szURL, void *Unknown3,
+        LPBINDSTATUSCALLBACK lpfnCB, DWORD dwReserved)
+{
+
+    HRESULT hr = E_OUTOFMEMORY;
+    LPWSTR urlW = strdupAtoW(szURL);
+    if (!urlW)
+        return hr;
+    hr = URLDownloadW(Unknown1, urlW, Unknown3, lpfnCB, dwReserved);
+    free(urlW);
+    return hr;
+}

@@ -3491,6 +3491,72 @@ static void fill_geometry_sink_bezier(ID2D1GeometrySink *sink, unsigned int holl
     ID2D1GeometrySink_EndFigure(sink, D2D1_FIGURE_END_CLOSED);
 }
 
+static void test_bezier_control_degenerate(BOOL d3d11)
+{
+    D2D1_QUADRATIC_BEZIER_SEGMENT quadratic;
+    ID2D1PathGeometry *geometry;
+    ID2D1GeometrySink *sink;
+    ID2D1Factory *factory;
+    D2D1_POINT_2F point;
+    unsigned int i;
+    HRESULT hr;
+
+    /* Regression test for an unbounded-subdivision hang in ID2D1GeometrySink::Close().
+     *
+     * Closing a path geometry separates overlapping quadratic bezier control triangles by
+     * repeatedly subdividing them.  A bezier whose control point is collinear with its
+     * endpoints has a zero-area control triangle and can never be separated that way, so it
+     * has to be skipped - but the check only skipped triangles that were *exactly* collinear.
+     * A control point that is collinear only up to floating-point rounding slipped through and
+     * was subdivided forever.
+     *
+     * A single such pair still terminates on its own (its area quarters with every split and
+     * soon underflows to exactly zero), so triggering the hang needs *many* distinct
+     * near-collinear beziers that all overlap each other: every split then spawns fresh
+     * segments that overlap the rest, and the work cascades.  The figure below reproduces
+     * that - a tight cluster of beziers all collapsed onto one sub-pixel point.  It is reduced
+     * from a real application's output, which drew hundreds of near-coincident beziers there. */
+    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &IID_ID2D1Factory, NULL, (void **)&factory);
+    ok(hr == S_OK, "Failed to create factory, hr %#lx.\n", hr);
+
+    hr = ID2D1Factory_CreatePathGeometry(factory, &geometry);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = ID2D1PathGeometry_Open(geometry, &sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    point.x = 116.075989f;
+    point.y = 163.476959f;
+    ID2D1GeometrySink_BeginFigure(sink, point, D2D1_FIGURE_BEGIN_FILLED);
+    for (i = 0; i < 512; ++i)
+    {
+        /* Every bezier must differ slightly from its neighbours, or they collapse into
+         * identical curves that don't cascade.  Scatter the loop index into a distinct value
+         * with a multiplicative hash (a large odd multiplier).  The multiply is meant to
+         * overflow: unsigned overflow wraps modulo 2^32, and that wrap-around is what mixes
+         * the bits.  A hash (not an RNG) keeps the coordinates fixed and reproducible. */
+        unsigned int h = i * 2654435761u;
+
+        /* Four bytes of the hash become four sub-pixel offsets (each 0..255 * 1e-6, i.e. at
+         * most ~2.5e-4).  Control point and endpoint thus sit a fraction of a pixel from the
+         * shared start point: every bezier is near-collinear (control almost on its chord),
+         * with a tiny but non-zero - and per-bezier distinct - control-triangle area. */
+        quadratic.point1.x = 116.075989f + (float)(h & 0xff) * 1.0e-6f;
+        quadratic.point1.y = 163.476959f + (float)((h >> 8) & 0xff) * 1.0e-6f;
+        quadratic.point2.x = 116.075989f + (float)((h >> 16) & 0xff) * 1.0e-6f;
+        quadratic.point2.y = 163.476959f + (float)((h >> 24) & 0xff) * 1.0e-6f;
+        ID2D1GeometrySink_AddQuadraticBezier(sink, &quadratic);
+    }
+    ID2D1GeometrySink_EndFigure(sink, D2D1_FIGURE_END_CLOSED);
+
+    /* Without the fix this call never returns. */
+    hr = ID2D1GeometrySink_Close(sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ID2D1GeometrySink_Release(sink);
+    ID2D1PathGeometry_Release(geometry);
+
+    ID2D1Factory_Release(factory);
+}
+
 static void test_path_geometry(BOOL d3d11)
 {
     ID2D1TransformedGeometry *transformed_geometry;
@@ -15307,6 +15373,7 @@ START_TEST(d2d1)
     queue_test(test_image_brush);
     queue_test(test_linear_brush);
     queue_test(test_radial_brush);
+    queue_test(test_bezier_control_degenerate);
     queue_test(test_path_geometry);
     queue_d3d10_test(test_rectangle_geometry);
     queue_d3d10_test(test_rounded_rectangle_geometry);

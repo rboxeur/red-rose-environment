@@ -1334,9 +1334,68 @@ NTSTATUS WINAPI RtlAddAccessAllowedObjectAce(
     IN GUID* pInheritedObjectTypeGuid,
     IN PSID pSid)
 {
-    FIXME("%p %lx %lx %lx %p %p %p - stub\n", pAcl, dwAceRevision, dwAceFlags, dwAccessMask,
-          pObjectTypeGuid, pInheritedObjectTypeGuid, pSid);
-    return STATUS_NOT_IMPLEMENTED;
+    ACE_HEADER *pAceHeader;
+    DWORD dwLengthSid;
+    DWORD dwAceSize;
+    DWORD dwFlags;
+    DWORD *pAccessMask;
+    char *p;
+
+    if (!RtlValidSid(pSid))
+        return STATUS_INVALID_SID;
+
+    if (pAcl->AclRevision > MAX_ACL_REVISION || dwAceRevision > MAX_ACL_REVISION)
+        return STATUS_REVISION_MISMATCH;
+
+    if (!RtlValidAcl(pAcl))
+        return STATUS_INVALID_ACL;
+
+    if (!RtlFirstFreeAce(pAcl, &pAceHeader))
+        return STATUS_INVALID_ACL;
+
+    if (!pAceHeader)
+        return STATUS_ALLOTTED_SPACE_EXCEEDED;
+
+    dwFlags = 0;
+    if (pObjectTypeGuid) dwFlags |= ACE_OBJECT_TYPE_PRESENT;
+    if (pInheritedObjectTypeGuid) dwFlags |= ACE_INHERITED_OBJECT_TYPE_PRESENT;
+
+    /* calculate generic size of the ACE */
+    dwLengthSid = RtlLengthSid(pSid);
+    dwAceSize = sizeof(ACE_HEADER) + 2 * sizeof(DWORD) + dwLengthSid;
+    if (dwFlags & ACE_OBJECT_TYPE_PRESENT) dwAceSize += sizeof(GUID);
+    if (dwFlags & ACE_INHERITED_OBJECT_TYPE_PRESENT) dwAceSize += sizeof(GUID);
+
+    if ((char *)pAceHeader + dwAceSize > (char *)pAcl + pAcl->AclSize)
+        return STATUS_ALLOTTED_SPACE_EXCEEDED;
+
+    /* fill the new ACE */
+    pAceHeader->AceType = ACCESS_ALLOWED_OBJECT_ACE_TYPE;
+    pAceHeader->AceFlags = dwAceFlags;
+    pAceHeader->AceSize = dwAceSize;
+
+    /* skip past the ACE_HEADER of the ACE */
+    pAccessMask = (DWORD *)(pAceHeader + 1);
+    *pAccessMask = dwAccessMask;
+    pAccessMask[1] = dwFlags;
+
+    p = (char *)&pAccessMask[2];
+    if (dwFlags & ACE_OBJECT_TYPE_PRESENT)
+    {
+        memcpy(p, pObjectTypeGuid, sizeof(GUID));
+        p += sizeof(GUID);
+    }
+    if (dwFlags & ACE_INHERITED_OBJECT_TYPE_PRESENT)
+    {
+        memcpy(p, pInheritedObjectTypeGuid, sizeof(GUID));
+        p += sizeof(GUID);
+    }
+    RtlCopySid(dwLengthSid, (PSID)p, pSid);
+
+    pAcl->AclRevision = max(pAcl->AclRevision, dwAceRevision);
+    pAcl->AceCount++;
+
+    return STATUS_SUCCESS;
 }
 
 /******************************************************************************

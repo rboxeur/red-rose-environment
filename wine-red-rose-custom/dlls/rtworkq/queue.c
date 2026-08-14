@@ -198,6 +198,10 @@ struct queue
     /* Data used for serial queues only. */
     PTP_SIMPLE_CALLBACK finalization_callback;
     DWORD target_queue;
+    /* Number of finalization callbacks that are still in flight. Shutdown has to wait
+     * for them to finish before the critical section can be deleted. */
+    LONG inflight;
+    HANDLE inflight_event;
 };
 
 static void shutdown_queue(struct queue *queue);
@@ -388,6 +392,24 @@ static void CALLBACK standard_queue_worker(TP_CALLBACK_INSTANCE *instance, void 
     IUnknown_Release(&item->IUnknown_iface);
 }
 
+static void CALLBACK pool_queue_finalization_callback(PTP_CALLBACK_INSTANCE instance, void *context)
+{
+    struct work_item *item = context;
+    /* The finalization callback below may release the last reference to the item,
+     * so snapshot the queue before calling it. */
+    struct queue *queue = item->queue;
+
+    if (item->finalization_callback)
+        item->finalization_callback(instance, context);
+
+    /* Done under the queue critical section, so that it can't race with shutdown_queue()
+     * checking the counter and resetting the event. */
+    EnterCriticalSection(&queue->cs);
+    if (!--queue->inflight)
+        SetEvent(queue->inflight_event);
+    LeaveCriticalSection(&queue->cs);
+}
+
 static void pool_queue_submit(struct queue *queue, struct work_item *item)
 {
     TP_CALLBACK_PRIORITY callback_priority;
@@ -401,11 +423,16 @@ static void pool_queue_submit(struct queue *queue, struct work_item *item)
         callback_priority = TP_CALLBACK_PRIORITY_HIGH;
 
     env = queue->envs[callback_priority];
-    env.FinalizationCallback = item->finalization_callback;
     /* Worker pool callback will release one reference. Grab one more to keep object alive when
        we need finalization callback. */
     if (item->finalization_callback)
+    {
         IUnknown_AddRef(&item->IUnknown_iface);
+        /* Count the finalization callback as in flight, so that queue shutdown can wait
+         * for it before deleting the critical section the callback is going to enter. */
+        env.FinalizationCallback = pool_queue_finalization_callback;
+        InterlockedIncrement(&item->queue->inflight);
+    }
     item->u.work_object = CreateThreadpoolWork(standard_queue_worker, item, (TP_CALLBACK_ENVIRON *)&env);
     item->type = WORK_ITEM_WORK;
     SubmitThreadpoolWork(item->u.work_object);
@@ -458,6 +485,7 @@ static HRESULT serial_queue_init(const struct queue_desc *desc, struct queue *qu
     queue->target_queue = desc->target_queue;
     lock_user_queue(queue->target_queue);
     queue->finalization_callback = serial_queue_finalization_callback;
+    queue->inflight_event = CreateEventW(NULL, TRUE, FALSE, NULL);
 
     return S_OK;
 }
@@ -693,6 +721,26 @@ static void shutdown_queue(struct queue *queue)
         IUnknown_Release(&item->IUnknown_iface);
     }
     LeaveCriticalSection(&queue->cs);
+
+    /* A finalization callback could still be executing at this point, wait for it to
+     * complete before deleting the critical section it is going to enter. The check
+     * and the event reset are done under the queue critical section, which the
+     * finalization wrapper also takes when decrementing the counter, so a callback
+     * finishing concurrently can't be missed and a stale signal can't cut the wait short. */
+    if (queue->inflight_event)
+    {
+        BOOL wait;
+
+        EnterCriticalSection(&queue->cs);
+        wait = queue->inflight != 0;
+        if (wait)
+            ResetEvent(queue->inflight_event);
+        LeaveCriticalSection(&queue->cs);
+
+        if (wait)
+            WaitForSingleObject(queue->inflight_event, INFINITE);
+        CloseHandle(queue->inflight_event);
+    }
 
     DeleteCriticalSection(&queue->cs);
 

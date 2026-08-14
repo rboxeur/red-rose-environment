@@ -612,7 +612,7 @@ GpStatus convert_pixels(INT width, INT height,
     if (src_format == dst_format ||
         (dst_format == PixelFormat32bppRGB && PIXELFORMATBPP(src_format) == 32))
     {
-        UINT widthbytes = PIXELFORMATBPP(src_format) * width / 8;
+        UINT widthbytes = (PIXELFORMATBPP(src_format) * width + 7) / 8;
         for (y=0; y<height; y++)
             memcpy(dst_bits+dst_stride*y, src_bits+src_stride*y, widthbytes);
         return Ok;
@@ -4582,7 +4582,7 @@ static GpStatus get_decoder_info(IStream* stream, const struct image_codec **res
     /* FIXME: This assumes all codecs have signatures <= 8 bytes in length */
     hr = IStream_Read(stream, signature, 8, &bytesread);
     if (FAILED(hr)) return hresult_to_status(hr);
-    if (hr == S_FALSE || bytesread == 0) return GenericError;
+    if (hr == S_FALSE || bytesread == 0) return InvalidParameter;
 
     for (i = 0; i < NUM_CODECS; i++) {
         if ((codecs[i].info.Flags & ImageCodecFlagsDecoder) &&

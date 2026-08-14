@@ -230,12 +230,26 @@ DWORD WINAPI VerInstallFileA(
 	}
     } else {
 	if (INVALID_FILE_ATTRIBUTES!=GetFileAttributesA(destfn))
+	{
+	    WIN32_FIND_DATAA fd;
+	    HANDLE hfind = FindFirstFileA(destfn, &fd);
+	    char realname[260];
+
+	    /* preserve the destination long name: the caller may pass an 8.3 short
+	     * name, and Windows keeps the on-disk long name. */
+	    if (hfind != INVALID_HANDLE_VALUE)
+	    {
+	        sprintf(realname, "%s\\%s", pdest, fd.cFileName);
+	        strcpy(destfn, realname);
+	        FindClose(hfind);
+	    }
 	    if (!DeleteFileA(destfn)) {
 		xret|=_error2vif(GetLastError())|VIF_CANNOTDELETE;
 		DeleteFileA(tmpfn);
 		LZClose(hfsrc);
 		return xret;
 	    }
+	}
 	if ((!(flags & VIFF_DONTDELETEOLD))	&&
 	    curdir				&&
 	    *curdir				&&

@@ -445,7 +445,6 @@ static const WCHAR *find_device_string( const WCHAR *device_id, ULONG index )
 struct completion_params
 {
     HID_XFER_PACKET packet;
-    ULONG padding;
     IRP *irp;
 };
 
@@ -457,7 +456,6 @@ static NTSTATUS CALLBACK xfer_completion( DEVICE_OBJECT *device, IRP *irp, void 
     TRACE( "device %p, irp %p, context %p\n", device, irp, context );
 
     orig_irp->IoStatus = irp->IoStatus;
-    orig_irp->IoStatus.Information -= params->padding;
     IoCompleteRequest( orig_irp, IO_NO_INCREMENT );
 
     free( params );
@@ -527,8 +525,6 @@ static NTSTATUS hid_device_xfer_report( BASE_DEVICE_EXTENSION *ext, ULONG code, 
                                              sizeof(params->packet), TRUE, NULL, NULL );
         break;
     case IOCTL_HID_WRITE_REPORT:
-        params->padding = 1 - offset;
-        /* fallthrough */
     case IOCTL_HID_SET_FEATURE:
     case IOCTL_HID_SET_OUTPUT_REPORT:
         params->packet.reportBufferLen = report_len - offset;

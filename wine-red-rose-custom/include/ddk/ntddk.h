@@ -257,6 +257,7 @@ NTSTATUS  WINAPI KeExpandKernelStackAndCallout(PEXPAND_STACK_CALLOUT,void*,SIZE_
 void      WINAPI KeSetTargetProcessorDpc(PRKDPC,CCHAR);
 BOOLEAN   WINAPI MmIsAddressValid(void *);
 HANDLE    WINAPI PsGetProcessId(PEPROCESS);
+CHAR *    WINAPI PsGetProcessImageFileName(PEPROCESS Process);
 void *    WINAPI PsGetProcessSectionBaseAddress(PEPROCESS);
 HANDLE    WINAPI PsGetThreadId(PETHREAD);
 HANDLE    WINAPI PsGetThreadProcessId(PETHREAD);

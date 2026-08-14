@@ -3518,7 +3518,8 @@ static BOOL get_face_enum_data( struct gdi_font_face *face, ENUMLOGFONTEXW *elf,
         }
     }
 
-    if (font_funcs->set_outline_text_metrics( font ))
+    /* The outline metrics normalization below assumes a scalable face. */
+    if (font->scalable && font_funcs->set_outline_text_metrics( font ))
     {
         static const DWORD ntm_ppem = 32;
         UINT cell_height;
@@ -4409,8 +4410,6 @@ static UINT font_GetOutlineTextMetrics( PHYSDEV dev, UINT size, OUTLINETEXTMETRI
         dev = GET_NEXT_PHYSDEV( dev, pGetOutlineTextMetrics );
         return dev->funcs->pGetOutlineTextMetrics( dev, size, metrics );
     }
-
-    if (!physdev->font->scalable) return 0;
 
     pthread_mutex_lock( &font_lock );
     if (font_funcs->set_outline_text_metrics( physdev->font ))

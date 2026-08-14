@@ -671,7 +671,17 @@ static void CALLBACK MACRO_NoShow(void)
 
 void CALLBACK MACRO_PopupContext(LPCSTR str, LONG u)
 {
-    WINE_FIXME("(%s, %lu)\n", debugstr_a(str), u);
+    HLPFILE *hlpfile;
+    POINT origin;
+
+    WINE_TRACE("(%s, %lu)\n", debugstr_a(str), u);
+
+    if (!GetCursorPos(&origin))
+        WINE_WARN("GetCursorPos failed so popup context help may appear misplaced.\n");
+    if ((hlpfile = WINHELP_LookupHelpFile(str)))
+        WINHELP_OpenHelpWindow(HLPFILE_PageByMap, hlpfile, u,
+                               WINHELP_GetPopupWindowInfo(hlpfile, MACRO_CurrentWindow(), MAKELPARAM(origin.x, origin.y)),
+                               SW_NORMAL);
 }
 
 static void CALLBACK MACRO_PopupHash(LPCSTR str, LONG u)

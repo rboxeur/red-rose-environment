@@ -3628,6 +3628,92 @@ static void test_RtlFirstFreeAce(void)
     HeapFree(GetProcessHeap(), 0, acl);
 }
 
+
+static void test_RtlAddAccessAllowedObjectAce(void)
+{
+    SID_IDENTIFIER_AUTHORITY sid_nt = { SECURITY_NT_AUTHORITY };
+    char sid_buf[SECURITY_MAX_SID_SIZE];
+    PSID sid = (PSID)&sid_buf;
+    PACL acl;
+    DWORD sid_len, acl_size;
+    PACCESS_ALLOWED_OBJECT_ACE obj_ace;
+    PACE_HEADER ace;
+    GUID obj_guid, inh_guid;
+    NTSTATUS status;
+
+    RtlInitializeSid(sid, &sid_nt, 1);
+    sid_len = RtlLengthSid(sid);
+
+    ZeroMemory(&obj_guid, sizeof(obj_guid));
+    obj_guid.Data1 = 0x11111111;
+    ZeroMemory(&inh_guid, sizeof(inh_guid));
+    inh_guid.Data1 = 0x22222222;
+
+    /* both object type GUIDs present */
+    acl_size = sizeof(ACL) + sizeof(ACE_HEADER) + 2 * sizeof(DWORD) + 2 * sizeof(GUID) + sid_len;
+    acl = calloc(1, acl_size);
+    ok(InitializeAcl(acl, acl_size, ACL_REVISION), "InitializeAcl failed error %ld\n", GetLastError());
+    status = RtlAddAccessAllowedObjectAce(acl, ACL_REVISION, 0, GENERIC_READ, &obj_guid, &inh_guid, sid);
+    ok(!status, "expected STATUS_SUCCESS, got %lx\n", status);
+    ok(acl->AceCount == 1, "expected AceCount 1, got %u\n", acl->AceCount);
+    ace = (PACE_HEADER)(acl + 1);
+    ok(ace->AceType == ACCESS_ALLOWED_OBJECT_ACE_TYPE, "expected type 0x%x, got 0x%x\n", ACCESS_ALLOWED_OBJECT_ACE_TYPE, ace->AceType);
+    ok(ace->AceSize == sizeof(ACE_HEADER) + 2 * sizeof(DWORD) + 2 * sizeof(GUID) + sid_len,
+       "unexpected AceSize %u\n", ace->AceSize);
+    obj_ace = (PACCESS_ALLOWED_OBJECT_ACE)ace;
+    ok(obj_ace->Mask == GENERIC_READ, "unexpected Mask %lx\n", obj_ace->Mask);
+    ok(obj_ace->Flags == (ACE_OBJECT_TYPE_PRESENT | ACE_INHERITED_OBJECT_TYPE_PRESENT),
+       "unexpected Flags %lx\n", obj_ace->Flags);
+    ok(obj_ace->ObjectType.Data1 == 0x11111111, "unexpected ObjectType\n");
+    ok(obj_ace->InheritedObjectType.Data1 == 0x22222222, "unexpected InheritedObjectType\n");
+    ok(!memcmp((char *)&obj_ace->SidStart, sid, sid_len), "SID mismatch\n");
+    free(acl);
+
+    /* only object type GUID present */
+    acl_size = sizeof(ACL) + sizeof(ACE_HEADER) + 2 * sizeof(DWORD) + sizeof(GUID) + sid_len;
+    acl = calloc(1, acl_size);
+    ok(InitializeAcl(acl, acl_size, ACL_REVISION), "InitializeAcl failed (2) %ld\n", GetLastError());
+    status = RtlAddAccessAllowedObjectAce(acl, ACL_REVISION, 0, GENERIC_READ, &obj_guid, NULL, sid);
+    ok(!status, "expected STATUS_SUCCESS, got %lx (2)\n", status);
+    ace = (PACE_HEADER)(acl + 1);
+    obj_ace = (PACCESS_ALLOWED_OBJECT_ACE)ace;
+    ok(obj_ace->Flags == ACE_OBJECT_TYPE_PRESENT, "unexpected Flags %lx (2)\n", obj_ace->Flags);
+    ok(ace->AceSize == sizeof(ACE_HEADER) + 2 * sizeof(DWORD) + sizeof(GUID) + sid_len,
+       "unexpected AceSize %u (2)\n", ace->AceSize);
+    free(acl);
+
+    /* neither object type GUID present */
+    acl_size = sizeof(ACL) + sizeof(ACE_HEADER) + 2 * sizeof(DWORD) + sid_len;
+    acl = calloc(1, acl_size);
+    ok(InitializeAcl(acl, acl_size, ACL_REVISION), "InitializeAcl failed (3) %ld\n", GetLastError());
+    status = RtlAddAccessAllowedObjectAce(acl, ACL_REVISION, 0, GENERIC_READ, NULL, NULL, sid);
+    ok(status == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %lx (3)\n", status);
+    ace = (PACE_HEADER)(acl + 1);
+    obj_ace = (PACCESS_ALLOWED_OBJECT_ACE)ace;
+    ok(obj_ace->Flags == 0, "unexpected Flags %lx (3)\n", obj_ace->Flags);
+    ok(ace->AceSize == sizeof(ACE_HEADER) + 2 * sizeof(DWORD) + sid_len,
+       "unexpected AceSize %u (3)\n", ace->AceSize);
+    free(acl);
+
+    /* invalid SID */
+    acl_size = sizeof(ACL) + sizeof(ACE_HEADER) + 2 * sizeof(DWORD) + sid_len;
+    acl = calloc(1, acl_size);
+    ok(InitializeAcl(acl, acl_size, ACL_REVISION), "InitializeAcl failed (4) %ld\n", GetLastError());
+    status = RtlAddAccessAllowedObjectAce(acl, ACL_REVISION, 0, 0, NULL, NULL, NULL);
+    ok(status == STATUS_INVALID_SID, "expected STATUS_INVALID_SID, got %lx\n", status);
+    ok(acl->AceCount == 0, "expected AceCount 0, got %u\n", acl->AceCount);
+    free(acl);
+
+    /* too-small ACL */
+    acl_size = sizeof(ACL);
+    acl = calloc(1, acl_size);
+    ok(InitializeAcl(acl, acl_size, ACL_REVISION), "InitializeAcl failed (5) %ld\n", GetLastError());
+    status = RtlAddAccessAllowedObjectAce(acl, ACL_REVISION, 0, 0, &obj_guid, NULL, sid);
+    ok(status == STATUS_ALLOTTED_SPACE_EXCEEDED, "expected STATUS_ALLOTTED_SPACE_EXCEEDED, got %lx\n", status);
+    ok(acl->AceCount == 0, "expected AceCount 0 (5), got %u\n", acl->AceCount);
+    free(acl);
+}
+
 static void test_RtlInitializeSid(void)
 {
     SID_IDENTIFIER_AUTHORITY sid_ident = { SECURITY_NT_AUTHORITY };
@@ -3887,6 +3973,7 @@ START_TEST(rtl)
     test_DbgPrint();
     test_RtlDestroyHeap();
     test_RtlFirstFreeAce();
+    test_RtlAddAccessAllowedObjectAce();
     test_RtlInitializeSid();
     test_RtlValidSecurityDescriptor();
     test_RtlFindExportedRoutineByName();

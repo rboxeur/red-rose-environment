@@ -2450,6 +2450,17 @@ static NTSTATUS heap_walk_blocks( const struct heap *heap, const SUBHEAP *subhea
         entry->cbOverhead = block_get_overhead( block );
         entry->iRegionIndex = 0;
         entry->wFlags = RTL_HEAP_ENTRY_COMMITTED|RTL_HEAP_ENTRY_BLOCK|RTL_HEAP_ENTRY_BUSY;
+
+        if (block_get_flags(block) & BLOCK_FLAG_LFH)
+        {
+            struct group* group = (struct group *)(block + 1);
+            if ((group->free_bits & GROUP_FLAG_FREE) || (group->free_bits & 0x7FFFFFFF))
+            {
+                entry->lpData = (void *)block;
+                entry->wFlags = RTL_HEAP_ENTRY_COMMITTED|RTL_HEAP_ENTRY_REGION|RTL_HEAP_ENTRY_LFH;
+                return STATUS_SUCCESS;
+            }
+        }
     }
 
     return STATUS_SUCCESS;

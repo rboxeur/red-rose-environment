@@ -5,6 +5,7 @@
  * Copyright 2005 Thomas Kho
  * Copyright 2008 Jeff Zaroyko
  * Copyright 2017 Dmitry Timoshkov
+ * Copyright 2026 Martyn Forryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -6279,6 +6280,65 @@ static DWORD WINAPI drain_socket_thread(LPVOID arg)
         }
     }
     return 0;
+}
+
+
+/* Windows reports a stream socket writable whenever send() can still accept data.
+ * Wine used to follow Linux poll() behaviour, which withholds POLLOUT once the
+ * send queue is above roughly 2/3 of SO_SNDBUF; check that invariant here. */
+static void test_send_writability(void)
+{
+    static const char buffer[4096];
+    SOCKET client = INVALID_SOCKET, server = INVALID_SOCKET;
+    unsigned int total = 0, violations = 0;
+    BOOL filled = FALSE;
+    int ret, err;
+
+    tcp_socketpair(&client, &server);
+
+    ret = set_blocking(client, FALSE);
+    ok(!ret, "failed to make socket nonblocking, error %u\n", WSAGetLastError());
+
+    while (total < 128 * 1024 * 1024)
+    {
+        struct timeval timeout = {0};
+        fd_set writefds;
+        BOOL writable;
+
+        FD_ZERO(&writefds);
+        FD_SET(client, &writefds);
+
+        ret = select(client + 1, NULL, &writefds, NULL, &timeout);
+        ok(ret != SOCKET_ERROR, "select failed, error %u\n", WSAGetLastError());
+        if (ret == SOCKET_ERROR)
+            break;
+
+        writable = FD_ISSET(client, &writefds);
+
+        ret = send(client, buffer, sizeof(buffer), 0);
+        if (ret == SOCKET_ERROR)
+        {
+            err = WSAGetLastError();
+            if (err == WSAEWOULDBLOCK)
+            {
+                filled = TRUE;
+                break;
+            }
+
+            ok(0, "send failed, error %u\n", err);
+            break;
+        }
+
+        if (!writable)
+            violations++;
+        total += ret;
+    }
+
+    ok(filled, "send buffer was not filled after %u bytes\n", total);
+    ok(!violations, "select/send writability invariant was violated %u times\n", violations);
+
+    closesocket(client);
+    closesocket(server);
 }
 
 static void test_send(void)
@@ -14817,6 +14877,8 @@ START_TEST( sock )
     test_WithWSAStartup();
 
     Init();
+
+    test_send_writability();
 
     test_set_getsockopt();
     test_reuseaddr();

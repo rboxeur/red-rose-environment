@@ -2104,7 +2104,6 @@ static void trap_handler( int signal, siginfo_t *siginfo, void *sigcontext )
     setup_raise_exception( sigcontext, stack, &rec, &xcontext );
 }
 
-
 /**********************************************************************
  *		fpe_handler
  *
@@ -2130,14 +2129,24 @@ static void fpe_handler( int signal, siginfo_t *siginfo, void *sigcontext )
         rec.ExceptionAddress = (void *)xcontext.c.FloatSave.ErrorOffset;
         break;
     case TRAP_x86_CACHEFLT:  /* SIMD exception */
-        /* TODO:
-         * Behaviour only tested for divide-by-zero exceptions
-         * Check for other SIMD exceptions as well */
-        if(siginfo->si_code != FPE_FLTDIV && siginfo->si_code != FPE_FLTINV)
-            FIXME("untested SIMD exception: %#x. Might not work correctly\n",
-                  siginfo->si_code);
+        switch (siginfo->si_code)
+        {
+        case FPE_FLTDIV:
+        case FPE_FLTINV:
+            rec.ExceptionCode = STATUS_FLOAT_MULTIPLE_TRAPS;
+            break;
 
-        rec.ExceptionCode = STATUS_FLOAT_MULTIPLE_TRAPS;
+        case FPE_FLTOVF:
+        case FPE_FLTUND:
+        case FPE_FLTRES:
+            rec.ExceptionCode = STATUS_FLOAT_MULTIPLE_FAULTS;
+            break;
+
+        default:
+            FIXME("unknown SIMD exception: %#x\n", siginfo->si_code);
+            rec.ExceptionCode = STATUS_FLOAT_MULTIPLE_TRAPS;
+            break;
+        }
         rec.ExceptionInformation[rec.NumberParameters++] = 0;
         if (is_old_wow64()) rec.ExceptionInformation[rec.NumberParameters++] = ((XSAVE_FORMAT *)xcontext.c.ExtendedRegisters)->MxCsr;
         break;

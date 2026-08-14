@@ -372,6 +372,7 @@ static void testCertProperties(void)
     CRYPT_DATA_BLOB blob;
     CERT_KEY_CONTEXT keyContext;
     unsigned int value;
+    WCHAR *cng_alg;
 
     ok(context != NULL, "CertCreateCertificateContext failed: %08lx\n", GetLastError());
 
@@ -693,6 +694,16 @@ static void testCertProperties(void)
     if (ret)
         ok(!memcmp(hashProperty, selfSignedSignatureHash, size),
          "unexpected value\n");
+
+    size = 0;
+    SetLastError(0xdeadbeef);
+    ret = CertGetCertificateContextProperty(context, CERT_SIGN_HASH_CNG_ALG_PROP_ID, NULL, &size);
+    ok(ret, "got %lu\n", GetLastError());
+    cng_alg = malloc(size);
+    ret = CertGetCertificateContextProperty(context, CERT_SIGN_HASH_CNG_ALG_PROP_ID, cng_alg, &size);
+    ok(ret, "got %lu\n", GetLastError());
+    ok(!wcscmp(cng_alg, L"RSA/SHA1"), "got %s\n", wine_dbgstr_w(cng_alg));
+    free(cng_alg);
     CertFreeCertificateContext(context);
 }
 
@@ -4227,6 +4238,51 @@ static void testAcquireCertPrivateKey(void)
         ok(ret, "CryptAcquireCertificatePrivateKey failed: %08lx\n", GetLastError());
         ok(GetLastError() == ERROR_SUCCESS, "got %08lx\n", GetLastError());
         CryptReleaseContext(certCSP, 0);
+
+        /* The key of this certificate lives in a legacy CSP container
+         * (MS_DEF_PROV, PROV_RSA_FULL), so there is no CNG key for it.
+         * CRYPT_ACQUIRE_ONLY_NCRYPT_KEY_FLAG restricts the search to CNG
+         * keys, so no key can be found; returning the CAPI provider here
+         * would be actively harmful, as a caller that asked for NCrypt-only
+         * uses the returned value as an NCRYPT_KEY_HANDLE.
+         */
+        certCSP = 0xdeadbeef;
+        keySpec = 0xdeadbeef;
+        SetLastError(0xdeadbeef);
+        ret = CryptAcquireCertificatePrivateKey(cert,
+         CRYPT_ACQUIRE_ONLY_NCRYPT_KEY_FLAG, NULL, &certCSP, &keySpec,
+         &callerFree);
+        ok(!ret, "expected failure\n");
+        trace("ONLY_NCRYPT: error %08lx, handle %Ix, keySpec %08lx\n",
+         GetLastError(), certCSP, keySpec);
+        if (ret && callerFree) CryptReleaseContext(certCSP, 0);
+
+        /* ALLOW and PREFER both permit falling back to the CAPI key. */
+        certCSP = 0xdeadbeef;
+        keySpec = 0xdeadbeef;
+        SetLastError(0xdeadbeef);
+        ret = CryptAcquireCertificatePrivateKey(cert,
+         CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG, NULL, &certCSP, &keySpec,
+         &callerFree);
+        ok(ret, "CryptAcquireCertificatePrivateKey failed: %08lx\n", GetLastError());
+        if (ret)
+        {
+            ok(keySpec == AT_SIGNATURE, "got keySpec %08lx\n", keySpec);
+            if (callerFree) CryptReleaseContext(certCSP, 0);
+        }
+
+        certCSP = 0xdeadbeef;
+        keySpec = 0xdeadbeef;
+        SetLastError(0xdeadbeef);
+        ret = CryptAcquireCertificatePrivateKey(cert,
+         CRYPT_ACQUIRE_PREFER_NCRYPT_KEY_FLAG, NULL, &certCSP, &keySpec,
+         &callerFree);
+        ok(ret, "CryptAcquireCertificatePrivateKey failed: %08lx\n", GetLastError());
+        if (ret)
+        {
+            ok(keySpec == AT_SIGNATURE, "got keySpec %08lx\n", keySpec);
+            if (callerFree) CryptReleaseContext(certCSP, 0);
+        }
 
         /* Use the key prov info's caching (there shouldn't be any) */
         SetLastError(0xdeadbeef);

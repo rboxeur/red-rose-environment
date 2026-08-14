@@ -1045,6 +1045,26 @@ static unsigned dde_connect(const WCHAR* key, const WCHAR* start, WCHAR* ddeexec
     return ret;
 }
 
+static LONG query_classes_value(LPCWSTR key, LPWSTR value, LONG *len)
+{
+    WCHAR *user_key;
+    LONG ret;
+
+    ret = RegQueryValueW(HKEY_CLASSES_ROOT, key, value, len);
+    if (ret == ERROR_SUCCESS)
+        return ret;
+
+    user_key = malloc((lstrlenW(L"Software\\Classes\\") + lstrlenW(key) + 1) * sizeof(WCHAR));
+    if (!user_key)
+        return ret;
+
+    lstrcpyW(user_key, L"Software\\Classes\\");
+    lstrcatW(user_key, key);
+    ret = RegQueryValueW(HKEY_CURRENT_USER, user_key, value, len);
+    free(user_key);
+    return ret;
+}
+
 /*************************************************************************
  *	execute_from_key [Internal]
  */
@@ -1066,7 +1086,7 @@ static UINT_PTR execute_from_key(LPCWSTR key, LPCWSTR lpFile, WCHAR *env, LPCWST
     param[0] = '\0';
 
     /* Get the application from the registry */
-    if (RegQueryValueW(HKEY_CLASSES_ROOT, key, cmd, &cmdlen) == ERROR_SUCCESS)
+    if (query_classes_value(key, cmd, &cmdlen) == ERROR_SUCCESS)
     {
         TRACE("got cmd: %s\n", debugstr_w(cmd));
 
@@ -1089,7 +1109,7 @@ static UINT_PTR execute_from_key(LPCWSTR key, LPCWSTR lpFile, WCHAR *env, LPCWST
     assert(tmp);
     lstrcpyW(tmp, L"ddeexec");
 
-    if (RegQueryValueW(HKEY_CLASSES_ROOT, key, ddeexec, &ddeexeclen) == ERROR_SUCCESS)
+    if (query_classes_value(key, ddeexec, &ddeexeclen) == ERROR_SUCCESS)
     {
         TRACE("Got ddeexec %s => %s\n", debugstr_w(key), debugstr_w(ddeexec));
         if (!param[0]) lstrcpyW(param, executable_name);

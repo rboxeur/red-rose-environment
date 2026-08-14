@@ -1700,6 +1700,58 @@ static WCHAR* reg_get_valW(HKEY key, LPCWSTR subkey, LPCWSTR name)
     return NULL;
 }
 
+static HKEY open_user_classes_key(void)
+{
+    HKEY classes_key;
+
+    if (RegOpenKeyW(HKEY_CURRENT_USER, L"Software\\Classes", &classes_key) == ERROR_SUCCESS)
+        return classes_key;
+    return NULL;
+}
+
+static BOOL is_url_protocol(HKEY classes_key, const WCHAR *type)
+{
+    if (type[0] == '.')
+        return FALSE;
+
+    return RegGetValueW(classes_key, type, L"URL Protocol", RRF_RT_ANY, NULL, NULL, NULL) == ERROR_SUCCESS;
+}
+
+static WCHAR *get_protocol_command(HKEY classes_key, const WCHAR *type)
+{
+    WCHAR *subkey;
+    WCHAR *command;
+
+    subkey = heap_wprintf(L"%s\\shell\\open\\command", type);
+    command = reg_get_valW(classes_key, subkey, NULL);
+    free(subkey);
+    return command;
+}
+
+static WCHAR *get_executable_from_command(const WCHAR *command)
+{
+    WCHAR *executable, *end;
+    DWORD len;
+
+    if (command[0] == '"')
+    {
+        end = wcschr(command + 1, '"');
+        if (!end) return NULL;
+        len = end - command - 1;
+        executable = xmalloc((len + 1) * sizeof(WCHAR));
+        memcpy(executable, command + 1, len * sizeof(WCHAR));
+        executable[len] = 0;
+        return executable;
+    }
+
+    end = wcschr(command, ' ');
+    len = end ? end - command : lstrlenW(command);
+    executable = xmalloc((len + 1) * sizeof(WCHAR));
+    memcpy(executable, command, len * sizeof(WCHAR));
+    executable[len] = 0;
+    return executable;
+}
+
 static HKEY open_associations_reg_key(void)
 {
     HKEY assocKey;
@@ -1804,6 +1856,18 @@ static BOOL cleanup_associations(void)
                 break;
 
             if (!(command = assoc_query(ASSOCSTR_COMMAND, extensionW, L"open")))
+            {
+                HKEY classes_key;
+
+                if (extensionW[0] != '.' && (classes_key = open_user_classes_key()))
+                {
+                    if (is_url_protocol(classes_key, extensionW))
+                        command = get_protocol_command(classes_key, extensionW);
+                    RegCloseKey(classes_key);
+                }
+            }
+
+            if (!command)
             {
                 WCHAR *desktopFile = reg_get_valW(assocKey, extensionW, L"DesktopFile");
                 if (desktopFile)
@@ -1969,6 +2033,7 @@ static BOOL generate_associations(const WCHAR *packages_dir, const WCHAR *applic
 {
     struct wine_rb_tree mimeProgidTree = { winemenubuilder_rb_string_compare };
     struct list nativeMimeTypes = LIST_INIT(nativeMimeTypes);
+    HKEY classes_key;
     int i;
     BOOL hasChanged = FALSE;
 
@@ -2114,6 +2179,79 @@ static BOOL generate_associations(const WCHAR *packages_dir, const WCHAR *applic
             free(progIdW);
         }
         free(winTypeW);
+    }
+
+    if ((classes_key = open_user_classes_key()))
+    {
+        for (i = 0; ; i++)
+        {
+            WCHAR *winTypeW;
+            WCHAR *commandW = NULL;
+            WCHAR *executableW = NULL;
+            WCHAR *openWithIcon = NULL;
+            WCHAR *mimeType = NULL;
+            WCHAR *friendlyAppNameW = NULL;
+            const WCHAR *friendlyAppName;
+
+            if (!(winTypeW = reg_enum_keyW(classes_key, i)))
+                break;
+
+            if (!is_url_protocol(classes_key, winTypeW) || is_type_banned(winTypeW))
+            {
+                free(winTypeW);
+                continue;
+            }
+
+            if (is_url_protocol(HKEY_CLASSES_ROOT, winTypeW))
+            {
+                free(winTypeW);
+                continue;
+            }
+
+            commandW = assoc_query(ASSOCSTR_COMMAND, winTypeW, L"open");
+            if (!commandW)
+                commandW = get_protocol_command(classes_key, winTypeW);
+            if (!commandW)
+                goto user_protocol_end;
+
+            if (on_exclude_list(commandW))
+                goto user_protocol_end;
+
+            mimeType = heap_wprintf(L"x-scheme-handler/%s", winTypeW);
+
+            executableW = assoc_query(ASSOCSTR_EXECUTABLE, winTypeW, L"open");
+            if (!executableW)
+                executableW = get_executable_from_command(commandW);
+            if (executableW)
+                openWithIcon = compute_native_identifier(0, executableW, NULL);
+
+            friendlyAppNameW = assoc_query(ASSOCSTR_FRIENDLYAPPNAME, winTypeW, L"open");
+            friendlyAppName = friendlyAppNameW ? friendlyAppNameW : L"A Wine application";
+
+            if (has_association_changed(winTypeW, mimeType, NULL, friendlyAppName, openWithIcon))
+            {
+                WCHAR *desktopPath;
+
+                desktopPath = heap_wprintf(L"%s\\wine-protocol-%s.desktop", applications_dir, winTypeW);
+                if (write_freedesktop_association_entry(desktopPath, friendlyAppName, mimeType, NULL, openWithIcon))
+                {
+                    hasChanged = TRUE;
+                    update_association(winTypeW, mimeType, NULL, friendlyAppName, desktopPath, openWithIcon);
+                }
+                free(desktopPath);
+            }
+
+            if (hasChanged && openWithIcon) extract_icon(executableW, 0, openWithIcon, FALSE);
+
+        user_protocol_end:
+            free(commandW);
+            free(executableW);
+            free(openWithIcon);
+            free(mimeType);
+            free(friendlyAppNameW);
+            free(winTypeW);
+        }
+        RegCloseKey(classes_key);
     }
 
     wine_rb_destroy(&mimeProgidTree, winemenubuilder_rb_destroy, NULL);

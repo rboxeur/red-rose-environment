@@ -3,4 +3,5 @@ IMPORTS   = cabinet
 
 SOURCES = \
 	extract.c \
+	fci.c \
 	fdi.c
